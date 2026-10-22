@@ -1,10 +1,10 @@
 # Chorus Product Specification
 
-Version 0.2 · 22 October 2026 · Hackathon MVP
+Version 0.2.1 · 22 October 2026 · Hackathon MVP
 
 Chorus turns shared photos, voice notes, videos, and stories into an AI-designed, downloadable photozine. The memories themselves inspire its style, and the people involved approve both their use and the final edition. The first release creates a six-page PDF that users can save, share, or print without needing a Chorus account to read it.
 
-This specification defines the product experience and scope. The [Software Requirements Document](chorus-srd.md) defines implementation requirements and acceptance tests. Version 0.2 makes multimedia input and AI-directed design core MVP capabilities. CH-01 authentication remains unchanged and can continue while downstream work adapts.
+This specification defines the product experience and scope. The [Software Requirements Document](chorus-srd.md) defines implementation requirements and acceptance tests. Version 0.2 makes multimedia input and AI-directed design core MVP capabilities. Version 0.2.1 sets team-controlled cloud inference as the demo deployment target. CH-01 authentication remains unchanged and can continue while downstream work adapts.
 
 ## Product purpose
 
@@ -64,7 +64,7 @@ Chorus does not use face recognition, speaker identification, or voice cloning. 
 
 Every required approver reviews the exact retained source version, text, participants, named editor, and fixed private review audience. They separately decide whether specified derivatives may be sent to the disclosed processors. Manual composition permission does not imply permission for AI processing.
 
-The processing disclosure identifies each service and its role: transcription may receive sanitized audio; visual analysis may receive resized photos and selected video frames; design generation may receive authorized transcripts, visual summaries, selected images where disclosed, and an optional prompt. The disclosure states relevant retention behavior and the bounded derivative types. No processor is selected yet; choosing and documenting transcription is part of CH-19, and visual/design processing is part of CH-18, before their respective live submissions.
+The processing disclosure identifies each service and its role: transcription may receive sanitized audio; visual analysis may receive resized photos and selected video frames; design generation may receive authorized transcripts, visual summaries, selected images where disclosed, and an optional prompt. The disclosure states relevant retention behavior and the bounded derivative types. The demo uses inference services hosted in the team's cloud. CH-21 selects and validates the deployment and model/runtime capabilities using synthetic fixtures; CH-19 integrates transcription and CH-18 integrates visual/design inference. Exact cloud provider, GPU/VRAM, model weights, and serving runtime remain undecided.
 
 Local, bounded preparation such as resizing or frame extraction does not authorize an external request. Model-based transcription and image analysis require current explicit processing permission before the service receives content, even if the service runs on a team-controlled machine. Limited source review does not grant processing rights.
 
@@ -106,6 +106,14 @@ The SRD defines enforceable formats and budgets: JPEG/PNG images; short supporte
 
 The MVP also excludes voice cloning, facial or speaker identification, fabricated memory photos, arbitrary model-generated code, public galleries, social feeds, payments, print fulfillment, professional print production, external sharing integrations, and automatic publishing. Native device saving and ordinary file sharing are sufficient.
 
+## Self-hosted AI for the demo
+
+Run inference in the team's cloud behind authenticated endpoints, using a vision-capable model for visual interpretation and structured design. Use a separate speech-to-text model if the selected model does not support transcription. One model is not assumed to cover every modality. CH-21 records hardware fit, model licensing, pinned weights/runtime, measured latency, capacity, and reproducible start/stop instructions before processing real memories.
+
+Approved derivatives travel to the explicitly named cloud inference service or disclosed dispatch proxy. Access requires current contributor permission as well as service authentication. Keep service credentials server-side, protect traffic with TLS, restrict endpoint access, and disable prompt/media logging, training on requests, and unintended plaintext persistence. Do not use a managed AI API as an automatic fallback. An outage leaves manual editing and explicit retry available.
+
+The team controls the inference deployment, but the model process and sufficiently privileged cloud operators can still see submitted plaintext. Self-hosting changes the recipient and operational control; it does not remove consent requirements or prove that no administrator can see an authorized inference session. Tide governs the verified release boundary, not confidentiality inside an ordinary cloud GPU process.
+
 ## TideCloak contribution
 
 TideCloak supplies identity and the foundation for encrypted access and administrative governance. Its guides describe governed browser encryption, quorum approval for identity and permission changes, and Forseti validation of protected operations. [Encryption guide](https://docs.tide.org/Admin/e2ee), [QEA guide](https://docs.tide.org/Core-Concepts/iga-workflow), [Forseti guide](https://docs.tide.org/Core-Concepts/forseti-engine).
@@ -125,7 +133,7 @@ Use synthetic or explicitly authorized media. Describe working protections, prov
 ## Delivery order
 
 1. Continue CH-01 unchanged. Prove the protected review, release, withdrawal, and signing integration in CH-02.
-2. Define the design-plan and renderer contract in CH-20 using synthetic fixtures; it can proceed independently of authentication. Implement immutable multimedia records, collection membership, protected uploads, and consent UI.
+2. Define the design-plan/renderer contract in CH-20 and establish self-hosted inference in CH-21 using synthetic fixtures; both can proceed independently of authentication. Implement immutable multimedia records, collection membership, protected uploads, and consent UI.
 3. After consent and withdrawal gates work, build bounded media processing in CH-19. Build the composer in CH-09 against the contract; implement AI art direction in promoted core ticket CH-18.
 4. Integrate the AI and manual paths, freeze exact candidates, collect final approvals, issue receipts, and download. Finish verification, accessibility, and demonstration.
 

@@ -2,7 +2,7 @@
 
 Chorus turns shared photos, voice notes, videos, and stories into an AI-designed, downloadable photozine. The memories inspire its style, with everyone involved having a say in their use and the final edition.
 
-This repository contains the project foundation. Collection creation, multimedia uploads/processing, AI design, TideCloak authentication and encryption, contributor approvals, and PDF export are not implemented yet. No AI provider/model has been selected. The product and SRD are version 0.2; CH-01 authentication can continue unchanged while CH-20 defines the design contract independently.
+This repository contains the project foundation. Collection creation, multimedia uploads/processing, AI design, TideCloak authentication and encryption, contributor approvals, and PDF export are not implemented yet. Demo AI inference will run in the team's cloud; exact cloud/GPU, model weights, and runtime are not selected or deployed yet. The product and SRD are version 0.2.1; CH-01 authentication can continue unchanged while CH-20 defines the design contract and CH-21 establishes self-hosted inference independently using synthetic fixtures.
 
 ## Stack
 

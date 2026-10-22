@@ -212,7 +212,7 @@ test("resumes a revision after a lost update response without nesting historical
   await publishBacklog(options);
   const ai = state.issues.find((issue) => issue.title.startsWith("[CH-18]"));
   ai.body = ai.body.replace(
-    "<!-- chorus-backlog:revision:multimedia-v2 -->",
+    `<!-- chorus-backlog:revision:${source.revision.id} -->`,
     "",
   );
   state.failAfterUpdating = "[CH-18]";
@@ -231,4 +231,32 @@ test("rejects invalid revision targets before publication", () => {
   const invalid = structuredClone(source);
   invalid.revision.issueIds.push("CH-99");
   assert.throws(() => validateBacklog(invalid), /Invalid backlog revision/);
+});
+
+test("a later revision uses its document version and does not restore historical completion marks", async () => {
+  const { state, options } = fixture();
+  await publishBacklog(options);
+  const ai = state.issues.find((issue) => issue.title.startsWith("[CH-18]"));
+  const criterion = source.issues.find((issue) => issue.id === "CH-18")
+    .acceptance[0];
+  ai.body += `\n\n<details>\n<summary>Previous description and implementation notes (historical scope)</summary>\n\n- [x] ${criterion}\n\nOld notes with \`\`\`code fences\`\`\`.\n</details>`;
+  const previous = ai.body;
+  const revised = structuredClone(source);
+  revised.revision = {
+    id: "next-revision-test",
+    documentVersion: "0.2.2",
+    summary: "Synthetic revision for preservation checks.",
+    issueIds: ["CH-18"],
+  };
+  await publishBacklog({ ...options, backlog: revised });
+  const current = ai.body.slice(0, ai.body.indexOf("<details>"));
+  assert.ok(current.includes(`- [ ] ${criterion}`));
+  assert.ok(!current.includes(`- [x] ${criterion}`));
+  assert.ok(current.includes("Current scope: product/SRD v0.2.2"));
+  assert.ok(
+    ai.body.includes(
+      previous.replace(/<!-- chorus-backlog:v1:CH-18 -->\s*/, ""),
+    ),
+  );
+  assert.ok(ai.body.includes("````markdown"));
 });

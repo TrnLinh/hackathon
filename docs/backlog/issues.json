@@ -492,16 +492,18 @@
         "AT-18",
         "AT-19",
         "AT-20",
-        "AT-21"
+        "AT-21",
+        "AT-22"
       ],
       "goal": "Demonstrate that the integrated MVP satisfies the documented acceptance tests, including direct attempts to bypass consent.",
       "scope": [
         "Prepare authorized synthetic image, voice, video, and text fixtures for three contributors, a blocked memory, a manual-only memory, contrasting style collections, and multiple governance administrators.",
         "Automate meaningful policy/API checks and the primary browser journey; document checks that require manual review.",
-        "Inspect processor dispatches, derivative/style lineage, previews, exact PDF bytes, encrypted persistence, and offline verification. Test malformed plans and media/job budgets."
+        "Inspect processor dispatches, derivative/style lineage, previews, exact PDF bytes, encrypted persistence, and offline verification. Test malformed plans and media/job budgets.",
+        "Verify self-hosted inference endpoint authentication, model/runtime provenance, synthetic capability/latency evidence, absence of payload logging and frontend credentials, and manual recovery when inference stops."
       ],
       "acceptance": [
-        "AT-01 through AT-21 each have evidence or an explicit unmet requirement; a complete MVP has no unmet MUST requirement.",
+        "AT-01 through AT-22 each have evidence or an explicit unmet requirement; a complete MVP has no unmet MUST requirement.",
         "The real Tide tests cover missing approvals, role-change governance, database flag tampering, replay, recipient substitution, withdrawal races, and final receipt issuance.",
         "Demonstrate real AI generation from multimedia inputs without a required style prompt, visibly distinct directions, and refinement. Also complete the manual journey with processors unavailable or permission declined; manual-only is not a complete MVP.",
         "A clean setup can reproduce the contributor-to-approved-PDF journey.",
@@ -518,12 +520,13 @@
       "milestone": "M4 Demo readiness",
       "dependsOn": ["CH-16"],
       "requirements": ["NFR-08"],
-      "tests": [],
+      "tests": ["AT-22"],
       "goal": "Show the new possibility clearly: a group creates a keepsake without one administrator controlling every source memory.",
       "scope": [
         "Prepare setup/enrollment instructions and a short project overview covering the product, trust constraint, value, TideCloak contribution, and demonstrated behavior.",
         "Record protected denial, denied unilateral permission change, consented image/voice/video processing, automatically inferred design, a style refinement, final consent, and offline PDF.",
-        "Identify mocked external services, implemented protections, known limits, and deferred stretch work."
+        "Identify mocked external services, implemented protections, known limits, and deferred stretch work.",
+        "Describe the team-cloud inference deployment and verified capabilities, disclose GPU-process/operator plaintext exposure, and provide reproducible startup/teardown instructions without credentials."
       ],
       "acceptance": [
         "A teammate can follow the setup and reproduce the demonstration without private credentials in the repository.",
@@ -542,7 +545,7 @@
       "area": "backend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
-      "dependsOn": ["CH-08", "CH-19", "CH-20"],
+      "dependsOn": ["CH-08", "CH-19", "CH-20", "CH-21"],
       "requirements": [
         "FR-14",
         "FR-15",
@@ -557,10 +560,10 @@
         "NFR-09",
         "NFR-10"
       ],
-      "tests": ["AT-07", "AT-08", "AT-18", "AT-19", "AT-20", "AT-21"],
+      "tests": ["AT-07", "AT-08", "AT-18", "AT-19", "AT-20", "AT-21", "AT-22"],
       "goal": "Use the authorized memories themselves to create an editable, validated six-page design without requiring a style prompt.",
       "scope": [
-        "Select and record visual-analysis/structured-design providers and models, and honor the transcription decision from CH-19. Document capabilities, versions, retention, budgets, timeouts, and named proxy recipients; keep keys server-only. No provider is preselected.",
+        "Integrate the CH-21 self-hosted visual/design endpoint; record the exact model/runtime, role, retention, budgets, and deadlines in processor disclosures and provenance. Honor the separate CH-19 transcription scope and keep inference credentials server-side.",
         "Use CH-19 authorized derivatives to infer palette, typography, layout, titles, and editable text. Return one structured six-page plan with short inspiration explanation and complete source/derivative influence closure.",
         "Support an optional style prompt and text refinement; preserve attribution, review quotes, and create immutable plan revisions. Never fabricate memories, alter source photos, or execute model code.",
         "Validate through CH-20 before preview; enforce scopes/current revisions at dispatch and result acceptance. Reject stale/malformed output and expose retry/manual recovery without silent provider fallback.",
@@ -572,9 +575,10 @@
         "The user can inspect inspiration, edit/reject proposed quotes and captions, and refine style by text; every accepted change produces a new plan revision with provenance.",
         "Malformed plans, external URLs, executable markup, unauthorized asset references, missing lineage, overflow, and unreadable contrast fail validation before freezing.",
         "Provider failure, processing decline, quota/budget errors, or invalidation preserve manual editing and do not submit content to another provider.",
-        "All style-influencing source approvers remain part of final consent; a withdrawal discards dependent late results and requires regeneration without that source."
+        "All style-influencing source approvers remain part of final consent; a withdrawal discards dependent late results and requires regeneration without that source.",
+        "Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent."
       ],
-      "notes": "Promoted from optional stretch to required MVP work in v0.2. This can run alongside CH-09 after its own prerequisites; CH-10 integrates both paths. Manual recovery does not waive real AI generation."
+      "notes": "Required MVP work. Integrate the self-hosted service proved in CH-21; CH-19 supplies consented derivatives. Can overlap CH-09 after its own prerequisites. CH-10 integrates both. Manual recovery does not waive real AI generation."
     },
     {
       "id": "CH-19",
@@ -583,7 +587,7 @@
       "area": "backend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
-      "dependsOn": ["CH-05", "CH-06", "CH-08"],
+      "dependsOn": ["CH-05", "CH-06", "CH-08", "CH-21"],
       "requirements": [
         "FR-06",
         "FR-07",
@@ -595,10 +599,10 @@
         "NFR-09",
         "NFR-10"
       ],
-      "tests": ["AT-02", "AT-07", "AT-14", "AT-18", "AT-21"],
+      "tests": ["AT-02", "AT-07", "AT-14", "AT-18", "AT-21", "AT-22"],
       "goal": "Convert protected multimedia into bounded, reviewable AI inputs without bypassing source or processing consent.",
       "scope": [
-        "Select/document the transcription processor, model/version, supported formats, retention, deadline, and scoped recipient before live transcription. Prepare resized images, at most six timestamped frames per clip, and sanitized audio tracks locally; transcribe only under exact valid permission.",
+        "Integrate the CH-21 self-hosted transcription endpoint under exact valid permission. Prepare resized images, at most six timestamped frames per clip, and sanitized audio tracks locally; record model/runtime, retention, deadline, and scoped recipient.",
         "Enforce 1280 px visual long edge, twenty-four visuals, twelve memories, 2,000 transcript code points per recording, 12,000 total source-text code points, and the SRD file/duration/collection budgets. Offer explicit selection/reduction instead of silent truncation.",
         "Encrypt immutable derivatives with source/transform versions, timestamp ranges, content commitments, processor provenance, and permission lineage; protect previews and remove temporary buffers.",
         "Provide review/correction of excerpts and declared-speaker attribution. Changed meaning follows source-version consent; no automatic speaker identification.",
@@ -610,9 +614,10 @@
         "Over-budget or unsupported media fail with actionable recovery, and users approve any reduced selection; no quote is silently truncated.",
         "Encrypted persistence and telemetry contain no plaintext source/derivative content outside the documented transient processor exposure.",
         "Withdrawal blocks queued dispatch, invalidates cached/in-flight dependent artifacts, and discards late results without claiming to recall already sent content.",
-        "Transcript/still selection, source version, and speaker attribution are inspectable before inclusion in the final edition."
+        "Transcript/still selection, source version, and speaker attribution are inspectable before inclusion in the final edition.",
+        "Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent."
       ],
-      "notes": "Agree processor adapter interfaces early. CH-19 owns its transcriber decision and can complete without CH-18; CH-18 owns visual/design processing. Synthetic adapters unblock UI work but do not complete real processing acceptance. No full raw video is sent to AI."
+      "notes": "CH-21 owns the hosted model/runtime and deployment decision. CH-19 integrates its transcriber and can complete without CH-18; CH-18 integrates visual/design processing. Synthetic adapters unblock UI work but do not complete real processing acceptance. No full raw video is sent to AI."
     },
     {
       "id": "CH-20",
@@ -638,27 +643,50 @@
         "Work runs on synthetic fixtures without credentials or private collection APIs; fixture validation cannot grant real source access."
       ],
       "notes": "Can start now in parallel with CH-01. No edits to authentication or existing in-progress implementation are required. Runtime source authorization remains the responsibility of the protected integration."
+    },
+    {
+      "id": "CH-21",
+      "title": "Establish authenticated self-hosted inference in the team cloud",
+      "priority": "P1",
+      "area": "backend",
+      "type": "feature",
+      "milestone": "M3 Create approved photozines",
+      "dependsOn": [],
+      "requirements": [
+        "FR-07",
+        "FR-17",
+        "FR-18",
+        "FR-28",
+        "NFR-01",
+        "NFR-07",
+        "NFR-08",
+        "NFR-10"
+      ],
+      "tests": ["AT-08", "AT-14", "AT-18", "AT-19", "AT-22"],
+      "goal": "Provide a reproducible team-controlled cloud inference stack for transcription, visual analysis, and structured design, verified first with synthetic inputs.",
+      "scope": [
+        "Select cloud/GPU capacity, model weights, and pinned serving runtimes after verifying capabilities, intended-use licenses, VRAM fit, cost, startup time, and demo budgets. A separate speech-to-text model is allowed; do not assume one model covers every modality.",
+        "Provide endpoint/adapter contracts for CH-19 transcription and CH-18 visual/structured-design processing, with request limits, model/version provenance, timeouts, health checks, one-job concurrency, and explicit errors.",
+        "Use TLS and authenticated endpoints, restricted network access or an authenticated gateway, and server-side service credentials. Endpoint authentication is separate from protected source/processor consent.",
+        "Disable prompt/media logging, request-based training, and unintended plaintext persistence in the inference/proxy stack; document temporary-data cleanup and retention. Accepted outputs use encrypted artifact storage.",
+        "Benchmark synthetic audio, resized images, video stills, and six-page structured design under SRD budgets. Record output validity and latency separately from PDF rendering.",
+        "Document start/stop/teardown, operational plaintext exposure, and manual recovery. No private memories are used before the separate consent integrations work, and no managed AI API is an automatic fallback."
+      ],
+      "acceptance": [
+        "A teammate can reproduce the pinned deployment from documented configuration without credentials in Git, with the cloud/GPU and model/runtime/license decisions recorded.",
+        "Anonymous inference requests fail; endpoint access is restricted and browser bundles contain no inference credentials.",
+        "Synthetic fixtures demonstrate transcription, visual interpretation, and parseable schema-shaped design output; actual plan authorization/validation remains required in CH-18/CH-20.",
+        "Logs/traces and persistent temporary storage contain no request/media/transcript plaintext or service secrets; retention and failure cleanup are demonstrated.",
+        "Deadlines, concurrency, and media/request budgets are enforced; service failure supports explicit retry/manual recovery and sends no content to a managed fallback.",
+        "Documentation acknowledges that the inference process and privileged cloud operators can see authorized plaintext; self-hosting is not claimed to eliminate this trust boundary."
+      ],
+      "notes": "Can start alongside CH-01 and CH-20 with synthetic fixtures. Cloud provisioning is implementation work in this ticket, not an action performed by the specification update. Agree endpoint contracts early; hardware and model choices remain open."
     }
   ],
   "revision": {
-    "id": "multimedia-v2",
-    "summary": "Product/SRD v0.2: derive photozine style from approved images, voice notes, video frames, and stories. AI design is core; manual recovery remains required. CH-01 authentication continues unchanged.",
-    "issueIds": [
-      "CH-00",
-      "CH-02",
-      "CH-03",
-      "CH-05",
-      "CH-06",
-      "CH-07",
-      "CH-08",
-      "CH-09",
-      "CH-10",
-      "CH-11",
-      "CH-14",
-      "CH-15",
-      "CH-16",
-      "CH-17",
-      "CH-18"
-    ]
+    "id": "self-hosted-demo-v1",
+    "documentVersion": "0.2.1",
+    "summary": "The demo uses AI inference hosted in the team's cloud. CH-21 establishes and validates authenticated inference with synthetic fixtures; CH-19/CH-18 integrate its disclosed processor roles. No cloud, GPU, model, or runtime is selected yet. CH-01 remains unchanged.",
+    "issueIds": ["CH-00", "CH-18", "CH-19", "CH-16", "CH-17"]
   }
 }

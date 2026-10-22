@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 
 const markerFor = (id) => `<!-- chorus-backlog:v1:${id} -->`;
 const trackerDraft = "<!-- chorus-backlog:tracker-draft -->";
+const historyHeader =
+  "<details>\n<summary>Previous description and implementation notes (historical scope)</summary>";
 const revisionMarker = (backlog) =>
   backlog.revision && `<!-- chorus-backlog:revision:${backlog.revision.id} -->`;
 
@@ -47,10 +49,12 @@ export function validateBacklog(backlog) {
   }
   for (const issue of backlog.issues) visit(issue);
   if (backlog.revision) {
-    const { id, summary, issueIds } = backlog.revision;
+    const { id, summary, issueIds, documentVersion } = backlog.revision;
     if (
       !/^[a-z0-9-]+$/.test(id) ||
       !summary ||
+      (documentVersion !== undefined &&
+        !/^\d+\.\d+(\.\d+)?$/.test(documentVersion)) ||
       !Array.isArray(issueIds) ||
       new Set(issueIds).size !== issueIds.length ||
       issueIds.some(
@@ -70,11 +74,16 @@ function currentBody(body, backlog) {
 }
 
 function revisedBody(body, previous, backlog) {
+  const historyStart = previous.indexOf(historyHeader);
+  const activePrevious =
+    historyStart < 0 ? previous : previous.slice(0, historyStart);
   const completed = new Set(
-    [...previous.matchAll(/^- \[[xX]\] (.+)$/gm)].map((match) => match[1]),
+    [...activePrevious.matchAll(/^- \[[xX]\] (.+)$/gm)].map(
+      (match) => match[1],
+    ),
   );
   const completedTickets = new Set(
-    [...previous.matchAll(/^- \[[xX]\] \[(CH-\d{2})\b/gm)].map(
+    [...activePrevious.matchAll(/^- \[[xX]\] \[(CH-\d{2})\b/gm)].map(
       (match) => match[1],
     ),
   );
@@ -84,12 +93,19 @@ function revisedBody(body, previous, backlog) {
       ? `- [x] ${text}`
       : line,
   );
+  // Keep old checklists as historical text, not active GitHub task lists.
+  const fence = "`".repeat(
+    Math.max(
+      3,
+      ...[...previous.matchAll(/`+/g)].map((match) => match[0].length + 1),
+    ),
+  );
   return [
     currentBody(body, backlog),
-    `> **Current scope: product/SRD v0.2.** ${backlog.revision.summary} The scope above supersedes the earlier description retained below. Existing comments, status, and assignments remain in place.`,
-    "<details>\n<summary>Previous description and implementation notes (historical scope)</summary>\n",
+    `> **Current scope: product/SRD v${backlog.revision.documentVersion ?? "0.2"}.** ${backlog.revision.summary} The scope above supersedes the earlier description retained below. Existing comments, status, and assignments remain in place.`,
+    `${historyHeader}\n\n${fence}markdown`,
     previous.replace(/<!-- chorus-backlog:v1:CH-\d{2} -->\s*/, ""),
-    "\n</details>",
+    `${fence}\n\n</details>`,
   ].join("\n\n");
 }
 
@@ -152,7 +168,7 @@ function renderTracker(backlog, byId) {
   }
   lines.push(
     "## Delivery guidance",
-    "CH-01 is underway and its authentication scope is unchanged. CH-20 can start in parallel using synthetic fixtures. Prove CH-02 before protected product flows. CH-18 is required AI design; CH-19 supplies consented derivatives. CH-09 and CH-18 can proceed in parallel once their own dependencies are met. CH-10 integrates both before final approval. Keep a complete manual recovery path; manual-only does not satisfy the AI requirement.",
+    "CH-01 is underway and its authentication scope is unchanged. CH-20 design contracts and CH-21 self-hosted cloud inference can start in parallel using synthetic fixtures. Prove CH-02 before protected product flows. CH-18 is required AI design; CH-19 supplies consented derivatives. Both integrate CH-21's authenticated inference endpoints. CH-09 and CH-18 can proceed in parallel once their own dependencies are met. CH-10 integrates both before final approval. Keep a complete manual recovery path; manual-only does not satisfy the AI requirement.",
   );
   return lines.join("\n\n");
 }
