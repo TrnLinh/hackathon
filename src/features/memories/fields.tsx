@@ -1,6 +1,5 @@
-import { Lock } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { PersonAvatar } from "@/components/chorus/people";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,14 +103,22 @@ export function PeoplePicker({
   onChange: (ids: PersonId[]) => void;
   legend?: string;
 }) {
+  const count = people.filter(
+    (p) => p.id === uploaderId || selected.includes(p.id),
+  ).length;
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{legend}</legend>
-      <p className="text-xs text-muted-foreground">
-        Include everyone shown or speaking. Each person must approve before the
-        memory is used. Chorus never identifies faces or voices automatically.
+      <div className="flex items-baseline justify-between gap-3">
+        <legend className="text-sm font-medium">{legend}</legend>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {count} will be asked to approve
+        </span>
+      </div>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Include everyone shown or speaking. Chorus never identifies faces or
+        voices automatically.
       </p>
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <ul className="divide-y overflow-hidden rounded-xl border bg-card">
         {people.map((p) => {
           const locked = p.id === uploaderId;
           const checked = locked || selected.includes(p.id);
@@ -121,28 +128,53 @@ export function PeoplePicker({
               <label
                 htmlFor={inputId}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
-                  checked && "border-primary/40 bg-secondary/50",
-                  locked && "cursor-default",
+                  "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors has-focus-visible:bg-secondary/60",
+                  locked
+                    ? "cursor-default"
+                    : "cursor-pointer hover:bg-muted/60",
                 )}
               >
-                <Checkbox
+                <input
                   id={inputId}
+                  type="checkbox"
+                  className="peer sr-only"
                   checked={checked}
                   disabled={locked}
-                  onCheckedChange={(v) =>
+                  onChange={(e) =>
                     onChange(
-                      v
+                      e.target.checked
                         ? [...selected, p.id]
                         : selected.filter((id) => id !== p.id),
                     )
                   }
                 />
-                <PersonAvatar person={p} size="sm" />
-                <span className="flex-1">{p.name}</span>
-                {locked && (
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <Lock className="size-3" aria-hidden="true" /> Uploader
+                <PersonAvatar person={p} size="md" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{p.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {locked
+                      ? "You · uploader, always included"
+                      : checked
+                        ? "Will be asked to approve"
+                        : "Not in this memory"}
+                  </span>
+                </span>
+                {locked ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                    <Lock className="size-3" aria-hidden="true" />
+                    Uploader
+                  </span>
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "grid size-5 shrink-0 place-items-center rounded-full border transition-colors peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
+                      checked
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-input bg-background",
+                    )}
+                  >
+                    {checked && <Check className="size-3" strokeWidth={3} />}
                   </span>
                 )}
               </label>
