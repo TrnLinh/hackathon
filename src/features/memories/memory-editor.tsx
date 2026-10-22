@@ -14,6 +14,7 @@ import {
   Loader2,
   Upload,
   X,
+  XCircle,
 } from "lucide-react";
 import { kindMeta } from "@/components/chorus/memory-thumb";
 import { PageHeader, TrustNote } from "@/components/chorus/page-header";
@@ -78,28 +79,67 @@ function titleFromName(name: string) {
     .slice(0, LIMITS.titleChars);
 }
 
-function PrepChecklist({ ready }: { ready: boolean }) {
-  const steps = [
-    "Type detected from file contents, not its name",
-    "Orientation normalized",
-    "EXIF, GPS, and location metadata removed",
-    "Encrypted on this device before upload",
-  ];
+type PrepStep = { label: string; done: boolean };
+
+/** What local preparation actually does on this backend. */
+const prepModes: Record<
+  EditorSource["prep"],
+  { title: string; badge: string; steps: PrepStep[] }
+> = {
+  simulated: {
+    title: "Prepared locally before encryption",
+    badge: "Simulated",
+    steps: [
+      { label: "Type detected from file contents, not its name", done: true },
+      { label: "Orientation normalized", done: true },
+      { label: "EXIF, GPS, and location metadata removed", done: true },
+      { label: "Encrypted on this device before upload", done: true },
+    ],
+  },
+  dev: {
+    title: "Prepared on this device",
+    badge: "Development",
+    steps: [
+      { label: "Type detected from file contents, not its name", done: true },
+      {
+        label: "Photos re-encoded: orientation fixed, EXIF and GPS removed",
+        done: true,
+      },
+      { label: "Audio and video metadata not removed yet", done: false },
+      {
+        label: "Not encrypted: stored unencrypted for development",
+        done: false,
+      },
+    ],
+  },
+};
+
+function PrepChecklist({
+  ready,
+  mode,
+}: {
+  ready: boolean;
+  mode: EditorSource["prep"];
+}) {
+  const { title, badge, steps } = prepModes[mode];
   return (
     <div className="rounded-lg border bg-card p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold">
-          Prepared locally before encryption
-        </p>
-        <Badge variant="outline">Simulated</Badge>
+        <p className="text-xs font-semibold">{title}</p>
+        <Badge variant="outline">{badge}</Badge>
       </div>
       <ul className="space-y-1.5">
         {steps.map((s) => (
           <li
-            key={s}
+            key={s.label}
             className="flex items-center gap-2 text-xs text-muted-foreground"
           >
-            {ready ? (
+            {!s.done ? (
+              <XCircle
+                className="size-3.5 text-[var(--status-excluded)]"
+                aria-hidden="true"
+              />
+            ) : ready ? (
               <CheckCircle2
                 className="size-3.5 text-[var(--status-available)]"
                 aria-hidden="true"
@@ -107,9 +147,13 @@ function PrepChecklist({ ready }: { ready: boolean }) {
             ) : (
               <Circle className="size-3.5" aria-hidden="true" />
             )}
-            {s}
+            {s.label}
             <span className="sr-only">
-              {ready ? "(done)" : "(waiting for a file)"}
+              {!s.done
+                ? "(not done)"
+                : ready
+                  ? "(done)"
+                  : "(waiting for a file)"}
             </span>
           </li>
         ))}
@@ -288,6 +332,8 @@ type EditorSource = {
   usedBytes: number;
   /** False until submission for approval exists on this backend (CH-06). */
   canSubmit: boolean;
+  /** Simulated (prototype) or the real development preparation. */
+  prep: "simulated" | "dev";
   trustNote: string;
   save: (memories: EditorMemory[], submit: boolean) => Promise<SaveResult>;
 };
@@ -318,6 +364,7 @@ function PrototypeMemoryEditor({ collectionId }: { collectionId: string }) {
         existingCount: existing.length,
         usedBytes: existing.reduce((n, m) => n + (m.media?.sizeBytes ?? 0), 0),
         canSubmit: true,
+        prep: "simulated",
         trustNote:
           "Prototype: files never leave this browser. Type detection uses the file’s contents; sanitization and encryption are simulated. The real build prepares and encrypts media on your device before anything is stored remotely.",
         save: async (memories, submit) => ({
@@ -366,6 +413,7 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
           0,
         ),
         canSubmit: false,
+        prep: "dev",
         trustNote:
           "Encryption isn’t connected yet. Photos are re-encoded on your device to remove location and other hidden metadata; audio and video are kept as validated. For development, files and text are then stored unencrypted and labelled that way. Drafts are visible only to you.",
         save: async (items) => {
@@ -879,6 +927,7 @@ function MemoryEditorView({
           {mode === "files" && (
             <PrepChecklist
               ready={usable.length > 0 && usable.length === items.length}
+              mode={source.prep}
             />
           )}
 
