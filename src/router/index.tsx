@@ -14,6 +14,7 @@ import { CollectionsPage } from "@/features/collections/collections-page";
 import { OverviewPage } from "@/features/overview/overview-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { createWorkspaceHistory } from "@/router/history";
+import { RequireSignIn } from "@/features/auth/require-sign-in";
 
 function NotFoundPage() {
   return (
@@ -41,7 +42,11 @@ const overviewRoute = createRoute({
 const collectionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/collections",
-  component: CollectionsPage,
+  component: () => (
+    <RequireSignIn>
+      <CollectionsPage />
+    </RequireSignIn>
+  ),
 });
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,

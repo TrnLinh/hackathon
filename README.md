@@ -2,7 +2,7 @@
 
 Chorus turns shared photos, voice notes, videos, and stories into an AI-designed, downloadable photozine. The memories inspire its style, with everyone involved having a say in their use and the final edition.
 
-This repository contains the project foundation. Collection creation, multimedia uploads/processing, AI design, TideCloak authentication and encryption, contributor approvals, and PDF export are not implemented yet. Demo AI inference will run in the team's cloud; exact cloud/GPU, model weights, and runtime are not selected or deployed yet. The product and SRD are version 0.2.1; CH-01 authentication can continue unchanged while CH-20 defines the design contract and CH-21 establishes self-hosted inference independently using synthetic fixtures.
+This repository contains the project foundation and a TideCloak authentication integration with a protected Convex identity query. Live Tide realm enrollment and governance verification remain required before CH-01 can close. Collection creation, photo uploads, encryption, contributor approvals, and PDF export are not implemented yet.
 
 ## Stack
 
@@ -54,13 +54,15 @@ Without NEXT_PUBLIC_CONVEX_URL, the setup page displays Not configured. No fake 
 
 Next.js serves the root layout and the optional catch-all page at src/app/app/[[...path]]/page.tsx. The root URL redirects to /app. A client-only entry mounts TanStack Router with basepath /app.
 
-| URL              | Page                                      |
-| ---------------- | ----------------------------------------- |
-| /app             | Overview                                  |
-| /app/collections | Collections starter                       |
-| /app/settings    | Project setup and live backend connection |
+| URL              | Page                                           |
+| ---------------- | ---------------------------------------------- |
+| /app             | Overview                                       |
+| /app/collections | Collections starter requiring verified sign-in |
+| /app/settings    | Project setup and live backend connection      |
 
 Define workspace routes in src/router/index.tsx using TanStack's programmatic route API. Use TanStack Link inside the workspace; its destinations are relative to the router base, such as /collections. Use Next.js routes for future server endpoints or pages outside the workspace. Do not add a second Next.js page for a path already owned by the workspace router.
+
+The public `/auth/redirect` callback belongs to Next.js and completes Tide sign-in. See the [CH-01 authentication setup and verification guide](docs/authentication.md) for realm enrollment, environment configuration, governance checks, and the remaining live evidence. Sign-in is optional for the public overview and setup pages; protected backend functions always require a verified identity.
 
 The history adapter in src/router/history.ts keeps TanStack's history decorations separate from Next.js history writes. This avoids synchronous router updates during Next.js insertion effects while preserving browser back and forward. Keep workspace URL changes inside TanStack navigation APIs.
 
@@ -73,6 +75,8 @@ convex/
   _generated/          Generated API and database types
   schema.ts            Initial collections, memberships, and memories schema
   system.ts            Public connection query with no user data
+  identity.ts          Protected backend-verified identity query
+  auth.config.ts       Exact Tide OIDC issuer and audience configuration
 scripts/
   setup-local-convex.mjs
 src/
@@ -87,17 +91,19 @@ The initial schema reserves fields for ciphertext and workflow metadata. It does
 
 ## Commands
 
-| Command              | Purpose                                                   |
-| -------------------- | --------------------------------------------------------- |
-| npm run dev          | Start Next.js only                                        |
-| npm run setup:local  | Start the Docker backend and configure local credentials  |
-| npm run dev:backend  | Sync and watch Convex functions                           |
-| npm run dev:all      | Start Convex development and Next.js together             |
-| npm run check        | Run ESLint and TypeScript checks for frontend and backend |
-| npm run format:check | Check source formatting                                   |
-| npm run format       | Format source and documentation                           |
-| npm run build        | Create the production Next.js build                       |
-| npm start            | Serve that production build                               |
+| Command                   | Purpose                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| npm run dev               | Start Next.js only                                                 |
+| npm run setup:local       | Start the Docker backend and configure local credentials           |
+| npm run dev:backend       | Sync and watch Convex functions                                    |
+| npm run dev:all           | Start Convex development and Next.js together                      |
+| npm run check             | Run ESLint and TypeScript checks for frontend and backend          |
+| npm run format:check      | Check source formatting                                            |
+| npm run format            | Format source and documentation                                    |
+| npm run build             | Create the production Next.js build                                |
+| npm test                  | Run backlog, identity, configuration, and session tests            |
+| npm run test:auth:backend | Exercise real local Convex OIDC validation with a synthetic issuer |
+| npm start                 | Serve that production build                                        |
 
 Add more shadcn/ui components with:
 

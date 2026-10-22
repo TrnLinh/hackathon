@@ -8,12 +8,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { IdentityStatus } from "@/features/auth/auth-status";
 
 const foundation = [
   ["Next.js · TypeScript · Tailwind CSS", "Installed"],
   ["TanStack Router · workspace navigation", "Active"],
   ["shadcn/ui · reusable components", "Ready"],
-  ["TideCloak · identity and consent policies", "Not implemented"],
+  ["TideCloak · consent policies", "CH-02 integration pending"],
 ] as const;
 
 export function SettingsPage() {
@@ -28,6 +29,17 @@ export function SettingsPage() {
           The starter is ready for the first Chorus implementation.
         </p>
       </div>
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>Your identity</CardTitle>
+          <CardDescription>
+            Sign in and confirm the identity verified by the backend.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IdentityStatus />
+        </CardContent>
+      </Card>
       <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Convex backend</CardTitle>
@@ -52,7 +64,9 @@ export function SettingsPage() {
                 <span>{name}</span>
                 <Badge
                   variant={
-                    status === "Not implemented" ? "outline" : "secondary"
+                    status === "CH-02 integration pending"
+                      ? "outline"
+                      : "secondary"
                   }
                 >
                   {status}

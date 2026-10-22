@@ -14,11 +14,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "setup:local": "node scripts/setup-local-convex.mjs",
-    "test": "node --test scripts/publish-backlog.test.mjs",
+    "test": "node --test scripts/publish-backlog.test.mjs && vitest run",
+    "test:auth:backend": "node --test scripts/auth-backend.test.mjs",
     "backlog:docs": "node scripts/render-backlog.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.45",
+    "@tidecloak/js": "0.14.41",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "convex": "^1.47.0",
@@ -34,12 +36,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "convex-test": "0.0.64",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "jose": "6.2.13",
     "prettier": "^3.9.10",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22.0.0"

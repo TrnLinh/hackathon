@@ -4,3 +4,5 @@ node_modules
 convex/_generated
 package-lock.json
 next-env.d.ts
+# Copied verbatim by @tidecloak/js during installation.
+public/silent-check-sso.html
