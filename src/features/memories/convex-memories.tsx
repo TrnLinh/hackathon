@@ -471,7 +471,7 @@ export function ConvexMemoryDetail({
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-5">
-        <MediaPreview version={head} large />
+        {head.kind !== "text" && <MediaPreview version={head} large />}
         <div className="space-y-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h2 className="font-serif text-2xl">{head.title}</h2>
