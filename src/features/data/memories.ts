@@ -62,13 +62,14 @@ type MemoryRow = FunctionReturnType<typeof api.memories.list>[number];
 export type PermissionView = NonNullable<MemoryRow["permission"]>;
 
 /** CH-07 vocabulary: private, awaiting permission, available, excluded. */
-export type ConsentStatus = "private" | "awaiting" | "available" | "excluded";
+export type ConsentStatus = "private" | "awaiting" | "manual-only" | "excluded";
 
 export function consentStatus(
   permission: PermissionView | null,
 ): ConsentStatus {
   if (!permission) return "private";
-  if (permission.status === "approved") return "available";
+  // Backend requests are manual-only so far: available, but not for AI.
+  if (permission.status === "approved") return "manual-only";
   if (permission.status === "pending") return "awaiting";
   return "excluded";
 }

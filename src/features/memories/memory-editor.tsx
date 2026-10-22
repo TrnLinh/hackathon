@@ -447,7 +447,10 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
             // Saved as a draft either way; a failed submission can be retried
             // from the memory itself.
             if (submit) {
-              const submitted = await submitMemory(result.result.memoryId);
+              const submitted = await submitMemory(
+                result.result.memoryId,
+                result.result.versionId,
+              );
               if (!submitted.ok)
                 return {
                   ok: false,

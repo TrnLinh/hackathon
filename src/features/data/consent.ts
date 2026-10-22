@@ -23,19 +23,25 @@ export function useConsentActions() {
   const decide = useMutation(api.consent.decide);
   const withRetryKey = useRetryKeys();
 
+  // Intents include the state they act on, so a later change of mind (or a
+  // new version) never reuses an earlier change's retry key.
   const submitMemory = useCallback(
-    (memoryId: Id<"memories">) =>
+    (memoryId: Id<"memories">, versionId: string) =>
       attempt(() =>
-        withRetryKey(`submit:${memoryId}`, (retryKey) =>
+        withRetryKey(`submit:${memoryId}:${versionId}`, (retryKey) =>
           submit({ memoryId, retryKey }),
         ),
       ),
     [submit, withRetryKey],
   );
   const decidePermission = useCallback(
-    (permissionId: Id<"compositionPermissions">, action: DecisionAction) =>
+    (
+      permissionId: Id<"compositionPermissions">,
+      action: DecisionAction,
+      current: DecisionAction | null,
+    ) =>
       attempt(() =>
-        withRetryKey(`${action}:${permissionId}`, (retryKey) =>
+        withRetryKey(`${permissionId}:${current}->${action}`, (retryKey) =>
           decide({ permissionId, action, retryKey }),
         ),
       ),

@@ -9,7 +9,10 @@ import {
   formatTime,
   QueryBoundary,
 } from "@/features/data/backend";
-import { useInbox } from "@/features/data/consent";
+import { useState } from "react";
+import type { Id } from "@convex/_generated/dataModel";
+import { useConsentActions, useInbox } from "@/features/data/consent";
+import { useViewer } from "@/features/data/current-user";
 import { consentStatus, useMemory } from "@/features/data/memories";
 import {
   ConvexMemoryDetail,
@@ -19,7 +22,41 @@ import {
 // CH-07 inbox for collections on Convex: current requests that include you.
 // Decisions are recorded locally and unverified until Tide is connected.
 
+function WithdrawButton({
+  permissionId,
+}: {
+  permissionId: Id<"compositionPermissions">;
+}) {
+  const { decide } = useConsentActions();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void decide(permissionId, "withdraw", "approve").then((r) => {
+            setBusy(false);
+            setError(r.ok ? null : r.reason);
+          });
+        }}
+      >
+        Withdraw approval
+      </Button>
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function ConvexRequests() {
+  const viewer = useViewer();
   const rows = useInbox();
   if (rows === undefined)
     return (
@@ -56,32 +93,42 @@ function ConvexRequests() {
             >
               <div className="min-w-0">
                 <p className="font-medium">
-                  {r.uploaderName ?? "A member"} asked for your approval
+                  {r.formerMember
+                    ? "You left this collection; your approval still stands"
+                    : r.uploaderName !== null && r.uploaderName === viewer?.name
+                      ? "Your memory is waiting for approval"
+                      : `${r.uploaderName ?? "A member"} asked for your approval`}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Requested {formatTime(r.permission.requestedAt)}
-                  {r.permission.myAction
-                    ? " · you’ve decided"
-                    : " · waiting for you"}
+                  {r.formerMember
+                    ? " · you can still withdraw it"
+                    : r.permission.myAction
+                      ? " · you’ve decided"
+                      : " · waiting for you"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <MemoryStatusBadge status={consentStatus(r.permission)} />
-                <Button
-                  size="sm"
-                  variant={r.permission.myAction ? "outline" : "default"}
-                  asChild
-                >
-                  <Link
-                    to="/collections/$collectionId/memories/$memoryId"
-                    params={{
-                      collectionId: r.collectionId,
-                      memoryId: r.memoryId,
-                    }}
+                {r.formerMember ? (
+                  <WithdrawButton permissionId={r.permission.permissionId} />
+                ) : (
+                  <Button
+                    size="sm"
+                    variant={r.permission.myAction ? "outline" : "default"}
+                    asChild
                   >
-                    {r.permission.myAction ? "Review again" : "Review"}
-                  </Link>
-                </Button>
+                    <Link
+                      to="/collections/$collectionId/memories/$memoryId"
+                      params={{
+                        collectionId: r.collectionId,
+                        memoryId: r.memoryId,
+                      }}
+                    >
+                      {r.permission.myAction ? "Review again" : "Review"}
+                    </Link>
+                  </Button>
+                )}
               </div>
             </li>
           ))}
@@ -116,6 +163,22 @@ export function useConvexWaitingCount() {
   return rows?.filter((r) => r.permission.myAction === null).length ?? null;
 }
 
+export function ApprovalNotFound() {
+  return (
+    <EmptyState
+      icon={<Inbox className="size-5" aria-hidden="true" />}
+      title="This request isn’t available"
+      action={
+        <Button asChild variant="outline">
+          <Link to="/approvals">Back to approvals</Link>
+        </Button>
+      }
+    >
+      It may have been replaced by a new version, or it doesn’t include you.
+    </EmptyState>
+  );
+}
+
 /** A review link for a memory on Convex opens its collection page. */
 export function ConvexApprovalReview({ memoryId }: { memoryId: string }) {
   const memory = useMemory(memoryId);
@@ -125,20 +188,7 @@ export function ConvexApprovalReview({ memoryId }: { memoryId: string }) {
         Opening the request…
       </p>
     );
-  if (!memory)
-    return (
-      <EmptyState
-        icon={<Inbox className="size-5" aria-hidden="true" />}
-        title="This request isn’t available"
-        action={
-          <Button asChild variant="outline">
-            <Link to="/approvals">Back to approvals</Link>
-          </Button>
-        }
-      >
-        It may have been replaced by a new version, or it doesn’t include you.
-      </EmptyState>
-    );
+  if (!memory) return <ApprovalNotFound />;
   return (
     <ConvexMemoryDetail
       collectionId={memory.collectionId}

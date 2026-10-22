@@ -250,4 +250,48 @@ describe("CH-06 local consent", () => {
       }),
     ).rejects.toThrow("SUPERSEDED_VERSION");
   });
+
+  it("lets a removed member recover a decision and withdraw, but not decide anew", async () => {
+    const s = await setup();
+    const permissionId = await s.bob.mutation(api.consent.submit, {
+      memoryId: s.memory.memoryId,
+      retryKey: "s",
+    });
+    const approve = { permissionId, action: "approve" as const, retryKey: "c" };
+    const decision = await s.carol.mutation(api.consent.decide, approve);
+    await s.bob.mutation(api.consent.decide, {
+      permissionId,
+      action: "approve",
+      retryKey: "b",
+    });
+    expect((await row(s, s.alice)).access).toBe("full");
+    await s.alice.mutation(api.memberships.remove, {
+      collectionId: s.collectionId,
+      userId: s.ids.carol,
+      retryKey: "rm",
+    });
+    // A lost-response retry still returns the committed decision.
+    expect(await s.carol.mutation(api.consent.decide, approve)).toBe(decision);
+    await expect(
+      s.carol.mutation(api.consent.decide, {
+        permissionId,
+        action: "decline",
+        retryKey: "c2",
+      }),
+    ).rejects.toThrow("NOT_COLLECTION_MEMBER");
+    expect(await s.carol.query(api.consent.inbox, {})).toMatchObject([
+      {
+        formerMember: true,
+        permission: { myAction: "approve", approvers: null },
+      },
+    ]);
+    await s.carol.mutation(api.consent.decide, {
+      permissionId,
+      action: "withdraw",
+      retryKey: "w",
+    });
+    expect((await row(s, s.bob)).permission?.status).toBe("withdrawn");
+    expect((await row(s, s.alice)).access).toBe("status");
+    expect(await s.carol.query(api.consent.inbox, {})).toEqual([]);
+  });
 });

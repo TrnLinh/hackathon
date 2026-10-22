@@ -57,7 +57,8 @@ import type {
 } from "@/features/prototype/types";
 import { DecisionSummary } from "./decision-summary";
 import { WithdrawDialog } from "./withdraw-dialog";
-import { ConvexApprovalReview } from "./convex-inbox";
+import { BackendOnly, QueryBoundary } from "@/features/data/backend";
+import { ApprovalNotFound, ConvexApprovalReview } from "./convex-inbox";
 
 type Choice = "approved" | "declined" | undefined;
 /** Processor choices may stay pending: AI decisions are optional (CH-07). */
@@ -769,7 +770,11 @@ export function ApprovalReview({ memoryId }: { memoryId: string }) {
   return state.memories.some((m) => m.id === memoryId) ? (
     <PrototypeApprovalReview memoryId={memoryId} />
   ) : (
-    <ConvexApprovalReview memoryId={memoryId} />
+    <BackendOnly fallback={<ApprovalNotFound />}>
+      <QueryBoundary fallback={<ApprovalNotFound />}>
+        <ConvexApprovalReview memoryId={memoryId} />
+      </QueryBoundary>
+    </BackendOnly>
   );
 }
 

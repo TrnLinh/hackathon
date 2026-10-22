@@ -26,7 +26,7 @@ import { useAuthConfiguration } from "@/components/providers";
 import { AccountControls } from "@/features/auth/auth-status";
 import { useAiConfig } from "@/features/data/ai-config";
 import { BackendOnly, QueryBoundary } from "@/features/data/backend";
-import { EnsureCurrentUser } from "@/features/data/current-user";
+import { EnsureCurrentUser, useViewer } from "@/features/data/current-user";
 import { useConvexWaitingCount } from "@/features/approvals/convex-inbox";
 import { actions, usePrototype } from "@/features/prototype/store";
 import { inboxFor, personById } from "@/features/prototype/selectors";
@@ -138,10 +138,11 @@ function InboxBadge({ count }: { count: number }) {
   );
 }
 
-/** Backend requests waiting for you, plus prototype ones for the demo viewer. */
+/** Signed in: your backend requests only (the demo viewer is someone else). */
 function ConvexInboxBadge({ mockCount }: { mockCount: number }) {
   const waiting = useConvexWaitingCount();
-  return <InboxBadge count={(waiting ?? 0) + mockCount} />;
+  const viewer = useViewer();
+  return <InboxBadge count={viewer ? (waiting ?? 0) : mockCount} />;
 }
 
 export function AppShell() {

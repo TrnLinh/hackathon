@@ -20,29 +20,38 @@ export const appendPayload = internalMutation({
     body: ciphertextBody,
     encryptionFormat: v.string(),
     ciphertextDigest: v.string(),
+    /** Evidence for a former member's withdrawal; nothing else may set it. */
+    forWithdrawal: v.optional(v.literal(true)),
   },
   handler: async (ctx, args) =>
-    recordMutation(ctx, "private-payload", args, async () => {
-      boundedText(args.encryptionFormat);
-      parseSha256Hex(args.ciphertextDigest);
-      if (
-        args.body.kind === "inline" &&
-        (!args.body.ciphertext.length || args.body.ciphertext.length > 256_000)
-      )
-        return fail("INVALID_CIPHERTEXT_ENVELOPE");
-      if (
-        args.body.kind === "storage" &&
-        !(await ctx.db.system.get(args.body.storageId))
-      )
-        return fail("MISSING_ENCRYPTED_BLOB");
-      return ctx.db.insert("privatePayloads", {
-        collectionId: args.collectionId,
-        body: args.body,
-        encryptionFormat: args.encryptionFormat,
-        ciphertextDigest: args.ciphertextDigest,
-        createdAt: Date.now(),
-      });
-    }),
+    recordMutation(
+      ctx,
+      "private-payload",
+      args,
+      async () => {
+        boundedText(args.encryptionFormat);
+        parseSha256Hex(args.ciphertextDigest);
+        if (
+          args.body.kind === "inline" &&
+          (!args.body.ciphertext.length ||
+            args.body.ciphertext.length > 256_000)
+        )
+          return fail("INVALID_CIPHERTEXT_ENVELOPE");
+        if (
+          args.body.kind === "storage" &&
+          !(await ctx.db.system.get(args.body.storageId))
+        )
+          return fail("MISSING_ENCRYPTED_BLOB");
+        return ctx.db.insert("privatePayloads", {
+          collectionId: args.collectionId,
+          body: args.body,
+          encryptionFormat: args.encryptionFormat,
+          ciphertextDigest: args.ciphertextDigest,
+          createdAt: Date.now(),
+        });
+      },
+      args.forWithdrawal ? { membership: "any" } : {},
+    ),
 });
 export const appendAsset = internalMutation({
   args: {

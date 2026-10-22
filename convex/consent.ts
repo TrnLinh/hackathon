@@ -17,7 +17,7 @@ import {
 import { sha256Hex } from "../src/lib/memory-content";
 import { approvalStatus } from "./model/approval";
 import { fail } from "./model/common";
-import { membershipOf, requireEnvelope } from "./model/collections";
+import { requireEnvelope } from "./model/collections";
 import { decisionAction } from "./model/validators";
 import { optionalViewer, requireViewer } from "./lib/viewer";
 
@@ -35,6 +35,7 @@ async function localEvidence(
   retryKey: string,
   statement: Record<string, unknown>,
   statementDigest: string,
+  forWithdrawal = false,
 ): Promise<Id<"evidence">> {
   const envelope = sealDevEnvelope(statement);
   requireEnvelope(envelope);
@@ -44,6 +45,7 @@ async function localEvidence(
     body: { kind: "inline", ciphertext: envelope },
     encryptionFormat: DEV_ENVELOPE_FORMAT,
     ciphertextDigest: await sha256Hex(envelope),
+    ...(forWithdrawal ? { forWithdrawal: true as const } : {}),
   });
   return ctx.runMutation(internal.model.consent.recordEvidence, {
     ...actor,
@@ -135,13 +137,11 @@ export const decide = mutation({
     const permission = await ctx.db.get(args.permissionId);
     if (!permission || !permission.requiredApproverIds.includes(viewer._id))
       return fail("NOT_REQUIRED_APPROVER");
-    // Former members' withdrawals need non-member evidence storage (CH-08).
-    const membership = await membershipOf(
-      ctx,
-      permission.collectionId,
-      viewer._id,
-    );
-    if (membership?.status !== "active") return fail("NOT_COLLECTION_MEMBER");
+    // Only manual requests can be decided with local evidence; AI-processing
+    // grants need their own disclosure and flow (CH-19).
+    if (permission.scope.kind !== "manual") return fail("UNSUPPORTED_SCOPE");
+    // The model enforces membership after the retry receipt: active members
+    // decide; a former member may still withdraw (CH-08).
     const actor = {
       collectionId: permission.collectionId,
       actorId: viewer._id,
@@ -158,6 +158,7 @@ export const decide = mutation({
       args.retryKey,
       { protocol: "chorus-decision/v1", ...statement },
       await decisionStatement(statement),
+      args.action === "withdraw",
     );
     return ctx.runMutation(internal.model.consent.appendDecision, {
       ...actor,
@@ -259,6 +260,8 @@ export const inbox = query({
       memoryId: v.id("memories"),
       uploaderName: v.union(v.string(), v.null()),
       permission: permissionView,
+      /** You left this collection but can still withdraw your approval. */
+      formerMember: v.boolean(),
     }),
   ),
   handler: async (ctx) => {
@@ -270,7 +273,8 @@ export const inbox = query({
       .collect();
     const rows = [];
     for (const m of memberships) {
-      if (m.status !== "active") continue;
+      const formerMember = m.status === "removed";
+      if (m.status !== "active" && !formerMember) continue;
       const permissions = await ctx.db
         .query("compositionPermissions")
         .withIndex("by_collection", (q) => q.eq("collectionId", m.collectionId))
@@ -284,11 +288,17 @@ export const inbox = query({
         const version = await ctx.db.get(permission.versionId);
         const memory = version && (await ctx.db.get(version.memoryId));
         if (!memory || memory.headVersionId !== permission.versionId) continue;
+        const described = await describePermission(ctx, permission, viewer._id);
+        // Former members only see approvals they can still withdraw.
+        if (formerMember && described.myAction !== "approve") continue;
         rows.push({
           collectionId: m.collectionId,
           memoryId: memory._id,
           uploaderName: (await ctx.db.get(memory.uploaderId))?.name ?? null,
-          permission: await describePermission(ctx, permission, viewer._id),
+          permission: formerMember
+            ? { ...described, approvers: null }
+            : described,
+          formerMember,
         });
       }
     }

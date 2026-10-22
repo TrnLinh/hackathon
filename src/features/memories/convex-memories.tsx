@@ -121,7 +121,8 @@ function StatusOnlyThumb({ memory }: { memory: MemoryView }) {
           aria-hidden="true"
         />
         <span className="block text-xs text-muted-foreground">
-          Visible to the people in it until they approve
+          Only the people in it, and the creator once they all approve, can see
+          it
         </span>
       </span>
     </div>
@@ -277,7 +278,9 @@ function ConsentPanel({
     members.find((p) => p.id === permission.editorId)?.name ?? "The creator";
   const mine = permission.approvers?.find((a) => a.userId === viewerId);
   const act = (action: DecisionAction) =>
-    void run(() => decide(permission.permissionId, action));
+    void run(() =>
+      decide(permission.permissionId, action, mine?.action ?? null),
+    );
 
   return (
     <section
@@ -371,7 +374,13 @@ function ConsentPanel({
   );
 }
 
-function SubmitPanel({ memoryId }: { memoryId: Id<"memories"> }) {
+function SubmitPanel({
+  memoryId,
+  versionId,
+}: {
+  memoryId: Id<"memories">;
+  versionId: string;
+}) {
   const { submitMemory } = useConsentActions();
   const { busy, error, run } = useAction();
   return (
@@ -387,7 +396,7 @@ function SubmitPanel({ memoryId }: { memoryId: Id<"memories"> }) {
       <Button
         size="sm"
         disabled={busy}
-        onClick={() => void run(() => submitMemory(memoryId))}
+        onClick={() => void run(() => submitMemory(memoryId, versionId))}
       >
         <Send aria-hidden="true" /> Submit for approval
       </Button>
@@ -448,8 +457,8 @@ export function ConvexMemoryDetail({
           icon={<Images className="size-5" aria-hidden="true" />}
           title={`${memory.uploaderName ?? "A member"}’s ${kindMeta[memory.kind].label.toLowerCase()}`}
         >
-          Only the people in this memory can see it until they all approve. You
-          can see its status.
+          Only the people in this memory, and the collection’s creator once they
+          all approve, can see it. You can see its status.
         </EmptyState>
         <Aside>
           {memory.permission && (
@@ -516,7 +525,10 @@ export function ConvexMemoryDetail({
           />
         ) : (
           isUploader && (
-            <SubmitPanel memoryId={memory.memoryId as Id<"memories">} />
+            <SubmitPanel
+              memoryId={memory.memoryId as Id<"memories">}
+              versionId={head.versionId}
+            />
           )
         )}
         <div className="space-y-3 rounded-xl border bg-card p-4 text-sm">
