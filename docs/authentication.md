@@ -16,11 +16,11 @@ The public overview, backend status, and setup page remain available without ide
 
 ## Versions and environment
 
-| Component       | Selected version                                                                                         | Verification status                                                                            |
-| --------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Browser SDK     | `@tidecloak/js` 0.14.41                                                                                  | Build, typechecking, session boundary tests; live Tide login pending                           |
-| Tide dev server | 0.14.41, multi-platform digest `sha256:3f52d0bc3e4e3ae5153e172960003bbe94705cd40af6561fd4c7c4434aaa2708` | Registry tag/digest resolved on 22 October 2026; container boot and enrollment unverified here |
-| Convex client   | Exact dependency graph in `package-lock.json`                                                            | Native backend OIDC tests with synthetic EdDSA tokens                                          |
+| Component       | Selected version                                                                                         | Verification status                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Browser SDK     | `@tidecloak/js` 0.14.41                                                                                  | Build, typechecking, session boundary tests; live Tide login pending                                                   |
+| Tide dev server | 0.14.41, multi-platform digest `sha256:3f52d0bc3e4e3ae5153e172960003bbe94705cd40af6561fd4c7c4434aaa2708` | Startup verified on Apple Silicon with Colima, using both fresh and previously failed volumes; Tide enrollment pending |
+| Convex client   | Exact dependency graph in `package-lock.json`                                                            | Native backend OIDC tests with synthetic EdDSA tokens                                                                  |
 
 The server and SDK are independently versioned. The matching version numbers do not prove compatibility; record the live enrollment and renewal results below before calling this a working Tide deployment.
 
@@ -32,6 +32,24 @@ Use an existing licensed TideCloak realm if available. For an isolated local rea
 
 ```bash
 docker compose --env-file .env.tidecloak.local -f compose.tidecloak.yaml up -d
+```
+
+On an Apple Silicon Mac using Homebrew, a local Docker engine can be provided by Colima:
+
+```bash
+brew install colima docker docker-compose
+colima start chorus --cpu 2 --memory 4 --disk 20 --vm-type vz
+docker compose version
+```
+
+If Docker cannot find the Compose plugin, follow `brew info docker-compose` to add Homebrew's plugin directory to `cliPluginsExtraDirs` in your Docker configuration. Preserve existing configuration and credentials. The `chorus` VM is started manually; `colima stop chorus` releases its resources when finished.
+
+The `tidecloak-data-init` service runs once before the server. The pinned image runs TideCloak as UID `1000`, but its H2 mount path does not exist in the image, so Docker initially creates the named volume as `root:root`. The initializer sets ownership on that volume to `1000:0` and ensures the owner can traverse and write the directory. It has no network and a read-only container filesystem; only the database volume is writable. The main server remains non-root. An initializer status of `Exited (0)` is expected.
+
+This also repairs a volume from the earlier failed startup without deleting it. Do not remove a database volume to resolve this ownership error. Once the container is ready, the following request must succeed before realm initialization:
+
+```bash
+curl --fail http://localhost:8080/realms/master/.well-known/openid-configuration
 ```
 
 The identity server listens only on loopback port 8080 and retains its own volume. Its bootstrap administrator is an operational account; it is not proof of a governed contributor or a `tide-realm-admin` identity. Follow the official [Tide setup](https://docs.tide.org/get-started/Tidecloak%20Quickstart) and [Tide identity provider setup](https://docs.tide.org/Admin/idp) to create realm `chorus`, activate the development license, and complete the first administrator's enclave enrollment. These human enrollment and license actions cannot be replaced by creating local Keycloak users.
@@ -129,7 +147,19 @@ AT-01's cross-collection access assertion also needs the later membership/collec
 - Independent standards and spec reviews found no confirmed implementation defect. The spec review retained the live Tide enrollment and governance evidence gap described above. CH-01 stays open.
 - Dependency audit: 9 high-severity advisories remain in the existing development-tooling dependency graph. No new advisory remains from the added test tooling after pinning Vitest 4.1.12. This is not an assertion that the full dependency graph is vulnerability-free.
 
-Docker was unavailable in the implementation environment. The pinned Tide container was not started, and no contributor or administrator was enrolled. The synthetic test issuer must be removed or replaced after running the backend checks.
+At the initial implementation check, Docker was unavailable and the pinned Tide container had not been started. The synthetic test issuer must be removed or replaced after running backend checks.
+
+### Local startup follow-up
+
+Colima and Docker were subsequently installed on the Apple Silicon development machine. The first container launch failed with H2 `AccessDeniedException` because the database volume was owned by root and was not writable by UID `1000`. After adding the volume initializer:
+
+- A separate fresh-volume deployment reached HTTP 200 on master-realm OIDC discovery.
+- The original failed volume was repaired in place and the server reached the same HTTP 200 check.
+- A container running as UID `1000` could write the database directory in both cases.
+- The one-shot initializer exited with code `0`; the main server remained running as UID `1000`.
+- The isolated test deployment and its disposable volume were removed; the original development volume was retained.
+
+Container startup does not establish Tide sign-in, license activation, contributor enrollment, or administrator quorum. Those live checks remain required before closing CH-01; keep private enrollment links, license contacts, adapter exports, and credentials outside the PR.
 
 ### PR review fixes verified on 22 October 2026
 
