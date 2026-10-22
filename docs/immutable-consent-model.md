@@ -1,0 +1,67 @@
+# CH-03 immutable consent model
+
+This is the SRD v0.3 persistence foundation. It adds **internal** Convex operations and a shared TypeScript manifest contract. It does not expose collection, upload, decryption, processor dispatch, approval UI, official issuance, or download APIs. CH-01/CH-02's live Tide gates remain open; CH-22 must still implement the operator UI, authenticated configuration API and checks at actual model dispatch.
+
+## Records and trust
+
+Convex document IDs are opaque, table-typed resource/version identifiers. A `memories` row identifies a contribution; each content or participant revision appends a `memoryVersions` row with an optional predecessor. Existing versions are never edited. Required approvers are resolved `users` IDs, automatically include the uploader, and resolve to stable issuer-qualified `tokenIdentifier`s for commitments. The registry must be populated from backend-verified CH-01 identities, never display names or client assertions. Membership is a mutable workflow record, not a decryption grant.
+
+| Records                                                  | Purpose                                                                                                                                            |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`, `collections`, `memberships`, `memories`        | Identity registry and collection routing; CH-04 supplies authenticated creation/membership APIs                                                    |
+| `privatePayloads`                                        | Sensitive ciphertext envelopes, or private encrypted blob references; format and ciphertext digest are distinct from plaintext content commitments |
+| `memoryVersions`, `mediaAssets`                          | Immutable content, declared approvers, media metadata and encrypted payload references                                                             |
+| `compositionPermissions`                                 | Exact immutable manual editor/reviewer scope **or** explicit named processor scope; request digest and external revision/evidence reference        |
+| `evidence`, `decisions`                                  | Opaque encrypted evidence claims and append-only approve/decline/withdraw events; private explanations reference separate encrypted payloads       |
+| `processingJobs`, `derivedArtifacts`, `designPlans`      | Immutable inputs, model/processor/configuration provenance, ranges and transitive source/derivative/job closure                                    |
+| `candidates`, `editions`                                 | Exact PDF/manifest commitments, final approver union, audiences and issuance-evidence references                                                   |
+| `aiConfigurations`, `operators`, `configurationReceipts` | Server-wide availability history, explicit operator registry and retry receipts                                                                    |
+| `workflowProjections`, `auditEvents`, `mutationReceipts` | Mutable job/UI status, ordered local history and retry recovery                                                                                    |
+
+Evidence and edition records are explicitly `verification: "unverified"`. Their authority/revision/statement fields are **claims and references**, not signature verification results. Neither a matching digest nor a workflow status such as `approved` authorizes protected release. `appendEditionRecord` records a claimed issuance for later verification; it cannot mint an official receipt. CH-12 must verify the real protected operation and receipt bytes before any such record can back an official edition or download. No verified-state promotion operation exists here.
+
+Collection metadata and payload bodies remain ciphertext inputs. These APIs do not implement or verify encryption, media signature/codec inspection, sanitization, or encrypted-envelope binding. CH-05/CH-19 must validate these before calling the internal persistence primitives. Blob ownership/upload validation also belongs to that adapter; a storage ID alone is not evidence of ownership or encryption.
+
+Operators can see routing metadata: collection/user/resource IDs, identity registry subjects, membership and approver IDs, grant audiences and purposes, authority/revision references, digests, codec/dimensions/duration/size, source ranges and lineage, model/configuration versions, statuses, local order and times. This metadata is sensitive and has no public query in this slice. Full captions, excerpts, prompts, plan bodies, PDFs, private explanations and evidence bodies belong in encrypted payloads. Candidate records retain commitments and routing snapshots, not plaintext manifests. `prepareManifest` is internal; callers must encrypt its result before persistence. Public receipt minimization is CH-12 work.
+
+## Internal persistence contract
+
+Functions live under `convex/model/` and use generated `internal.model.*` references. They accept collection-scoped IDs, an actor registry ID and a bounded retry key. Public adapters must derive that actor from `ctx.auth`, authorize each operation and resource, and verify actual Tide evidence. Internal functions are not client-callable; the model is not a replacement for those future authorization adapters.
+
+- `memories.appendVersion`: requires the uploader, resolves approvers and validates predecessor/payload collection references. A revision appends a new ID; no permission is copied to it.
+- `consent.createPermission`: snapshots exact source version, approvers, manual or processor scope, and claimed external revision. Manual review includes all source approvers. Changed scope produces a new commitment and record.
+- `consent.recordEvidence` / `appendDecision`: retain encrypted evidence and exact request/revision references. Decision actors must be required approvers; mismatched commitments/revisions and cross-collection references fail. Withdrawal is another event, not deletion. Local event recording does not establish protected withdrawal ordering.
+- `media.appendPayload` / `appendAsset` / `appendArtifact`: append encrypted envelope and media/lineage metadata. Processor-derived results require a completed, noninvalidated job at its current enabled configuration revision. Locally edited derivatives retain inherited processor ancestry.
+- `jobs.createJob` / `setJobState`: record exact processor permissions for each source/derivative digest and input type. Manual scope cannot stand in for processor scope. Jobs snapshot the enabled server configuration ID/revision, model, recipient and budgets. State is a separate projection; invalidated jobs cannot be restarted. No network dispatch occurs.
+- `plans.appendPlan`: one schema for template, manual and AI revisions. The root `creationOrigin` survives later edits; `revisionOrigin` describes the current revision. AI provenance must refer to a completed current job. Parent/source/derivative/job dependencies are unioned, including style-only sources. Omitting an inherited dependency cannot erase it. After a source is deliberately excluded, regeneration starts a new root with independently selected permitted inputs; parent links express retained influence, not a way to drop it.
+- `candidates.prepareManifest` / `appendCandidate`: compute the final source/text-author approver union and require an exact manual scope for the recipient and review audience for every source. The supplied manifest digest must match the canonical result. A candidate ID is sealed into its request digest atomically before the transaction becomes visible; no committed candidate is changed. Two distinct candidates cannot share final approval evidence even with identical file bytes.
+- `candidates.appendEditionRecord`: snapshots candidate commitments, source revisions and download audience with unverified issuance evidence; retries recover the same record. One candidate has at most one recorded edition. This is not the official issuance operation.
+- `read.get` / `history` / `projection`: internal reads for future authorized adapters and persistence tests. They expose no public history or payload access.
+
+Each collection mutation validates current active membership, checks a receipt indexed by `(collection, actor, operation, retryKey)`, and compares a canonical input digest. Identical retries return the committed ID. Reusing a key for another payload fails. The record, receipt and local audit event commit in one Convex transaction. Collection audit sequence numbers provide local database order only, never an authoritative Tide release/revocation order. Preserve retry keys after a lost response; use a new key for intentional regeneration.
+
+## Server AI configuration
+
+The absence of a configuration means disabled at revision 0. Only an active `operators` registry entry can append configuration. That server-wide registry is provisioned by a future trusted administrative path; collection ownership does not confer operator status. Configuration appends use compare-and-set `expectedRevision`, monotonic revisions, predecessor, operator and time, with dedicated retry receipts. Store an opaque processor configuration reference, never credentials, in these rows.
+
+Jobs capture the configuration ID and revision. Model admission rejects disabled or stale configuration. Acceptance of a new processor result also rejects stale/invalidated jobs. Existing accepted plans, candidates, consent and edition records are not rewritten when AI changes; manual revisions retain their AI/template provenance. These checks cover persistence consistency only. CH-22 still must order actual dispatch against disabling, invalidate/cancel queued or in-flight work, reject late network results and prevent re-enable from reviving jobs. No real dispatch is implemented here.
+
+## Canonical manifest and commitments
+
+Frontend and backend import `src/lib/consent/manifest.ts`. `chorus-manifest/v1` is a strict application protocol, not a claim to implement a general canonical JSON standard.
+
+- UTF-8 JSON; object keys sort in JavaScript UTF-16 code-unit order. Strings are preserved exactly without Unicode normalization. Finite JSON numbers use `JSON.stringify`; undefined, sparse arrays and custom objects fail.
+- Identity/font sets sort and reject duplicates. Source dependencies sort by canonical `[versionId, permissionId]`; manual and processor grants for the same source remain distinct. Derivatives sort by ID and processors by job ID. Accepted text remains in content order.
+- The manifest retains source/version/content/permission digests, exact revision references, influence and approvers; encrypted text references with author/time attribution; derivative ranges/transformation/ancestry; processor/model/input/configuration provenance; immutable plan origin/parent/schema/component versions; renderer/fonts; required approver union, recipient, review/download audiences and distribution scope.
+- SHA-256 hashes the exact canonical UTF-8 bytes. Candidate request commitments additionally bind collection ID, generated candidate ID, PDF digest and manifest digest with protocol `chorus-candidate/v1`. Permission commitments use `chorus-permission/v1` and cover the exact source version/content, approvers, use scope and external revision reference.
+- Limits are 64 source/permission dependencies, derivatives and processor jobs per closure, 64 identities per set, and 128 accepted text entries. They are model bounds, not the CH-05/CH-19 media budgets.
+
+The CH-02 `chorus-policy-proof/v1` wire protocol remains unchanged. These data-model commitments are not interchangeable with it and are not deployed Tide policy inputs. A reviewed integration must explicitly map the production commitments, exact recipients and authoritative revisions into protected operations.
+
+## Validation and deployment
+
+The approved seams are internal Convex persistence via `convex-test` and the shared manifest serializer. Tests use synthetic ciphertext/evidence only. They cover immutable revisions, approver inclusion/resolution, collection separation, scope changes, job/configuration snapshots, provenance retention, stale result rejection, exact candidates, decision/edition retry recovery and canonical digest sensitivity. They do not satisfy live AT-03/04/06/09/12, or the runtime dispatch/withdrawal portions of AT-21/25/26.
+
+Run `npm run check`, `npm test`, `npm run format:check`, and `npm run build`. Generated API declarations can be refreshed without deploying using `npx convex codegen --system-udfs --typecheck disable` (the installed CLI's local code-generation path).
+
+This replaces the starter schema and reports schema version 2. **Do not deploy it over a populated starter deployment without a migration.** No deployment or automatic data reset is part of CH-03. Before rollout, inventory existing collections/memories privately; resolve verified users and membership identities; migrate legacy mutable memory payloads to encrypted payload references and immutable versions; preserve existing identifiers/evidence history or document mappings; then validate the target schema. Never invent historical signatures, approvals or authoritative revisions during migration. Fresh disposable fixtures need no migration.

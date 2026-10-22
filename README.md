@@ -8,6 +8,8 @@ This repository contains the project foundation and a TideCloak authentication i
 
 CH-02 adds a development-only synthetic policy workbench at `/app/policy-proof`, exact source/processor/edition commitments, and SDK probes for encryption, contributor request handoff, release and signing. These are integration scaffolding, not completed product encryption or consent. The deployed Chorus contract, authoritative withdrawal mechanism, live protected-operation evidence and offline receipt verification remain pending. See the [integration decision and deferred live procedure](docs/adr/0001-tide-policy-proof.md). Realm enrollment and live checks were explicitly deferred; CH-02 remains open.
 
+CH-03 adds the internal immutable consent model, multimedia/design lineage, canonical edition manifests, and default-off server AI configuration records. Evidence and edition claims remain unverified; no product release, dispatch, signing, or download API is added. See the [model contract and migration boundary](docs/immutable-consent-model.md).
+
 ## Stack
 
 - Next.js App Router with TypeScript.
