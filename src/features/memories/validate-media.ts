@@ -239,6 +239,85 @@ export async function checkMediaFile(
   };
 }
 
+export type MediaKind = Exclude<MemoryKind, "text">;
+
+/** Everything the universal drop zone accepts. */
+export const acceptAny = Object.values(acceptFor).join(",");
+
+export const anyFormatHelp =
+  "Photos (JPEG, PNG), voice notes (MP3, M4A, WebM), or short videos (MP4, WebM).";
+
+const isHeif = (b: Uint8Array) => {
+  if (!isFtyp(b)) return false;
+  const brand = new TextDecoder().decode(b.slice(8, 12));
+  return ["heic", "heix", "hevc", "mif1", "msf1", "avif"].includes(brand);
+};
+
+function hasVideoTrack(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const el = document.createElement("video");
+    const timer = window.setTimeout(() => resolve(false), 4000);
+    el.preload = "metadata";
+    el.onloadedmetadata = () => {
+      window.clearTimeout(timer);
+      resolve(el.videoWidth > 0);
+    };
+    el.onerror = () => {
+      window.clearTimeout(timer);
+      resolve(false);
+    };
+    el.src = url;
+  });
+}
+
+/**
+ * Works out whether a file is a photo, voice note, or video from its bytes,
+ * then runs the same checks as a typed upload. MP4 and WebM containers can
+ * hold audio only, so those are probed for a video track.
+ */
+export async function detectAndCheckMediaFile(
+  file: File,
+  previewUrl: string,
+): Promise<MediaCheck & { kind?: MediaKind }> {
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (isHeif(head))
+    return {
+      errors: [
+        "HEIC and AVIF photos aren’t supported yet. Export the photo as JPEG (on iPhone: Settings › Camera › Formats › Most Compatible) and try again.",
+      ],
+    };
+  const candidates = Array.from(
+    new Set(formats.filter((f) => f.matches(head)).map((f) => f.kind)),
+  );
+  if (candidates.length === 0) {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const text = new TextDecoder().decode(head).trimStart().toLowerCase();
+    const svg =
+      ext === "svg" ||
+      file.type === "image/svg+xml" ||
+      text.startsWith("<svg") ||
+      text.startsWith("<?xml");
+    return {
+      errors: [
+        svg
+          ? "SVG files can contain scripts and aren’t accepted. Export the image as JPEG or PNG."
+          : `This file isn’t a supported format, whatever its name says. Chorus accepts ${anyFormatHelp.charAt(0).toLowerCase()}${anyFormatHelp.slice(1)}`,
+      ],
+    };
+  }
+  let kind: MediaKind = candidates[0];
+  if (candidates.length > 1) {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    kind =
+      ext === "m4a" || ext === "weba" || ext === "mp3"
+        ? "voice"
+        : (await hasVideoTrack(previewUrl))
+          ? "video"
+          : "voice";
+  }
+  return { kind, ...(await checkMediaFile(file, kind, previewUrl)) };
+}
+
 /** Deterministic placeholder gradient from a seed string. */
 export function artworkFromSeed(seed: string, scene: string) {
   let h = 0;
