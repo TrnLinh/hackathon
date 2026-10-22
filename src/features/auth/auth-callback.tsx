@@ -2,17 +2,22 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useConvexAuth } from "convex/react";
 import { useAuthConfiguration } from "@/components/providers";
 import { useTideSession } from "./auth-provider";
 
 function CallbackSession() {
+  const router = useRouter();
   const session = useTideSession();
   const convex = useConvexAuth();
   useEffect(() => {
-    if (session.phase === "authenticated" && convex.isAuthenticated)
-      window.location.replace("/app");
-  }, [session.phase, convex.isAuthenticated]);
+    if (
+      session.phase === "anonymous" ||
+      (session.phase === "authenticated" && convex.isAuthenticated)
+    )
+      router.replace("/app");
+  }, [router, session.phase, convex.isAuthenticated]);
   return (
     <p role="status">
       {session.message ??

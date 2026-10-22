@@ -8,6 +8,8 @@ The browser uses `@tidecloak/js` 0.14.41 directly, with authorization-code flow,
 
 `ConvexProviderWithAuth` obtains current ID tokens from the session adapter. Forced token requests force SDK renewal. Renewal failure, expired or mismatched claims, or a change of subject blocks application access. Logout hides protected content immediately, invalidates pending token requests, and initiates Tide's end-session redirect. The SDK clears credentials after constructing that redirect. Browser checks only maintain UI consistency: Convex independently verifies the token signature, issuer, audience, and expiry.
 
+The sign-in callback uses Next.js client navigation to preserve the root provider and its in-memory tokens. When third-party cookies are blocked, the SDK falls back to a top-level session-check redirect so browser reload can recover the provider session. Successful sign-in and session checks that find no active session return to `/app` without reloading the document. `public/silent-check-sso.html` is copied verbatim by the pinned SDK during installation; its checked-in copy matches that output and is excluded from formatting.
+
 `identity.current` accepts no user ID arguments. It returns only the authenticated subject, issuer, and issuer-qualified token identifier from `ctx.auth.getUserIdentity()`. Future collection permissions must use verified identities plus resource-specific authorization. A verified identity alone does not authorize reading a collection.
 
 The public overview, backend status, and setup page remain available without identity configuration. Collections require both a browser session and Convex's confirmation. With no configured issuer the backend accepts no identity providers. Convex requires both environment variables to exist when evaluating `auth.config.ts`; set both to empty strings to deliberately disable identity, or set both to the real realm values.
@@ -128,6 +130,12 @@ AT-01's cross-collection access assertion also needs the later membership/collec
 - Dependency audit: 9 high-severity advisories remain in the existing development-tooling dependency graph. No new advisory remains from the added test tooling after pinning Vitest 4.1.12. This is not an assertion that the full dependency graph is vulnerability-free.
 
 Docker was unavailable in the implementation environment. The pinned Tide container was not started, and no contributor or administrator was enrolled. The synthetic test issuer must be removed or replaced after running the backend checks.
+
+### PR review fixes verified on 22 October 2026
+
+- With a synthetic issuer reporting third-party cookies unavailable and a disposable Docker Convex backend, browser sign-in returned to the workspace through client navigation. The backend verified subject `alice`; reloading recovered the same subject through the top-level session-check fallback.
+- Logout blocked Collections, a subsequent reload stayed signed out, and signing in again succeeded. A session check with no provider session returned to the public overview.
+- The SDK-owned silent SSO page now matches the package's install output and is excluded from formatting. These synthetic checks do not complete the live Tide enrollment or governance evidence above.
 
 ## Sources
 

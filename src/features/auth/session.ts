@@ -122,7 +122,7 @@ export class TideSession {
           scope: "openid profile",
           redirectUri: `${this.config.origin}/auth/redirect`,
           silentCheckSsoRedirectUri: `${this.config.origin}/silent-check-sso.html`,
-          silentCheckSsoFallback: false,
+          silentCheckSsoFallback: true,
           enableLogging: false,
           setupRequestEnclave: false,
           useDPoP: { mode: "strict", alg: "ES256" },
