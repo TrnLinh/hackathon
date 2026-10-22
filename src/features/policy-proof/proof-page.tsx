@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useProofSdk } from "@/features/auth/auth-provider";
 import { RequireSignIn } from "@/features/auth/require-sign-in";
 import { bindingTag, digest, parseBinding } from "./binding";
+import { SingleAccountPanel } from "./single-account-panel";
 
 const initialBinding = JSON.stringify(
   {
@@ -195,6 +196,7 @@ function Workbench() {
         credentials: keep them private and out of Git, chat and shared evidence.
         Verify the request in Tide’s approval window before approving it.
       </p>
+      <SingleAccountPanel />
       <form onSubmit={run} className="space-y-4">
         <label className="block text-sm">
           Operation

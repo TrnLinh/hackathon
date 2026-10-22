@@ -185,3 +185,77 @@ describe("Tide session token boundary", () => {
     expect(reloaded.getSnapshot().subject).toBe("alice");
   });
 });
+
+describe("backend verification of forced renewal", () => {
+  async function initializedSession(client = tideClient()) {
+    const session = new TideSession(client, {
+      issuer,
+      clientId: "chorus",
+      origin: "https://chorus.example",
+    });
+    await session.initialize();
+    return session;
+  }
+
+  it("verifies the freshly renewed token against the backend", async () => {
+    const client = tideClient();
+    client.updateToken = async (validity) => {
+      if (validity === -1) client.idToken = "fresh-alice-token";
+      return validity === -1;
+    };
+    const session = await initializedSession(client);
+    const accepted = await session.verifyRenewal(async (token) => {
+      expect(token).toBe("fresh-alice-token");
+      return { subject: "alice", issuer };
+    });
+    expect(accepted).toBe(true);
+    expect(session.getSnapshot().subject).toBe("alice");
+  });
+
+  it.each([
+    { subject: "bob", issuer },
+    { subject: "alice", issuer: "https://another.example/realms/chorus" },
+  ])(
+    "blocks access if the backend returns a different identity: %j",
+    async (identity) => {
+      const session = await initializedSession();
+      expect(await session.verifyRenewal(async () => identity)).toBe(false);
+      expect(session.getSnapshot().phase).toBe("error");
+      expect(session.getSnapshot().subject).toBeNull();
+    },
+  );
+
+  it("does not expose a backend failure or retain authenticated access", async () => {
+    const session = await initializedSession();
+    expect(
+      await session.verifyRenewal(async () => {
+        throw new Error("synthetic-secret-backend-error");
+      }),
+    ).toBe(false);
+    expect(session.getSnapshot().phase).toBe("error");
+    expect(JSON.stringify(session.getSnapshot())).not.toContain(
+      "synthetic-secret-backend-error",
+    );
+  });
+
+  it("cannot report renewal success after logout races backend verification", async () => {
+    const session = await initializedSession();
+    let finish!: (identity: { subject: string; issuer: string }) => void;
+    let entered!: () => void;
+    const verifying = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const result = session.verifyRenewal(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+          entered();
+        }),
+    );
+    await verifying;
+    await session.logout();
+    finish({ subject: "alice", issuer });
+    expect(await result).toBe(false);
+    expect(session.getSnapshot().phase).toBe("anonymous");
+  });
+});

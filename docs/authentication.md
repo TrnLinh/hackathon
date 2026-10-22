@@ -115,17 +115,17 @@ npm run build
 
 Unit/in-process tests cover unauthenticated identity access, three verified subjects, refusal of client-supplied subject arguments, configuration validation, forced renewal, invalid claims, subject substitution, refresh failure, and logout racing a pending refresh. The Convex test harness supplies identities; those tests alone do not test JWT signatures.
 
-For actual backend JWT verification, use a disposable native deployment with no private data. Configure its issuer as `http://127.0.0.1:3330/realms/chorus` and audience as `chorus`, then run:
+For actual backend JWT verification, use a disposable native deployment with no private data in a separate temporary project directory. Copy the current `convex/` functions and their `src/lib/consent/` imports into that directory, with access to the same installed dependencies. Keep its `.convex/` and `.env.local` separate from the main application. Configure its issuer as `http://127.0.0.1:3330/realms/chorus` and audience as `chorus`, then run the following only in that disposable project:
 
 ```bash
 npx convex env set --force <<'ENV'
 TIDECLOAK_ISSUER=http://127.0.0.1:3330/realms/chorus
 TIDECLOAK_CLIENT_ID=chorus
 ENV
-CHORUS_AUTH_TEST_URL=http://127.0.0.1:3320 npm run test:auth:backend
+CHORUS_AUTH_TEST_URL=http://127.0.0.1:3420 node --test scripts/auth-backend.test.mjs
 ```
 
-Start the native backend on port 3320 first, for example with `CONVEX_AGENT_MODE=anonymous npx convex dev --local-cloud-port 3320 --local-site-port 3321`. These CLI port flags are internal to the pinned CLI and may change. The test serves synthetic OIDC discovery/JWKS on port 3330 and signs temporary EdDSA tokens in memory. It exercises three subjects, unauthenticated calls, expiry, wrong issuer, wrong audience, forged signatures, and `clearAuth()` against the real backend. It prints no credentials. Restore the actual Tide issuer afterwards; never point a real deployment at the synthetic issuer.
+Start the disposable native backend on port 3420 first, for example with `CONVEX_AGENT_MODE=anonymous npx convex dev --local-cloud-port 3420 --local-site-port 3421`, and copy `scripts/auth-backend.test.mjs` into its matching `scripts/` directory. These CLI port flags are internal to the pinned CLI and may change. The test serves synthetic OIDC discovery/JWKS on port 3330 and signs temporary EdDSA tokens in memory. It exercises three subjects, unauthenticated calls, expiry, wrong issuer, wrong audience, forged signatures, and `clearAuth()` against the real backend. It prints no credentials. Stop the disposable deployment afterwards; never point the main deployment at the synthetic issuer.
 
 Before closing CH-01, record live Tide evidence:
 
@@ -138,7 +138,7 @@ Before closing CH-01, record live Tide evidence:
 | Three administrators and a measured multi-approval sensitive-change threshold                                    | Pending live realm                                          |
 | Server/SDK pairing and public verification configuration recorded                                                | Versions pinned; live compatibility pending                 |
 
-AT-01's cross-collection access assertion also needs the later membership/collection endpoints; it cannot be completed by the identity query alone. An issued ID token can remain valid until expiry if copied before logout. Browser logout clears this app's access and ends the provider session; it does not promise immediate revocation of a stolen bearer token at Convex.
+AT-01's cross-collection access assertion requires live tests of the membership/collection endpoints; it cannot be completed by the identity query alone. An issued ID token can remain valid until expiry if copied before logout. Browser logout clears this app's access and ends the provider session; it does not promise immediate revocation of a stolen bearer token at Convex.
 
 ## Evidence recorded on 22 October 2026
 
@@ -178,6 +178,76 @@ Container startup does not establish Tide sign-in, license activation, contribut
 - With a synthetic issuer reporting third-party cookies unavailable and a disposable Docker Convex backend, browser sign-in returned to the workspace through client navigation. The backend verified subject `alice`; reloading recovered the same subject through the top-level session-check fallback.
 - Logout blocked Collections, a subsequent reload stayed signed out, and signing in again succeeded. A session check with no provider session returned to the public overview.
 - The SDK-owned silent SSO page now matches the package's install output and is excluded from formatting. These synthetic checks do not complete the live Tide enrollment or governance evidence above.
+
+### Fresh realm recovery and DPoP callback follow-up
+
+Later on 22 October 2026, a separate Compose project, `chorus-identity-fresh`,
+provisioned a fresh `chorus` realm. The original `chorus-identity` database was
+preserved. The earlier wallet-finalization failure above describes that original
+realm, rather than the current fresh deployment.
+
+The first administrator completed Tide enrollment. The saved user has both
+`tideUserKey` and `vuid` and the `tide-realm-admin` role. The initializer completed
+its settings-signing and administrator setup and exported a real client adapter.
+The ignored browser environment now contains its public values; the native
+Convex backend retains issuer `http://localhost:8080/realms/chorus` and audience
+`chorus`.
+
+The enrolled administrator's live Tide enclave approved the queued audience
+mapper change. A subsequent admin API read confirmed `id.token.claim=true` and
+`access.token.claim=true` for the `chorus` audience, with no pending change
+requests. The observed approval threshold was one. This verifies an actual
+governed change, but does not establish the required multi-administrator quorum.
+
+The first Chorus login attempt exposed a missing DPoP verification callback:
+`/tide_dpop/iss/<issuer-hex>/aud/<client-hex>/tide_dpop_auth.html` returned 404.
+The application now serves the installed SDK's bundled document and security
+headers through `@tidecloak/js/dpop-route`, constrained to the configured realm
+and client. The route stays unavailable when identity is unconfigured. Five
+regression cases cover the document/headers, issuer mismatch, client mismatch,
+unconfigured identity, and HEAD responses. A request to the running app returned
+200 for the configured callback and 403 for another client. The first attempt's
+session expired during the callback repair. A fresh authorization flow then
+completed against the real Tide realm: the browser returned to Chorus, the
+protected Collections page opened, and Project setup displayed the enrolled
+administrator's subject from `identity.current` with the exact configured
+issuer. A full browser reload restored that same backend-verified subject.
+Logout returned the app to Signed out; reopening Collections in a full document
+navigation required sign-in. No raw tokens were recorded.
+
+After this repair, `npm test` passed 9 backlog-publication tests and 58 Vitest
+tests. `npm run check`, the changed files' formatting check, and `npm run build`
+passed. The production build includes the dynamic `/tide_dpop/[...path]` route.
+
+### Existing-account verification and explicit deferrals
+
+The user deferred registration and enrollment of `chorus-demo-2` and
+`chorus-demo-3`. Their local realm records exist, but neither identity is linked
+or a governance administrator. No enrollment invitation or proposed credential
+is published here. The original acceptance criteria remain unchanged.
+
+The development-only Project setup control **Verify session renewal** forces the
+SDK to renew, sends the returned ID token to a separate Convex HTTP client, and
+requires the backend to report the same subject and issuer. The raw token never
+enters rendered output or storage. The live check returned **Session renewed;
+Convex confirmed the same identity**. Regression tests also cover a mismatched
+subject/issuer, a backend failure, and logout racing the verification.
+
+A separate empty native Convex deployment on ports 3420/3421 ran all four
+`auth-backend.test.mjs` cases successfully: valid signed EdDSA controls for three
+synthetic subjects; unauthenticated rejection; expired, wrong-issuer,
+wrong-audience and forged-token rejection; and removal of protected access after
+clearing auth. This is actual backend JWT validation with a synthetic issuer,
+not enrollment of three Tide people. The main `.env.local` was unchanged and its
+backend retained the real Tide issuer on port 3320. The disposable backend was
+stopped and its copied source/data were removed, retaining only private test
+evidence.
+
+CH-01 remains open for the deferred real contributors and administrators,
+cross-identity checks, and a measured multi-administrator threshold. Its tested
+single-account path now includes real sign-in, stable backend identity, reload,
+logout, and forced renewal. Cross-collection isolation also requires the later
+collection/membership tests with distinct real identities. See the [current evidence matrix](ch01-ch02-single-account-status.md).
 
 ## Sources
 
