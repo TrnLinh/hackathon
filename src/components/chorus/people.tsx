@@ -1,3 +1,4 @@
+import { useSampleAvatar } from "@/lib/sample-media";
 import { cn } from "@/lib/utils";
 import type { Person } from "@/features/prototype/types";
 
@@ -19,6 +20,7 @@ export function PersonAvatar({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
+  const photo = useSampleAvatar(person.id);
   return (
     <span
       title={person.name}
@@ -31,7 +33,16 @@ export function PersonAvatar({
       )}
       style={{ background: `oklch(0.55 0.11 ${person.hue})` }}
     >
-      <span aria-hidden="true">{initials(person.name)}</span>
+      {photo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photo}
+          alt=""
+          className="size-full rounded-full object-cover"
+        />
+      ) : (
+        <span aria-hidden="true">{initials(person.name)}</span>
+      )}
       <span className="sr-only">{person.name}</span>
     </span>
   );

@@ -1,27 +1,22 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, Lock, Plus } from "lucide-react";
-import {
-  EmptyState,
-  PageHeader,
-  TrustNote,
-} from "@/components/chorus/page-header";
+import { BookOpen, Lock, Plus } from "lucide-react";
+import { EmptyState } from "@/components/chorus/page-header";
+import { ArtworkFill, MemoryThumb } from "@/components/chorus/memory-thumb";
 import { PersonStack } from "@/components/chorus/people";
-import { MemoryStatusBadge } from "@/components/chorus/status";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import {
   toPerson,
   useCollectionActions,
@@ -35,16 +30,8 @@ import {
   memoryStatus,
   personById,
 } from "@/features/prototype/selectors";
-import type { MemoryStatus } from "@/features/prototype/types";
 
-const summaryOrder: MemoryStatus[] = [
-  "available",
-  "manual-only",
-  "awaiting",
-  "excluded",
-];
-
-function NewCollectionDialog() {
+function NewZineSheet({ size = "default" }: { size?: "default" | "lg" }) {
   const navigate = useNavigate();
   const { createCollection } = useCollectionActions();
   const [open, setOpen] = useState(false);
@@ -56,9 +43,9 @@ function NewCollectionDialog() {
   const length = Array.from(title.trim()).length;
   const titleError =
     length === 0
-      ? "Give the collection a title."
+      ? "Give it a title."
       : length > LIMITS.titleChars
-        ? `Shorten the title to ${LIMITS.titleChars} characters or fewer.`
+        ? `Keep it under ${LIMITS.titleChars} characters.`
         : null;
 
   async function submit(event: FormEvent) {
@@ -81,7 +68,7 @@ function NewCollectionDialog() {
   }
 
   return (
-    <Dialog
+    <Sheet
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
@@ -93,78 +80,65 @@ function NewCollectionDialog() {
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button>
-          <Plus aria-hidden="true" /> New collection
+      <SheetTrigger asChild>
+        <Button size={size} variant="highlight">
+          <Plus aria-hidden="true" /> New zine
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <form onSubmit={(e) => void submit(e)} className="space-y-5" noValidate>
-          <DialogHeader>
-            <DialogTitle>Start a collection</DialogTitle>
-            <DialogDescription>
-              You will be its creator. Contributors still decide how each of
-              their memories is used.
-            </DialogDescription>
-          </DialogHeader>
+      </SheetTrigger>
+      <SheetContent>
+        <form
+          onSubmit={(e) => void submit(e)}
+          className="space-y-5 p-5 pb-8"
+          noValidate
+        >
+          <SheetHeader className="p-0">
+            <SheetTitle>New zine</SheetTitle>
+            <SheetDescription>
+              Name it, then invite your people.
+            </SheetDescription>
+          </SheetHeader>
           <div className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <Label htmlFor="collection-title">Title</Label>
-              <span
-                className={`text-xs tabular-nums ${length > LIMITS.titleChars ? "text-destructive" : "text-muted-foreground"}`}
-                aria-live="polite"
-              >
-                {length}/{LIMITS.titleChars}
-              </span>
-            </div>
+            <Label htmlFor="zine-title">Title</Label>
             <Input
-              id="collection-title"
+              id="zine-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => setTouched(true)}
-              placeholder="Our First Year Away From Home"
+              placeholder="Our first year away"
               aria-invalid={touched && !!titleError}
               aria-describedby={
-                touched && titleError ? "collection-title-error" : undefined
+                touched && titleError ? "zine-title-error" : undefined
               }
+              className="h-11"
               autoFocus
             />
             {touched && titleError && (
-              <p
-                id="collection-title-error"
-                className="text-xs text-destructive"
-              >
+              <p id="zine-title-error" className="text-sm text-destructive">
                 {titleError}
               </p>
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="collection-occasion">Occasion</Label>
+            <Label htmlFor="zine-occasion">Occasion</Label>
             <Input
-              id="collection-occasion"
+              id="zine-occasion"
               value={occasion}
               onChange={(e) => setOccasion(e.target.value)}
-              placeholder="Graduation, farewell, reunion…"
+              placeholder="Graduation, trip, reunion"
+              className="h-11"
             />
           </div>
-          <TrustNote>
-            Encryption isn’t connected yet. For development, the title and
-            occasion are stored on the server unencrypted and labelled that way.
-            The real build encrypts them for members only.
-          </TrustNote>
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
             </p>
           )}
-          <DialogFooter>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Creating…" : "Create collection"}
-            </Button>
-          </DialogFooter>
+          <Button type="submit" size="lg" className="w-full" disabled={saving}>
+            {saving ? "Creating" : "Create zine"}
+          </Button>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -174,116 +148,106 @@ export function CollectionsPage() {
   const waiting = (collections ?? []).filter((c) => c.status === "requested");
 
   return (
-    <div className="space-y-10">
-      <PageHeader
-        eyebrow="The moments you keep"
-        title="Your collections"
-        description="A place for shared photos, voice notes, videos, and everyone’s perspective."
-        actions={<NewCollectionDialog />}
-      />
+    <div className="space-y-8">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+          Our zines
+        </h1>
+        {active.length > 0 && <NewZineSheet />}
+      </div>
 
       {collections === undefined ? (
         <p role="status" className="text-sm text-muted-foreground">
-          Loading your collections…
+          Loading your zines
         </p>
       ) : active.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="size-5" aria-hidden="true" />}
-          title="A new chapter starts here"
-          action={<NewCollectionDialog />}
+          title="Start your first zine"
+          action={<NewZineSheet size="lg" />}
         >
-          Start a collection, or open a join link from a friend.
+          Or open a join link from a friend.
         </EmptyState>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {active.map((collection) => (
-            <li key={collection.collectionId}>
-              <Card className="relative h-full shadow-none transition-colors hover:border-primary/40">
-                <CardContent className="flex h-full flex-col gap-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="font-serif text-xl leading-snug">
-                        <Link
-                          to="/collections/$collectionId"
-                          params={{ collectionId: collection.collectionId }}
-                          className="rounded-sm after:absolute after:inset-0 hover:underline focus-visible:outline-2"
-                        >
-                          {collection.metadata.title}
-                        </Link>
-                      </h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {collection.metadata.occasion} ·{" "}
-                        {collection.role === "creator"
-                          ? "You created this"
-                          : "Contributor"}
-                      </p>
-                    </div>
-                    <PersonStack people={collection.members.map(toPerson)} />
-                  </div>
-                  <p className="text-sm">
-                    {collection.members.length}{" "}
-                    {collection.members.length === 1 ? "member" : "members"}
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {active.map((collection, i) => (
+            <li
+              key={collection.collectionId}
+              className="rise min-w-0"
+              style={{ "--i": i } as React.CSSProperties}
+            >
+              <Link
+                to="/collections/$collectionId"
+                params={{ collectionId: collection.collectionId }}
+                className="press flex h-full flex-col gap-4 rounded-[2rem] bg-card p-5 shadow-soft ring-1 ring-border outline-none transition-shadow duration-200 hover:shadow-lift focus-visible:ring-3 focus-visible:ring-ring"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-display line-clamp-2 min-w-0 text-2xl leading-tight font-bold tracking-tight">
+                    {collection.metadata.title}
+                  </h2>
+                  <PersonStack
+                    people={collection.members.map(toPerson)}
+                    max={3}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {collection.metadata.occasion}
+                  {" · "}
+                  {collection.role === "creator"
+                    ? "You made this"
+                    : "Contributor"}
+                </p>
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+                  <p className="flex flex-wrap items-center gap-2 text-sm">
+                    <span>
+                      {collection.members.length}{" "}
+                      {collection.members.length === 1 ? "person" : "people"}
+                    </span>
                     {collection.pendingCount > 0 && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {collection.pendingCount} waiting to join
+                      <span className="rounded-full bg-lime px-2.5 py-0.5 text-sm font-semibold text-lime-ink">
+                        {collection.pendingCount} waiting to join
                       </span>
                     )}
                   </p>
-                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-                      Open collection{" "}
-                      <ArrowRight className="size-3.5" aria-hidden="true" />
-                    </span>
-                    <DevEnvelopeBadge />
-                  </div>
-                </CardContent>
-              </Card>
+                  <DevEnvelopeBadge />
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
       )}
 
       {waiting.length > 0 && (
-        <section aria-labelledby="pending-joins" className="space-y-3">
-          <h2
-            id="pending-joins"
-            className="text-lg font-semibold tracking-tight"
-          >
-            Waiting for admission
-          </h2>
-          <ul className="space-y-2">
-            {waiting.map((c) =>
-              c.status === "requested" ? (
-                <li
-                  key={c.collectionId}
-                  className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm"
-                >
-                  <Lock
-                    className="size-4 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <span className="font-medium">
-                    {c.creator.name ?? "A creator"}’s collection
-                  </span>
-                  <span className="text-muted-foreground">
-                    — they haven’t admitted you yet. You’ll see its title once
-                    you’re a member.
-                  </span>
-                </li>
-              ) : null,
-            )}
-          </ul>
-        </section>
+        <ul className="space-y-2">
+          {waiting.map((c) =>
+            c.status === "requested" ? (
+              <li
+                key={c.collectionId}
+                className="flex items-center gap-3 rounded-2xl bg-card p-4 text-sm shadow-soft ring-1 ring-border"
+              >
+                <Lock
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span className="font-medium">
+                  {c.creator.name ?? "Someone"}’s zine
+                </span>
+                <span className="text-muted-foreground">
+                  Waiting to be let in
+                </span>
+              </li>
+            ) : null,
+          )}
+        </ul>
       )}
 
-      <PrototypeCollections />
+      <PrototypeZines />
     </div>
   );
 }
 
-/** Seed collections that still exercise the screens not yet on Convex. */
-function PrototypeCollections() {
+/** Seed zines that still exercise the screens not yet on Convex. */
+function PrototypeZines() {
   const state = usePrototype();
   const mine = state.collections.filter((c) =>
     c.memberIds.includes(state.viewerId),
@@ -291,94 +255,104 @@ function PrototypeCollections() {
   const pending = state.collections.filter((c) =>
     c.pendingIds.includes(state.viewerId),
   );
+  if (mine.length === 0 && pending.length === 0) return null;
 
   return (
-    <section aria-labelledby="prototype-collections" className="space-y-3">
-      <div>
-        <h2
-          id="prototype-collections"
-          className="flex items-center gap-2 text-lg font-semibold tracking-tight"
-        >
-          Prototype demo collections <Badge variant="outline">Mock data</Badge>
-        </h2>
+    <section aria-labelledby="demo-zines" className="space-y-4">
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 id="demo-zines" className="text-2xl font-bold tracking-tight">
+            Demo zines
+          </h2>
+          <Badge variant="outline">Mock data</Badge>
+        </div>
         <p className="text-sm text-muted-foreground">
-          Synthetic data stored in this browser, for screens not yet connected
-          to the backend. Switch the demo viewer at the top of the page.
+          Practice zines kept in this browser, for screens that are not
+          connected yet. Switch the demo viewer at the top of the page.
         </p>
       </div>
-      {mine.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          The current demo viewer isn’t in any prototype collection.
-        </p>
-      ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
+
+      {mine.length > 0 && (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {mine.map((collection) => {
             const memories = collectionMemories(state, collection.id).filter(
               (m) => m.submitted || m.uploaderId === state.viewerId,
             );
-            const counts = new Map<MemoryStatus, number>();
-            for (const m of memories) {
-              const s = memoryStatus(m);
-              counts.set(s, (counts.get(s) ?? 0) + 1);
-            }
-            const isCreator = collection.creatorId === state.viewerId;
+            const waiting = memories.filter(
+              (m) => memoryStatus(m) === "awaiting",
+            ).length;
+            const covers = memories
+              .filter((m) => memoryStatus(m) !== "excluded")
+              .slice(0, 3);
+            const progress =
+              memories.length === 0
+                ? "No memories yet"
+                : `${memories.length} ${memories.length === 1 ? "memory" : "memories"}, ${
+                    waiting > 0 ? `${waiting} waiting` : "all ready"
+                  }`;
             return (
-              <li key={collection.id}>
-                <Card className="relative h-full shadow-none transition-colors hover:border-primary/40">
-                  <CardContent className="flex h-full flex-col gap-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="font-serif text-xl leading-snug">
-                          <Link
-                            to="/collections/$collectionId"
-                            params={{ collectionId: collection.id }}
-                            className="rounded-sm after:absolute after:inset-0 hover:underline focus-visible:outline-2"
+              <li key={collection.id} className="min-w-0">
+                <Link
+                  to="/collections/$collectionId"
+                  params={{ collectionId: collection.id }}
+                  className="press block overflow-hidden rounded-[2rem] bg-card shadow-soft ring-1 ring-border outline-none transition-shadow duration-200 hover:shadow-lift focus-visible:ring-3 focus-visible:ring-ring"
+                >
+                  <div className="relative aspect-4/3 overflow-hidden bg-muted">
+                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-0.5">
+                      {covers.length === 0 ? (
+                        <div className="col-span-3 row-span-2 grid place-items-center text-muted-foreground">
+                          <BookOpen className="size-8" aria-hidden="true" />
+                        </div>
+                      ) : (
+                        covers.map((m, j) => (
+                          <div
+                            key={m.id}
+                            className={cn(
+                              "relative overflow-hidden",
+                              j === 0
+                                ? covers.length === 1
+                                  ? "col-span-3 row-span-2"
+                                  : "col-span-2 row-span-2"
+                                : covers.length === 2
+                                  ? "row-span-2"
+                                  : "",
+                            )}
                           >
-                            {collection.title}
-                          </Link>
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {collection.occasion} ·{" "}
-                          {isCreator ? "You created this" : "Contributor"}
-                        </p>
-                      </div>
-                      <PersonStack
-                        people={collection.memberIds.map((id) =>
-                          personById(state, id),
-                        )}
-                      />
-                    </div>
-                    <p className="text-sm">
-                      {memories.length}{" "}
-                      {memories.length === 1 ? "memory" : "memories"}
-                      {collection.pendingIds.length > 0 && isCreator && (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {collection.pendingIds.length} waiting to join
-                        </span>
+                            {m.art &&
+                            (m.kind === "photo" || m.kind === "video") ? (
+                              <ArtworkFill
+                                art={m.art}
+                                showScene={false}
+                                className="absolute inset-0"
+                              />
+                            ) : (
+                              <MemoryThumb memory={m} className="size-full" />
+                            )}
+                          </div>
+                        ))
                       )}
-                    </p>
-                    <div className="mt-auto flex flex-wrap gap-1.5">
-                      {summaryOrder
-                        .filter((s) => counts.get(s))
-                        .map((s) => (
-                          <span
-                            key={s}
-                            className="inline-flex items-center gap-1"
-                          >
-                            <MemoryStatusBadge status={s} />
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              ×{counts.get(s)}
-                            </span>
-                          </span>
-                        ))}
                     </div>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-                      Open collection{" "}
-                      <ArrowRight className="size-3.5" aria-hidden="true" />
+                    <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/75 via-black/30 to-transparent p-4 pt-16">
+                      <h3 className="font-display line-clamp-2 text-2xl leading-tight font-bold tracking-tight text-white">
+                        {collection.title}
+                      </h3>
+                    </div>
+                    <span className="absolute top-3 left-3 rounded-full bg-lime px-3 py-1 text-sm font-semibold text-lime-ink">
+                      {progress}
                     </span>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <p className="min-w-0 truncate text-sm text-muted-foreground">
+                      {collection.occasion}
+                    </p>
+                    <PersonStack
+                      people={collection.memberIds.map((id) =>
+                        personById(state, id),
+                      )}
+                      max={3}
+                    />
+                  </div>
+                </Link>
               </li>
             );
           })}
@@ -386,31 +360,23 @@ function PrototypeCollections() {
       )}
 
       {pending.length > 0 && (
-        <section aria-labelledby="pending-prototype" className="space-y-3">
-          <h3
-            id="pending-prototype"
-            className="text-sm font-semibold tracking-tight"
-          >
-            Waiting for admission (prototype)
-          </h3>
-          <ul className="space-y-2">
-            {pending.map((c) => (
-              <li
-                key={c.id}
-                className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm"
-              >
-                <Lock
-                  className="size-4 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <span className="font-medium">{c.title}</span>
-                <span className="text-muted-foreground">
-                  — the creator has not admitted you yet.
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <ul className="space-y-2">
+          {pending.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center gap-3 rounded-2xl bg-card p-4 text-sm shadow-soft ring-1 ring-border"
+            >
+              <Lock
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <span className="font-medium">{c.title}</span>
+              <span className="text-muted-foreground">
+                Waiting to be let in
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

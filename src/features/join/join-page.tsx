@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock3, DoorOpen, LinkIcon, UsersRound } from "lucide-react";
-import { EmptyState, TrustNote } from "@/components/chorus/page-header";
+import { EmptyState } from "@/components/chorus/page-header";
 import { Button } from "@/components/ui/button";
 import {
   useCollectionActions,
@@ -19,28 +19,36 @@ export function JoinPage({ code }: { code: string }) {
 
   if (preview === undefined)
     return (
-      <p role="status" className="py-10 text-sm text-muted-foreground">
-        Checking the join link…
+      <p
+        role="status"
+        className="mx-auto max-w-md py-10 text-center text-base text-muted-foreground"
+      >
+        Checking the link…
       </p>
     );
+
   if (preview === null)
     return (
-      <EmptyState
-        icon={<LinkIcon className="size-5" aria-hidden="true" />}
-        title="This join link isn’t valid"
-        action={
-          <Button asChild variant="outline">
-            <Link to="/collections">Go to your collections</Link>
-          </Button>
-        }
-      >
-        Check the code with the person who shared it. Links can be replaced when
-        a creator rotates them.
-      </EmptyState>
+      <div className="mx-auto max-w-md py-6">
+        <EmptyState
+          icon={<LinkIcon className="size-5" aria-hidden="true" />}
+          title="This link does not work"
+          action={
+            <Button asChild variant="outline">
+              <Link to="/collections">Your collections</Link>
+            </Button>
+          }
+        >
+          Ask the person who shared it for a new one.
+        </EmptyState>
+      </div>
     );
 
-  const creator = preview.creatorName ?? "The creator";
-  const firstName = creator.split(" ")[0];
+  const creator = preview.creatorName ?? "Someone";
+  const first = creator.split(" ")[0];
+  const members = `${preview.memberCount} ${
+    preview.memberCount === 1 ? "person" : "people"
+  } in so far`;
 
   async function ask() {
     setSending(true);
@@ -50,21 +58,18 @@ export function JoinPage({ code }: { code: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 py-6">
-      <div className="rounded-2xl border bg-card p-6 text-center sm:p-8">
-        <span className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl bg-secondary text-primary">
-          <DoorOpen className="size-5" aria-hidden="true" />
-        </span>
-        <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-          {creator} invited you to
-        </p>
-        <h1 className="mt-2 font-serif text-3xl tracking-tight">
-          a shared collection
+    <div className="mx-auto max-w-md py-4 pop sm:py-8">
+      <div className="rounded-[2rem] bg-card p-6 text-center shadow-lift ring-1 ring-border sm:p-8">
+        <div className="flex justify-center">
+          <span className="grid size-16 place-items-center rounded-full bg-lime text-lime-ink">
+            <DoorOpen className="size-7" aria-hidden="true" />
+          </span>
+        </div>
+        <h1 className="mt-4 text-4xl font-semibold tracking-tighter text-balance md:text-5xl">
+          {first} invited you
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {preview.memberCount}{" "}
-          {preview.memberCount === 1 ? "member" : "members"} so far. You’ll see
-          its title once you’re admitted.
+        <p className="mt-2 text-base text-muted-foreground">
+          {members}. You will see the collection once you are in.
         </p>
 
         <div className="mt-6 space-y-3">
@@ -72,44 +77,51 @@ export function JoinPage({ code }: { code: string }) {
             <div className="space-y-3">
               <p
                 role="status"
-                className="inline-flex items-center gap-2 text-sm"
+                className="inline-flex items-center gap-2 text-base"
               >
                 <UsersRound
-                  className="size-4 text-primary"
+                  className="size-5 text-foreground"
                   aria-hidden="true"
                 />
-                You’re already a member.
+                You are in
               </p>
-              <div>
-                <Button asChild>
-                  <Link
-                    to="/collections/$collectionId"
-                    params={{ collectionId: preview.collectionId }}
-                  >
-                    Open the collection
-                  </Link>
-                </Button>
-              </div>
+              <Button asChild size="lg" className="w-full">
+                <Link
+                  to="/collections/$collectionId"
+                  params={{ collectionId: preview.collectionId }}
+                >
+                  Open collection
+                </Link>
+              </Button>
             </div>
           ) : preview.viewerStatus === "requested" ? (
-            <p role="status" className="inline-flex items-center gap-2 text-sm">
+            <p
+              role="status"
+              className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-base"
+            >
               <Clock3
-                className="size-4 text-[var(--status-awaiting)]"
+                className="size-5 text-[var(--status-awaiting)]"
                 aria-hidden="true"
               />
-              Request sent. Waiting for {firstName} to admit you.
+              Waiting for {first} to let you in
             </p>
           ) : (
             <>
               {preview.viewerStatus !== "none" && (
                 <p role="status" className="text-sm text-muted-foreground">
                   {preview.viewerStatus === "declined"
-                    ? `${firstName} declined your last request.`
-                    : `${firstName} removed you from this collection.`}{" "}
+                    ? `${first} said no last time.`
+                    : `${first} took you out of this collection.`}{" "}
                   You can ask again.
                 </p>
               )}
-              <Button disabled={sending} onClick={() => void ask()}>
+              <Button
+                size="lg"
+                variant="highlight"
+                className="w-full"
+                disabled={sending}
+                onClick={() => void ask()}
+              >
                 {sending ? "Sending…" : "Ask to join"}
               </Button>
             </>
@@ -121,11 +133,6 @@ export function JoinPage({ code }: { code: string }) {
           )}
         </div>
       </div>
-      <TrustNote>
-        Joining makes you a member, but it doesn’t unlock anyone’s memories.
-        Each memory is shared only after everyone in it approves. You decide the
-        same for yours.
-      </TrustNote>
     </div>
   );
 }

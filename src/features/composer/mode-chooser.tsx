@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, LayoutTemplate, PowerOff, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { ZinePage } from "@/components/chorus/zine-page";
 import { Button } from "@/components/ui/button";
 import { buildTemplatePlan, templates } from "@/features/prototype/templates";
@@ -10,9 +10,8 @@ import type {
   PrototypeState,
 } from "@/features/prototype/types";
 
-// Entry point for a new design (CH-09). Templates are the default and never
-// contact a model; Create with AI appears enabled only when the server reports
-// AI as on and at least one memory has AI permission (CH-22).
+// Entry point for a new design. Templates are the default and never contact a
+// model; AI is enabled only when the server reports it on and a memory allows it.
 
 export function ModeChooser({
   state,
@@ -38,7 +37,6 @@ export function ModeChooser({
   onAi: () => void;
   onBack?: () => void;
 }) {
-  // Preview covers built locally; nothing is saved until the creator picks.
   const previews = useMemo(
     () =>
       templates.map((t) => ({
@@ -51,27 +49,21 @@ export function ModeChooser({
     [state, collectionId],
   );
   const aiReason = !aiEnabled
-    ? "AI is turned off for this workspace — templates work without it."
+    ? "AI is off. Templates work the same."
     : aiEligibleCount === 0
-      ? "No memories have AI permission yet."
+      ? "No memories allow AI yet."
       : aiBlockedReason;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-2xl tracking-tight">
-            Start a new design
-          </h2>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Pick a template and arrange the memories yourself, or let AI propose
-            a design. Both use the same editor, checks, and PDF renderer.
-          </p>
-        </div>
+    <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Design your zine
+        </h2>
         {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack}>
+          <Button variant="ghost" onClick={onBack}>
             <ArrowLeft aria-hidden="true" />
-            Back to current design
+            Back
           </Button>
         )}
       </div>
@@ -79,19 +71,19 @@ export function ModeChooser({
       <section aria-labelledby="template-heading" className="space-y-3">
         <h3
           id="template-heading"
-          className="flex items-center gap-2 text-sm font-semibold"
+          className="flex items-center gap-2 text-xl font-semibold"
         >
-          <LayoutTemplate className="size-4 text-primary" aria-hidden="true" />
           Use a template
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-            Default · no AI
+          <span className="rounded-full bg-lime px-2.5 py-0.5 text-sm font-medium text-lime-ink">
+            Default
           </span>
         </h3>
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {previews.map(({ template, plan }) => (
+          {previews.map(({ template, plan }, i) => (
             <li
               key={template.id}
-              className="flex flex-col gap-3 rounded-xl border bg-card p-3"
+              className="rise press flex flex-col gap-3 rounded-3xl bg-card p-5 shadow-soft ring-1 ring-border transition-shadow hover:shadow-lift"
+              style={{ "--i": i } as React.CSSProperties}
             >
               <div className="mx-auto w-full max-w-[180px]">
                 <ZinePage
@@ -103,27 +95,21 @@ export function ModeChooser({
                 />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium">
-                  {template.name}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    v{template.version}
-                  </span>
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
+                <p className="text-base font-semibold">{template.name}</p>
+                <p className="text-sm text-muted-foreground">
                   {template.description}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
-                  size="sm"
+                  className="flex-1"
                   onClick={() => onTemplate(template.id, false)}
                   aria-label={`Fill ${template.name} with approved memories`}
                 >
-                  Fill with approved memories
+                  Fill with memories
                 </Button>
                 <Button
-                  size="sm"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => onTemplate(template.id, true)}
                   aria-label={`Start ${template.name} empty`}
                 >
@@ -133,53 +119,42 @@ export function ModeChooser({
             </li>
           ))}
         </ul>
-        <p className="text-xs text-muted-foreground">
-          Templates only use memories approved for manual use. No AI decision,
-          model, or credential is needed.
-        </p>
       </section>
 
       <section
         aria-labelledby="ai-mode-heading"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-card/60 p-4"
+        className="rise flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-card p-5 shadow-soft ring-1 ring-border"
       >
         <div className="min-w-0">
           <h3
             id="ai-mode-heading"
-            className="flex items-center gap-2 text-sm font-semibold"
+            className="flex items-center gap-2 text-xl font-semibold"
           >
-            {aiEnabled ? (
-              <Sparkles className="size-4 text-primary" aria-hidden="true" />
-            ) : (
-              <PowerOff
-                className="size-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-            )}
+            <Sparkles
+              className={
+                aiReason
+                  ? "size-4 text-muted-foreground"
+                  : "size-4 text-primary"
+              }
+              aria-hidden="true"
+            />
             Create with AI
-            <span className="text-xs font-normal text-muted-foreground">
-              Optional
-            </span>
           </h3>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {aiReason ? (
-              <>
-                {aiReason}{" "}
-                {!aiEnabled && (
-                  <Link
-                    to="/processors"
-                    className="underline underline-offset-2"
-                  >
-                    AI processors
-                  </Link>
-                )}
-              </>
-            ) : (
-              `Proposes a six-page design from ${aiEligibleCount} memor${aiEligibleCount === 1 ? "y" : "ies"} with AI permission. You can edit everything afterwards.`
+          <p className="text-sm text-muted-foreground">
+            {aiReason ?? "Let AI propose a design. You can edit it after."}{" "}
+            {!aiEnabled && (
+              <Link to="/processors" className="underline underline-offset-2">
+                AI helpers
+              </Link>
             )}
           </p>
         </div>
-        <Button variant="outline" disabled={Boolean(aiReason)} onClick={onAi}>
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={Boolean(aiReason)}
+          onClick={onAi}
+        >
           <Sparkles aria-hidden="true" />
           Create with AI
         </Button>

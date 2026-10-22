@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { Check, Copy, UserMinus, UserPlus, X } from "lucide-react";
-import { TrustNote } from "@/components/chorus/page-header";
+import { Check, Link2, UserMinus } from "lucide-react";
 import { PersonAvatar } from "@/components/chorus/people";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,8 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { Id } from "@convex/_generated/dataModel";
 import type { ActionResult } from "@/features/data/backend";
 import {
@@ -29,35 +25,20 @@ import { actions, usePrototype } from "@/features/prototype/store";
 import { personById } from "@/features/prototype/selectors";
 import type { Person } from "@/features/prototype/types";
 
-function CopyField({
-  id,
-  label,
-  value,
-}: {
-  id: string;
-  label: string;
-  value: string;
-}) {
+function CopyInvite({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="flex gap-2">
-        <Input id={id} value={value} readOnly className="font-mono text-xs" />
-        <Button
-          variant="outline"
-          onClick={() => {
-            void navigator.clipboard?.writeText(value).then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            });
-          }}
-        >
-          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
-      </div>
-    </div>
+    <Button
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+    >
+      {copied ? <Check aria-hidden="true" /> : <Link2 aria-hidden="true" />}
+      <span role="status">{copied ? "Link copied" : "Copy invite link"}</span>
+    </Button>
   );
 }
 
@@ -71,36 +52,29 @@ function RemoveMemberDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <UserMinus aria-hidden="true" /> Remove
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Remove ${person.name}`}
+        >
+          <UserMinus aria-hidden="true" />
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Remove {person.name}?</DialogTitle>
           <DialogDescription>
-            Removal stops new application access to this collection for{" "}
-            {person.name.split(" ")[0]}.
+            Their own memories keep their current decisions. Anything they
+            already received cannot be recalled.
           </DialogDescription>
         </DialogHeader>
-        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-          <li>
-            Audiences that contributors already approved do not change silently.
-            Any wider or narrower audience needs a new request.
-          </li>
-          <li>Previews or files they already received cannot be recalled.</li>
-          <li>
-            Their own memories keep their current decisions. They can still
-            withdraw them.
-          </li>
-        </ul>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
           <DialogClose asChild>
             <Button variant="destructive" onClick={onRemove}>
-              Remove member
+              Remove
             </Button>
           </DialogClose>
         </DialogFooter>
@@ -111,7 +85,7 @@ function RemoveMemberDialog({
 
 type MemberEntry = { person: Person; role: "creator" | "contributor" };
 
-/** Presentational members screen shared by the prototype and Convex adapters. */
+/** Presentational people screen shared by the prototype and Convex adapters. */
 function MembersView({
   viewerId,
   isCreator,
@@ -161,137 +135,96 @@ function MembersView({
     : null;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="space-y-8">
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <section aria-labelledby="members-heading" className="space-y-3">
-          <h2
-            id="members-heading"
-            className="text-lg font-semibold tracking-tight"
-          >
-            Members ({members.length})
-          </h2>
-          <ul className="divide-y rounded-xl border bg-card">
-            {members.map(({ person, role }) => {
-              const creator = role === "creator";
-              return (
-                <li
-                  key={person.id}
-                  className="flex flex-wrap items-center gap-3 px-4 py-3"
-                >
-                  <PersonAvatar person={person} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">
-                      {person.name}
-                      {person.id === viewerId && (
-                        <span className="text-muted-foreground"> (you)</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {creator
-                        ? "Arranges the collection and freezes editions"
-                        : "Adds memories and decides on their use"}
-                    </p>
-                  </div>
-                  <Badge variant={creator ? "default" : "secondary"}>
-                    {creator ? "Creator" : "Contributor"}
-                  </Badge>
-                  {isCreator && !creator && (
-                    <RemoveMemberDialog
-                      person={person}
-                      onRemove={() => run(person.id, onRemove)}
-                    />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <section aria-labelledby="requests-heading" className="space-y-3">
-          <h2
-            id="requests-heading"
-            className="text-lg font-semibold tracking-tight"
-          >
-            Join requests ({requests.length})
-          </h2>
-          {requests.length === 0 ? (
-            <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-              No one is waiting to join.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-xl border bg-card">
-              {requests.map((person) => {
-                return (
-                  <li
-                    key={person.id}
-                    className="flex flex-wrap items-center gap-3 px-4 py-3"
-                  >
-                    <PersonAvatar person={person} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{person.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Signed in and opened the join link
-                      </p>
-                    </div>
-                    {isCreator ? (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => run(person.id, onAdmit)}
-                          disabled={busy.has(person.id)}
-                        >
-                          <UserPlus aria-hidden="true" /> Admit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => run(person.id, onDecline)}
-                          disabled={busy.has(person.id)}
-                        >
-                          <X aria-hidden="true" /> Decline
-                        </Button>
-                      </div>
-                    ) : (
-                      <Badge variant="outline">Waiting for the creator</Badge>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+    <div className="mx-auto max-w-2xl space-y-8 animate-in fade-in-0 slide-in-from-bottom-2">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-tight">People</h2>
+        {joinUrl ? <CopyInvite value={joinUrl} /> : null}
       </div>
 
-      <aside className="space-y-4">
-        <div className="space-y-4 rounded-xl border bg-card p-4">
-          <h2 className="text-sm font-semibold">Invite contributors</h2>
-          {joinCode && joinUrl ? (
-            <>
-              <CopyField id="join-link" label="Join link" value={joinUrl} />
-              <CopyField id="join-code" label="Join code" value={joinCode} />
-            </>
-          ) : null}
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {joinCode
-              ? "Share it in person or through your group chat. No email is sent. "
-              : "Ask the creator for the join link. "}
-            Each person signs in and waits for{" "}
-            {isCreator ? "you" : "the creator"} to admit them.
-          </p>
-        </div>
-        <TrustNote>
-          A join link alone grants no decryption rights. Members can only see a
-          memory after everyone in it approves that exact version and audience.
-          {devEnvelope
-            ? " Encryption isn’t connected yet: this collection’s details are stored unencrypted for development."
-            : " In this prototype, those protections are simulated."}
-        </TrustNote>
-      </aside>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {!joinUrl && (
+        <p className="text-sm text-muted-foreground">
+          Ask the creator for the invite link.
+        </p>
+      )}
+
+      {requests.length > 0 && (
+        <section aria-labelledby="requests-heading" className="space-y-3">
+          <h3 id="requests-heading" className="text-base font-semibold">
+            Wants to join
+          </h3>
+          <ul className="divide-y rounded-2xl bg-card shadow-soft ring-1 ring-border">
+            {requests.map((person) => (
+              <li
+                key={person.id}
+                className="flex flex-wrap items-center gap-3 p-3"
+              >
+                <PersonAvatar person={person} size="lg" />
+                <p className="min-w-0 flex-1 font-medium">{person.name}</p>
+                {isCreator ? (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => run(person.id, onAdmit)}
+                      disabled={busy.has(person.id)}
+                    >
+                      Admit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => run(person.id, onDecline)}
+                      disabled={busy.has(person.id)}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Waiting</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <ul className="divide-y rounded-2xl bg-card shadow-soft ring-1 ring-border">
+        {members.map(({ person, role }) => {
+          const creator = role === "creator";
+          return (
+            <li key={person.id} className="flex items-center gap-3 p-3">
+              <PersonAvatar person={person} size="lg" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">
+                  {person.name}
+                  {person.id === viewerId && (
+                    <span className="text-muted-foreground"> (you)</span>
+                  )}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {creator ? "Creator" : "Contributor"}
+                </p>
+              </div>
+              {isCreator && !creator && (
+                <RemoveMemberDialog
+                  person={person}
+                  onRemove={() => run(person.id, onRemove)}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {devEnvelope && (
+        <p className="text-center text-sm text-muted-foreground">
+          Encryption is not connected yet. Zine details are stored unencrypted
+          while we build.
+        </p>
+      )}
     </div>
   );
 }

@@ -1,81 +1,63 @@
+import { RotateCcw } from "lucide-react";
 import { ConvexStatus } from "@/components/convex-status";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/chorus/page-header";
+import { Disclosure } from "@/components/chorus/primitives";
+import { Button } from "@/components/ui/button";
 import { IdentityStatus } from "@/features/auth/auth-status";
+import { actions } from "@/features/prototype/store";
 
-const foundation = [
-  ["Next.js · TypeScript · Tailwind CSS", "Installed"],
-  ["TanStack Router · workspace navigation", "Active"],
-  ["shadcn/ui · reusable components", "Ready"],
-  ["TideCloak · consent policies", "CH-02 integration pending"],
-] as const;
+function Group({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rise space-y-3 rounded-3xl bg-card p-5 shadow-soft ring-1 ring-border">
+      <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+      {children}
+    </section>
+  );
+}
 
 export function SettingsPage() {
   return (
-    <div className="space-y-7">
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-          The foundation
-        </p>
-        <h1 className="font-serif text-4xl tracking-tight">Project setup</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          The starter is ready for the first Chorus implementation.
-        </p>
-      </div>
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>Your identity</CardTitle>
-          <CardDescription>
-            Sign in and confirm the identity verified by the backend.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="mx-auto max-w-2xl space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+      <PageHeader title="Settings" />
+
+      <Group title="Demo data">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-base text-muted-foreground">
+            Go back to the starting memories and people.
+          </p>
+          <Button variant="outline" onClick={() => actions.reset()}>
+            <RotateCcw aria-hidden="true" /> Reset demo
+          </Button>
+        </div>
+      </Group>
+
+      <Group title="Connection status">
+        <div className="space-y-4 text-sm">
           <IdentityStatus />
-        </CardContent>
-      </Card>
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>Convex backend</CardTitle>
-          <CardDescription>
-            Live connection and a typed backend query.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
           <ConvexStatus />
-        </CardContent>
-      </Card>
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>Application foundation</CardTitle>
-          <CardDescription>The tools behind this workspace.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {foundation.map(([name, status], index) => (
-            <div key={name}>
-              {index > 0 && <Separator className="my-4" />}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span>{name}</span>
-                <Badge
-                  variant={
-                    status === "CH-02 integration pending"
-                      ? "outline"
-                      : "secondary"
-                  }
-                >
-                  {status}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+        </div>
+      </Group>
+
+      <Group title="About this demo">
+        <p className="text-base text-muted-foreground">
+          Consent, encryption, AI, PDF rendering, and proof signatures are
+          simulated here.
+        </p>
+        <Disclosure summary="What is real">
+          <ul className="list-disc space-y-1.5 pl-5">
+            <li>All data is synthetic and stored in your browser.</li>
+            <li>Tide-protected release is not connected yet.</li>
+            <li>AI starts off, and templates work without it.</li>
+            <li>Proofs of approval are placeholders, not real signatures.</li>
+          </ul>
+        </Disclosure>
+      </Group>
     </div>
   );
 }

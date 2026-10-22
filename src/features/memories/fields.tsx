@@ -10,7 +10,7 @@ export function codePoints(text: string) {
   return Array.from(text).length;
 }
 
-/** Text field with a live code-point counter that reports the limit before submission. */
+/** Text field with a visible label, helper text below and an inline limit error. */
 export function CountedField({
   id,
   label,
@@ -34,13 +34,14 @@ export function CountedField({
 }) {
   const used = codePoints(value);
   const over = used > limit;
-  const describedBy = [hint && `${id}-hint`, `${id}-count`]
+  const nearLimit = used > limit * 0.85;
+  const describedBy = [hint && `${id}-hint`, over && `${id}-error`]
     .filter(Boolean)
     .join(" ");
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <Label htmlFor={id}>
+        <Label htmlFor={id} className="text-sm font-medium">
           {label}
           {!required && (
             <span className="font-normal text-muted-foreground">
@@ -49,16 +50,16 @@ export function CountedField({
             </span>
           )}
         </Label>
-        <span
-          id={`${id}-count`}
-          className={cn(
-            "text-xs tabular-nums",
-            over ? "font-medium text-destructive" : "text-muted-foreground",
-          )}
-        >
-          {used}/{limit}
-          {over && " — too long"}
-        </span>
+        {(nearLimit || over) && (
+          <span
+            className={cn(
+              "tabular text-sm",
+              over ? "font-medium text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {used}/{limit}
+          </span>
+        )}
       </div>
       {multiline ? (
         <Textarea
@@ -67,8 +68,9 @@ export function CountedField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           aria-invalid={over}
-          aria-describedby={describedBy}
+          aria-describedby={describedBy || undefined}
           rows={5}
+          className="rounded-xl text-base"
         />
       ) : (
         <Input
@@ -77,25 +79,31 @@ export function CountedField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           aria-invalid={over}
-          aria-describedby={describedBy}
+          aria-describedby={describedBy || undefined}
+          className="h-11 rounded-xl text-base"
         />
       )}
       {hint && (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
           {hint}
+        </p>
+      )}
+      {over && (
+        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+          Too long by {used - limit}. Please shorten it.
         </p>
       )}
     </div>
   );
 }
 
-/** Declared people. The uploader is always included and cannot be removed. */
+/** Declared people as tappable chips. The uploader is always included and locked. */
 export function PeoplePicker({
   people,
   uploaderId,
   selected,
   onChange,
-  legend = "People in this memory",
+  legend = "Who's in this?",
 }: {
   people: Person[];
   uploaderId: PersonId;
@@ -103,22 +111,10 @@ export function PeoplePicker({
   onChange: (ids: PersonId[]) => void;
   legend?: string;
 }) {
-  const count = people.filter(
-    (p) => p.id === uploaderId || selected.includes(p.id),
-  ).length;
   return (
-    <fieldset className="space-y-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <legend className="text-sm font-medium">{legend}</legend>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {count} will be asked to approve
-        </span>
-      </div>
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        Include everyone shown or speaking. Chorus never identifies faces or
-        voices automatically.
-      </p>
-      <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+    <fieldset className="space-y-2.5">
+      <legend className="text-sm font-medium">{legend}</legend>
+      <ul className="flex flex-wrap gap-2">
         {people.map((p) => {
           const locked = p.id === uploaderId;
           const checked = locked || selected.includes(p.id);
@@ -128,16 +124,17 @@ export function PeoplePicker({
               <label
                 htmlFor={inputId}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors has-focus-visible:bg-secondary/60",
-                  locked
-                    ? "cursor-default"
-                    : "cursor-pointer hover:bg-muted/60",
+                  "press flex min-h-11 items-center gap-2 rounded-full py-1 pr-4 pl-1.5 text-base ring-1 transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring",
+                  checked
+                    ? "bg-accent text-accent-foreground ring-primary"
+                    : "bg-card ring-border hover:bg-muted/60",
+                  locked ? "cursor-default" : "cursor-pointer",
                 )}
               >
                 <input
                   id={inputId}
                   type="checkbox"
-                  className="peer sr-only"
+                  className="sr-only"
                   checked={checked}
                   disabled={locked}
                   onChange={(e) =>
@@ -148,35 +145,27 @@ export function PeoplePicker({
                     )
                   }
                 />
-                <PersonAvatar person={p} size="md" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{p.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {locked
-                      ? "You · uploader, always included"
-                      : checked
-                        ? "Will be asked to approve"
-                        : "Not in this memory"}
-                  </span>
+                <PersonAvatar person={p} size="sm" />
+                <span className="font-medium">
+                  {locked ? "You" : p.name.split(" ")[0]}
                 </span>
                 {locked ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    <Lock className="size-3" aria-hidden="true" />
-                    Uploader
-                  </span>
-                ) : (
-                  <span
+                  <Lock
+                    className="size-3.5 text-muted-foreground"
                     aria-hidden="true"
-                    className={cn(
-                      "grid size-5 shrink-0 place-items-center rounded-full border transition-colors peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
-                      checked
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-input bg-background",
-                    )}
-                  >
-                    {checked && <Check className="size-3" strokeWidth={3} />}
-                  </span>
+                  />
+                ) : (
+                  checked && (
+                    <Check
+                      className="size-4 text-primary"
+                      strokeWidth={3}
+                      aria-hidden="true"
+                    />
+                  )
                 )}
+                <span className="sr-only">
+                  {locked ? " (always included)" : checked ? " (included)" : ""}
+                </span>
               </label>
             </li>
           );

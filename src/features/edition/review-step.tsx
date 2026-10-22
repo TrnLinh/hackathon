@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, BookOpenCheck } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, Check, Clock, X } from "lucide-react";
 import { EmptyState, TrustNote } from "@/components/chorus/page-header";
+import { ActionBar, Disclosure } from "@/components/chorus/primitives";
 import { PersonAvatar } from "@/components/chorus/people";
-import { DecisionBadge } from "@/components/chorus/status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { actions } from "@/features/prototype/store";
@@ -34,13 +33,19 @@ function ComposerLink({
   children: React.ReactNode;
 }) {
   return (
-    <Button asChild variant="outline">
+    <Button asChild variant="outline" size="lg">
       <Link to="/collections/$collectionId/compose" params={{ collectionId }}>
         {children}
       </Link>
     </Button>
   );
 }
+
+const decisionMeta = {
+  approved: { icon: Check, text: "Approved", tone: "text-primary" },
+  pending: { icon: Clock, text: "Waiting", tone: "text-muted-foreground" },
+  declined: { icon: X, text: "Declined", tone: "text-destructive" },
+} as const;
 
 export function ReviewStep({
   state,
@@ -57,9 +62,9 @@ export function ReviewStep({
     return (
       <EmptyState
         icon={<BookOpenCheck className="size-5" aria-hidden="true" />}
-        title="Nothing to review yet"
+        title="Nothing to approve yet"
       >
-        The creator has not frozen a candidate for this collection.
+        The creator has not locked a version.
       </EmptyState>
     );
 
@@ -73,182 +78,177 @@ export function ReviewStep({
       <div className="space-y-4">
         <Alert variant="destructive">
           <AlertTriangle aria-hidden="true" />
-          <AlertTitle>
-            Candidate {candidate.editionId} is no longer valid
-          </AlertTitle>
+          <AlertTitle>{candidate.editionId} is no longer valid</AlertTitle>
           <AlertDescription>
-            {candidate.invalidatedReason ?? "It was invalidated."} Earlier final
-            approvals do not carry over. Rebuild the design from the remaining
-            approved memories and freeze a new candidate.
+            {candidate.invalidatedReason ?? "It was replaced."} Earlier
+            approvals do not carry over. Rebuild the design and lock a new
+            version.
           </AlertDescription>
         </Alert>
         <ComposerLink collectionId={collection.id}>
-          Return to composer
+          Back to the designer
         </ComposerLink>
       </div>
     );
 
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            Exact frozen candidate
-          </p>
-          <p className="font-mono text-sm font-medium">{candidate.editionId}</p>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          PDF{" "}
-          <code className="font-mono">{shortDigest(candidate.pdfDigest)}</code>{" "}
-          · frozen {formatWhen(candidate.frozenAt)} by{" "}
-          {personById(state, candidate.frozenBy).name}
-        </p>
-      </div>
+  const needsDecision = isApprover && viewerDecision === "pending";
 
-      {plan ? (
-        <>
+  return (
+    <div className="space-y-5">
+      <section
+        aria-labelledby="approve-title"
+        className="space-y-4 rounded-3xl bg-card p-4 shadow-soft ring-1 ring-border sm:p-6"
+      >
+        <div>
+          <h2
+            id="approve-title"
+            className="text-3xl font-semibold tracking-tighter"
+          >
+            {needsDecision ? "Approve this edition" : "Waiting for approvals"}
+          </h2>
+          <p className="mt-1 text-base text-muted-foreground">
+            Everyone in it must say yes before it is official.
+          </p>
+        </div>
+
+        {plan ? (
           <PlanPages
             plan={plan}
             state={state}
             editionId={candidate.editionId}
           />
-          <details className="rounded-xl border bg-card px-4 py-3">
-            <summary className="cursor-pointer text-sm font-medium">
-              How this design was made
-            </summary>
-            <dl className="mt-2 divide-y">
-              <ProvenanceRows plan={plan} />
-            </dl>
-            <p className="mt-2 text-xs text-muted-foreground">{aiToggleNote}</p>
-          </details>
-        </>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          The candidate’s pages are unavailable.
-        </p>
-      )}
+        ) : (
+          <p className="text-base text-muted-foreground">
+            The pages are unavailable.
+          </p>
+        )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>
-              Final approvals · {progress.approved} of {progress.total}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              {Object.entries(candidate.approvals).map(([id, decision]) => (
+        <div className="space-y-3">
+          <p className="tabular text-base font-medium" role="status">
+            {progress.approved} of {progress.total} approved
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {Object.entries(candidate.approvals).map(([id, decision]) => {
+              const meta = decisionMeta[decision];
+              const Icon = meta.icon;
+              const person = personById(state, id);
+              return (
                 <li
                   key={id}
-                  className="flex items-center justify-between gap-3"
+                  className="flex min-h-11 items-center gap-2 rounded-full bg-muted py-1 pr-3 pl-1.5"
                 >
-                  <span className="flex items-center gap-2.5 text-sm">
-                    <PersonAvatar person={personById(state, id)} size="sm" />
-                    {personById(state, id).name}
-                    {id === state.viewerId && (
-                      <span className="text-xs text-muted-foreground">
-                        (you)
-                      </span>
-                    )}
+                  <PersonAvatar person={person} size="sm" />
+                  <span className="text-sm">
+                    {id === state.viewerId ? "You" : person.name.split(" ")[0]}
                   </span>
-                  <DecisionBadge decision={decision} />
+                  <span
+                    className={`flex items-center gap-1 text-sm font-medium ${meta.tone}`}
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                    {meta.text}
+                  </span>
                 </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Download members:{" "}
-              {candidate.downloadMemberIds
-                .map((id) => personById(state, id).name)
-                .join(", ")}
-            </p>
-            {progress.declined > 0 && (
-              <div className="mt-4 space-y-3">
-                <Alert variant="destructive">
-                  <AlertTriangle aria-hidden="true" />
-                  <AlertTitle>Issuance is blocked</AlertTitle>
-                  <AlertDescription>
-                    Someone declined this edition. No reason is required or
-                    shown. Remove the affected material and freeze a new
-                    candidate.
-                  </AlertDescription>
-                </Alert>
-                <ComposerLink collectionId={collection.id}>
-                  Return to composer to remove the dependency
-                </ComposerLink>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              );
+            })}
+          </ul>
+        </div>
 
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>Your decision</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isApprover ? (
-              <p className="text-sm text-muted-foreground">
-                Your approval is not required for this edition: none of your
-                memories or attributed text appear in it or shaped its style.
-              </p>
-            ) : viewerDecision !== "pending" ? (
-              <p
-                className="flex flex-wrap items-center gap-2 text-sm"
-                role="status"
-              >
-                You have decided: <DecisionBadge decision={viewerDecision} />
-              </p>
-            ) : (
-              <>
-                <blockquote className="rounded-lg border-l-4 border-primary bg-secondary/50 p-4 font-serif text-base leading-relaxed">
-                  {APPROVAL_STATEMENT}
-                </blockquote>
-                <div className="flex items-start gap-2.5">
-                  <Checkbox
-                    id="final-ack"
-                    checked={acknowledged}
-                    onCheckedChange={(v) => setAcknowledged(v === true)}
-                    className="mt-0.5"
-                  />
-                  <Label
-                    htmlFor="final-ack"
-                    className="text-sm leading-snug font-normal"
-                  >
-                    I reviewed all six pages of {candidate.editionId} and
-                    understand that downloaded copies can be forwarded and
-                    cannot be recalled.
-                  </Label>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    disabled={!acknowledged}
-                    onClick={() =>
-                      actions.finalDecide(candidate.id, "approved")
-                    }
-                  >
-                    Approve this edition
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      actions.finalDecide(candidate.id, "declined")
-                    }
-                  >
-                    Decline
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Declining needs no explanation.
-                </p>
-              </>
-            )}
-            <TrustNote>
-              Everyone reviewing this preview can see and copy it. Final
-              approval certifies the official edition; it is not DRM and cannot
-              stop an authorized person from keeping a copy.
-            </TrustNote>
-          </CardContent>
-        </Card>
-      </div>
+        {progress.declined > 0 && (
+          <div className="space-y-3">
+            <Alert variant="destructive">
+              <AlertTriangle aria-hidden="true" />
+              <AlertTitle>Someone said no</AlertTitle>
+              <AlertDescription>
+                No reason is needed. Remove the affected material and lock a new
+                version.
+              </AlertDescription>
+            </Alert>
+            <ComposerLink collectionId={collection.id}>
+              Back to the designer
+            </ComposerLink>
+          </div>
+        )}
+
+        {!isApprover && (
+          <p className="text-base text-muted-foreground">
+            Your approval is not needed. Nothing of yours is in this edition.
+          </p>
+        )}
+        {isApprover && viewerDecision !== "pending" && (
+          <p className="text-base text-muted-foreground" role="status">
+            You {viewerDecision === "approved" ? "approved" : "said no to"} this
+            edition.
+          </p>
+        )}
+
+        {needsDecision && (
+          <Label
+            htmlFor="final-ack"
+            className="press flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl bg-muted/60 px-4 py-2 text-base leading-snug font-normal"
+          >
+            <Checkbox
+              id="final-ack"
+              checked={acknowledged}
+              onCheckedChange={(v) => setAcknowledged(v === true)}
+              className="size-6 shrink-0"
+            />
+            I checked all six pages. Downloaded copies cannot be recalled.
+          </Label>
+        )}
+      </section>
+
+      {needsDecision && (
+        <ActionBar>
+          <Button
+            variant="highlight"
+            size="lg"
+            className="w-full sm:w-auto"
+            disabled={!acknowledged}
+            onClick={() => actions.finalDecide(candidate.id, "approved")}
+          >
+            Approve this edition
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={() => actions.finalDecide(candidate.id, "declined")}
+          >
+            Not this one
+          </Button>
+        </ActionBar>
+      )}
+
+      <Disclosure summary="Details">
+        <p className="font-medium text-foreground">
+          <span className="font-mono">{candidate.editionId}</span>, locked{" "}
+          {formatWhen(candidate.frozenAt)} by{" "}
+          {personById(state, candidate.frozenBy).name}
+        </p>
+        <p>
+          PDF fingerprint{" "}
+          <code className="font-mono">{shortDigest(candidate.pdfDigest)}</code>
+        </p>
+        <p>
+          Can download:{" "}
+          {candidate.downloadMemberIds
+            .map((id) => personById(state, id).name)
+            .join(", ")}
+        </p>
+        {plan && (
+          <dl className="divide-y">
+            <ProvenanceRows plan={plan} />
+          </dl>
+        )}
+        <p>{aiToggleNote}</p>
+        <p className="rounded-xl bg-card p-3 text-foreground">
+          {APPROVAL_STATEMENT}
+        </p>
+      </Disclosure>
+      <TrustNote>
+        Anyone who sees this preview can copy it. Approving does not stop
+        copies.
+      </TrustNote>
     </div>
   );
 }

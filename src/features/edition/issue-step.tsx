@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { FileSignature, Loader2, Lock, ReceiptText } from "lucide-react";
-import { EmptyState, TrustNote } from "@/components/chorus/page-header";
+import { Loader2, Lock, ShieldCheck } from "lucide-react";
+import { EmptyState } from "@/components/chorus/page-header";
+import { ActionBar, Disclosure } from "@/components/chorus/primitives";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { actions } from "@/features/prototype/store";
 import {
   candidateProgress,
@@ -44,9 +44,9 @@ export function IssueStep({
     return (
       <EmptyState
         icon={<Lock className="size-5" aria-hidden="true" />}
-        title="No candidate to issue"
+        title="Nothing to make official"
       >
-        Freeze a candidate and collect every final approval first.
+        Lock a version and collect every approval first.
       </EmptyState>
     );
 
@@ -58,51 +58,58 @@ export function IssueStep({
   const isCreator = collection.creatorId === state.viewerId;
 
   return (
-    <div className="space-y-4 rounded-xl border bg-card p-5">
-      <h2 className="flex items-center gap-2 font-semibold">
-        <FileSignature className="size-4" aria-hidden="true" /> Issue the
-        official edition
-      </h2>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Issuance asks the consent policy to sign a receipt binding the exact PDF
-        and manifest digests to every required final approval and the current
-        permission revision. Direct requests or edited database flags cannot
-        mint a valid receipt.
-      </p>
-      <p role="status" className="text-sm">
-        {ready
-          ? `All ${progress.total} required approvals are in.`
-          : `${progress.approved} of ${progress.total} approvals so far. Issuance stays locked until everyone approves${progress.declined ? "; a decline blocks it" : ""}.`}
-      </p>
-      {signing && (
-        <p role="status" className="flex items-center gap-2 text-sm">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          Requesting the policy signature…
+    <div className="space-y-5">
+      <section className="space-y-3 rounded-3xl bg-card p-5 shadow-soft ring-1 ring-border sm:p-6">
+        <span className="grid size-11 place-items-center rounded-full bg-lime text-lime-ink">
+          <ShieldCheck className="size-5" aria-hidden="true" />
+        </span>
+        <h2 className="text-3xl font-semibold tracking-tighter">
+          Make it official
+        </h2>
+        <p className="text-base text-muted-foreground" role="status">
+          {ready
+            ? `All ${progress.total} approvals are in.`
+            : `${progress.approved} of ${progress.total} approved so far.`}
         </p>
+        {signing && (
+          <p role="status" className="flex items-center gap-2 text-sm">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Creating the proof of approval
+          </p>
+        )}
+        {!isCreator && (
+          <p className="text-base text-muted-foreground">
+            {personById(state, collection.creatorId).name} makes it official.
+          </p>
+        )}
+      </section>
+
+      {isCreator && (
+        <ActionBar>
+          <Button
+            variant="highlight"
+            size="lg"
+            className="w-full sm:w-auto"
+            disabled={!ready || signing}
+            onClick={() => {
+              setSigning(true);
+              window.setTimeout(() => {
+                actions.issueEdition(candidate.id);
+                setSigning(false);
+              }, 1200);
+            }}
+          >
+            Make it official
+          </Button>
+        </ActionBar>
       )}
-      {isCreator ? (
-        <Button
-          disabled={!ready || signing}
-          onClick={() => {
-            setSigning(true);
-            window.setTimeout(() => {
-              actions.issueEdition(candidate.id);
-              setSigning(false);
-            }, 1200);
-          }}
-        >
-          Issue edition
-        </Button>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {personById(state, collection.creatorId).name} issues the edition once
-          everyone has approved.
+
+      <Disclosure summary="Details">
+        <p>
+          The proof ties the exact PDF to every approval. This prototype
+          simulates it, and the signature is synthetic.
         </p>
-      )}
-      <TrustNote>
-        Prototype: issuance is simulated and the signature is synthetic. It is
-        not a Tide signature and proves nothing.
-      </TrustNote>
+      </Disclosure>
     </div>
   );
 }
@@ -116,49 +123,44 @@ export function ReceiptCard({
 }) {
   const receipt = candidate.receipt!;
   return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ReceiptText className="size-4" aria-hidden="true" /> Consent receipt
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <dl className="divide-y text-sm">
-          <Row label="Receipt">
-            <code className="font-mono text-xs">{receipt.id}</code>
+    <section className="space-y-4 rounded-3xl bg-card p-5 shadow-soft ring-1 ring-border sm:p-6">
+      <h2 className="text-xl font-semibold tracking-tight">
+        Proof of approval
+      </h2>
+      <Button
+        variant="outline"
+        size="lg"
+        onClick={() => void downloadReceipt(collection, candidate)}
+      >
+        Download proof
+      </Button>
+      <Disclosure summary="Details">
+        <dl className="divide-y">
+          <Row label="Proof">
+            <code className="font-mono">{receipt.id}</code>
           </Row>
           <Row label="Edition">
-            <code className="font-mono text-xs">{candidate.editionId}</code>
+            <code className="font-mono">{candidate.editionId}</code>
           </Row>
-          <Row label="Issued">{formatWhen(receipt.issuedAt)}</Row>
-          <DigestRow label="PDF digest (SHA-256)" digest={receipt.pdfDigest} />
+          <Row label="Made official">{formatWhen(receipt.issuedAt)}</Row>
+          <DigestRow label="PDF fingerprint" digest={receipt.pdfDigest} />
           <DigestRow
-            label="Manifest digest (SHA-256)"
+            label="Manifest fingerprint"
             digest={receipt.manifestDigest}
           />
-          <Row label="Required approvals">
+          <Row label="Approvals">
             {receipt.approverCount} of {receipt.approverCount}
           </Row>
-          <Row label="Permission revision">{receipt.permissionRevision}</Row>
+          <Row label="Permission version">{receipt.permissionRevision}</Row>
           <Row label="Signature">
-            <code className="font-mono text-xs break-all">
-              {receipt.signature}
-            </code>
+            <code className="font-mono break-all">{receipt.signature}</code>
           </Row>
         </dl>
-        <Button
-          variant="outline"
-          onClick={() => void downloadReceipt(collection, candidate)}
-        >
-          Download receipt (.json)
-        </Button>
-        <TrustNote>
-          The receipt contains digests, counts, and the signature only: no
-          memory content, no reasons for declining, and no contributor names. In
-          this prototype the signature is synthetic, not a Tide signature.
-        </TrustNote>
-      </CardContent>
-    </Card>
+        <p>
+          The proof holds fingerprints and counts only, no names or content.
+        </p>
+      </Disclosure>
+    </section>
   );
 }
 
@@ -171,8 +173,8 @@ function Row({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{children}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-sm text-foreground">{children}</dd>
     </div>
   );
 }

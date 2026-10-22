@@ -1,8 +1,14 @@
 import { useId, useState } from "react";
-import { CheckCircle2, CircleHelp, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleHelp,
+  FileCheck2,
+  Upload,
+  XCircle,
+} from "lucide-react";
+import { Disclosure } from "@/components/chorus/primitives";
 import { PageHeader, TrustNote } from "@/components/chorus/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -75,7 +81,7 @@ export function VerifyPage() {
         setOutcome({
           kind: "malformed",
           detail:
-            "The receipt is not a Chorus consent receipt or is missing a valid PDF digest. Nothing was checked.",
+            "This is not a Chorus proof file, or it has no valid PDF fingerprint. Nothing was checked.",
         });
         return;
       }
@@ -127,123 +133,133 @@ export function VerifyPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-2xl space-y-5 animate-in fade-in-0 slide-in-from-bottom-2">
       <PageHeader
-        eyebrow="Offline check"
-        title="Verify a receipt"
-        description="Confirm that a photozine PDF is the exact file its contributors approved. Files stay in this browser; nothing is uploaded."
+        title="Check a proof"
+        description="See if a PDF is the exact file everyone approved. Files stay on your device."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>Check a file</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="space-y-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void verify();
-              }}
-            >
-              <div className="space-y-1.5">
-                <Label htmlFor={ids.receipt}>Consent receipt (.json)</Label>
-                <Input
-                  id={ids.receipt}
-                  type="file"
-                  accept="application/json,.json"
-                  onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={ids.pdf}>Photozine PDF</Label>
-                <Input
-                  id={ids.pdf}
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={ids.digest}>
-                  Or paste a PDF digest (SHA-256)
-                </Label>
-                <Input
-                  id={ids.digest}
-                  value={pasted}
-                  onChange={(e) => setPasted(e.target.value)}
-                  placeholder="64 hexadecimal characters"
-                  className="font-mono text-xs"
-                  disabled={!!pdfFile}
-                  aria-describedby={`${ids.digest}-hint`}
-                />
-                <p
-                  id={`${ids.digest}-hint`}
-                  className="text-xs text-muted-foreground"
-                >
-                  Used only when no PDF is chosen. Prototype downloads are
-                  placeholders, so you can also paste the digest shown on the
-                  edition page.
-                </p>
-              </div>
-              <Button type="submit" disabled={busy || !receiptFile}>
-                {busy ? "Checking…" : "Verify"}
-              </Button>
-            </form>
-            <div aria-live="polite" className="mt-5">
-              {outcome && <OutcomeView outcome={outcome} />}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <section aria-labelledby="verify-steps" className="space-y-3">
-            <h2
-              id="verify-steps"
-              className="text-lg font-semibold tracking-tight"
-            >
-              How offline verification works
-            </h2>
-            <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground">
-              <li>
-                Compute the SHA-256 digest of the PDF bytes exactly as received.
-              </li>
-              <li>
-                Compare it with the receipt’s PDF digest. Any change to the file
-                changes the digest.
-              </li>
-              <li>
-                Check the receipt signature against the trusted verification
-                configuration: the published Chorus policy key and realm
-                identifier, obtained from a source you already trust.
-              </li>
-              <li>
-                Confirm the edition identifier printed on the cover matches the
-                receipt.
-              </li>
-            </ol>
-            <div className="rounded-lg border bg-card p-3 text-xs">
-              <p className="font-medium">Trusted verification configuration</p>
-              <dl className="mt-2 grid grid-cols-[110px_minmax(0,1fr)] gap-y-1 text-muted-foreground">
-                <dt>Policy key</dt>
-                <dd className="font-mono">Not published yet (CH-02)</dd>
-                <dt>Realm</dt>
-                <dd className="font-mono">Pending Tide enrollment</dd>
-                <dt>Algorithm</dt>
-                <dd className="font-mono">To be fixed by CH-02</dd>
-              </dl>
-            </div>
-          </section>
-          <TrustNote>
-            This prototype checks digests only. Its receipt signatures are
-            synthetic and are not verified. A valid receipt shows that a file
-            was authorized; it cannot stop anyone with a copy from editing or
-            forwarding it. An edited copy simply stops matching.
-          </TrustNote>
+      <form
+        className="space-y-5 rounded-3xl bg-card p-4 shadow-soft ring-1 ring-border sm:p-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void verify();
+        }}
+      >
+        <FilePick
+          id={ids.pdf}
+          step={1}
+          label="The PDF"
+          accept="application/pdf,.pdf"
+          file={pdfFile}
+          onFile={setPdfFile}
+        />
+        <FilePick
+          id={ids.receipt}
+          step={2}
+          label="The proof file"
+          accept="application/json,.json"
+          file={receiptFile}
+          onFile={setReceiptFile}
+        />
+        <Button
+          type="submit"
+          variant="highlight"
+          size="lg"
+          className="w-full"
+          disabled={busy || !receiptFile}
+        >
+          {busy ? "Checking" : "Check a proof"}
+        </Button>
+        <div aria-live="polite">
+          {outcome && <OutcomeView outcome={outcome} />}
         </div>
-      </div>
+      </form>
+
+      <Disclosure summary="Details">
+        <div className="space-y-1.5">
+          <Label htmlFor={ids.digest}>Or paste a PDF fingerprint</Label>
+          <Input
+            id={ids.digest}
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            placeholder="64 characters"
+            className="font-mono"
+            disabled={!!pdfFile}
+          />
+          <p>Used only when no PDF is chosen.</p>
+        </div>
+        <p>
+          We compare the PDF fingerprint (SHA-256) with the one in the proof.
+          Any change to the file changes it. Signatures are synthetic here and
+          are not checked.
+        </p>
+      </Disclosure>
+      <TrustNote>
+        A matching proof shows the file was approved. It cannot stop copies.
+      </TrustNote>
     </div>
+  );
+}
+
+function FilePick({
+  id,
+  step,
+  label,
+  accept,
+  file,
+  onFile,
+}: {
+  id: string;
+  step: number;
+  label: string;
+  accept: string;
+  file: File | null;
+  onFile: (f: File | null) => void;
+}) {
+  const [over, setOver] = useState(false);
+  return (
+    <label
+      htmlFor={id}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        onFile(e.dataTransfer.files?.[0] ?? null);
+      }}
+      className={cn(
+        "press flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl bg-muted/60 p-4 ring-1 ring-border transition-colors focus-within:ring-2 focus-within:ring-ring hover:bg-muted",
+        over && "bg-accent ring-primary",
+        file && "bg-accent/60",
+      )}
+    >
+      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-card text-primary shadow-soft">
+        {file ? (
+          <FileCheck2 className="size-5" aria-hidden="true" />
+        ) : (
+          <Upload className="size-5" aria-hidden="true" />
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-base font-medium">
+          <span className="tabular">{step}.</span> {label}
+        </span>
+        <span className="block truncate text-sm text-muted-foreground">
+          {file ? file.name : "Tap to choose or drop it here"}
+        </span>
+      </span>
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        className="sr-only"
+        onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+      />
+    </label>
   );
 }
 
@@ -251,39 +267,52 @@ function OutcomeView({ outcome }: { outcome: Outcome }) {
   const meta = {
     match: {
       icon: CheckCircle2,
-      title: "Matches",
-      tone: "text-[var(--status-available)]",
+      title: "It matches",
+      line: "This is the file everyone approved.",
+      tone: "text-primary",
+      bg: "bg-accent",
     },
     mismatch: {
       icon: XCircle,
-      title: "Does not match",
-      tone: "text-[var(--status-excluded)]",
+      title: "It does not match",
+      line: "This file was changed, or the proof is for another edition.",
+      tone: "text-destructive",
+      bg: "bg-destructive/10",
     },
     malformed: {
       icon: CircleHelp,
-      title: "Malformed receipt",
-      tone: "text-[var(--status-awaiting)]",
+      title: "That is not a proof file",
+      line: "Choose the proof file you downloaded.",
+      tone: "text-foreground",
+      bg: "bg-muted",
     },
     incomplete: {
       icon: CircleHelp,
-      title: "Nothing to compare",
-      tone: "text-muted-foreground",
+      title: "Add the PDF first",
+      line: "Choose the PDF to compare.",
+      tone: "text-foreground",
+      bg: "bg-muted",
     },
   }[outcome.kind];
   const Icon = meta.icon;
   return (
     <div
       role="status"
-      className="flex gap-3 rounded-lg border bg-background p-4"
+      className={cn(
+        "space-y-2 rounded-2xl p-4 animate-in fade-in-0 slide-in-from-bottom-2",
+        meta.bg,
+      )}
     >
-      <Icon
-        className={cn("mt-0.5 size-5 shrink-0", meta.tone)}
-        aria-hidden="true"
-      />
-      <div>
-        <p className={cn("font-semibold", meta.tone)}>{meta.title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{outcome.detail}</p>
+      <div className="flex items-center gap-3">
+        <Icon className={cn("size-7 shrink-0", meta.tone)} aria-hidden="true" />
+        <div>
+          <p className={cn("text-xl font-semibold", meta.tone)}>{meta.title}</p>
+          <p className="text-base text-muted-foreground">{meta.line}</p>
+        </div>
       </div>
+      <Disclosure summary="Details" className="bg-card/70 open:bg-card/70">
+        <p>{outcome.detail}</p>
+      </Disclosure>
     </div>
   );
 }

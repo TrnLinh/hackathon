@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { MemoryThumb } from "@/components/chorus/memory-thumb";
+import { ArtworkFill, kindMeta } from "@/components/chorus/memory-thumb";
 import { MemoryStatusBadge } from "@/components/chorus/status";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -19,33 +19,52 @@ const usageLabel = {
   unused: "Not used",
 } as const;
 
+function SquareThumb({ memory }: { memory: Memory }) {
+  const Icon = kindMeta[memory.kind].icon;
+  if ((memory.kind === "photo" || memory.kind === "video") && memory.art)
+    return (
+      <ArtworkFill
+        art={memory.art}
+        showScene={false}
+        className="relative size-14 shrink-0 overflow-hidden rounded-2xl"
+      />
+    );
+  return (
+    <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground">
+      <Icon className="size-6" aria-hidden="true" />
+    </span>
+  );
+}
+
 function SourceRow({
   memory,
   plan,
   collectionId,
+  index = 0,
 }: {
+  index?: number;
   memory: Memory;
   plan?: DesignPlan;
   collectionId: string;
 }) {
   const usage = usageOf(plan, memory.id);
   return (
-    <li>
+    <li className="rise" style={{ "--i": index } as React.CSSProperties}>
       <Link
         to="/collections/$collectionId/memories/$memoryId"
         params={{ collectionId, memoryId: memory.id }}
-        className="flex items-center gap-2.5 rounded-lg p-1 hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="press flex min-h-16 items-center gap-3 rounded-2xl p-1.5 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
-        <MemoryThumb memory={memory} className="size-9 shrink-0 rounded-md" />
+        <SquareThumb memory={memory} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm">{memory.title}</span>
+          <span className="block truncate text-base">{memory.title}</span>
           {manualEligible(memory) ? (
             <span
               className={cn(
-                "block text-[11px]",
-                usage === "unused"
-                  ? "text-muted-foreground"
-                  : "text-[var(--status-available)]",
+                "mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+                usage === "visible"
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               {usageLabel[usage]}
@@ -53,7 +72,7 @@ function SourceRow({
           ) : (
             <MemoryStatusBadge
               status={memoryStatus(memory)}
-              className="mt-0.5 h-5 px-2 text-[11px]"
+              className="mt-0.5 h-6 px-2 text-xs"
             />
           )}
         </span>
@@ -75,24 +94,21 @@ function Group({
 }) {
   if (memories.length === 0) return null;
   return (
-    <section aria-label={title} className="space-y-1.5">
-      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        {title} <span className="font-normal">({memories.length})</span>
+    <section aria-label={title} className="space-y-1">
+      <h3 className="px-1.5 text-sm font-medium text-muted-foreground">
+        {title} <span className="tabular">({memories.length})</span>
       </h3>
-      {memories.length > 0 ? (
-        <ul className="space-y-0.5">
-          {memories.map((m) => (
-            <SourceRow
-              key={m.id}
-              memory={m}
-              plan={plan}
-              collectionId={collectionId}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className="py-1 text-xs text-muted-foreground italic">None</p>
-      )}
+      <ul>
+        {memories.map((m, i) => (
+          <SourceRow
+            key={m.id}
+            index={i}
+            memory={m}
+            plan={plan}
+            collectionId={collectionId}
+          />
+        ))}
+      </ul>
     </section>
   );
 }
@@ -110,21 +126,21 @@ export function SourcesPanel({
   const manual = memories.filter((m) => manualEligible(m) && !aiEligible(m));
   const unavailable = memories.filter((m) => !manualEligible(m));
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Group
-        title="Ready · AI ok"
+        title="Ready, AI allowed"
         memories={ai}
         plan={plan}
         collectionId={collectionId}
       />
       <Group
-        title="Ready · no AI"
+        title="Ready"
         memories={manual}
         plan={plan}
         collectionId={collectionId}
       />
       <Group
-        title="Not available"
+        title="Not ready yet"
         memories={unavailable}
         plan={plan}
         collectionId={collectionId}
@@ -157,7 +173,7 @@ function Meter({
         >
           {value.toLocaleString()} / {max.toLocaleString()}
           {unit && ` ${unit}`}
-          {over && " — over budget"}
+          {over && " - over budget"}
         </span>
       </div>
       <Progress

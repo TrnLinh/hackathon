@@ -8,18 +8,17 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
-  CheckCircle2,
-  Circle,
+  ArrowLeft,
   FileText,
+  CheckCircle2,
   Loader2,
-  Upload,
+  Plus,
   X,
   XCircle,
 } from "lucide-react";
 import { kindMeta } from "@/components/chorus/memory-thumb";
-import { PageHeader, TrustNote } from "@/components/chorus/page-header";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { TrustNote } from "@/components/chorus/page-header";
+import { ActionBar, Disclosure } from "@/components/chorus/primitives";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { actions, usePrototype } from "@/features/prototype/store";
@@ -54,7 +53,7 @@ import {
   type MediaKind,
 } from "./validate-media";
 
-// One universal drop zone: the memory type is detected from each file's bytes
+// One universal picker: the memory type is detected from each file's bytes
 // rather than chosen up front. Each file becomes its own memory, because each
 // memory carries its own people and consent decisions.
 
@@ -85,11 +84,10 @@ type PrepStep = { label: string; done: boolean };
 /** What local preparation actually does on this backend. */
 const prepModes: Record<
   EditorSource["prep"],
-  { title: string; badge: string; steps: PrepStep[] }
+  { title: string; steps: PrepStep[] }
 > = {
   simulated: {
-    title: "Prepared locally before encryption",
-    badge: "Simulated",
+    title: "Prepared locally before encryption (simulated)",
     steps: [
       { label: "Type detected from file contents, not its name", done: true },
       { label: "Orientation normalized", done: true },
@@ -98,8 +96,7 @@ const prepModes: Record<
     ],
   },
   dev: {
-    title: "Prepared on this device",
-    badge: "Development",
+    title: "Prepared on this device (development)",
     steps: [
       { label: "Type detected from file contents, not its name", done: true },
       {
@@ -115,62 +112,53 @@ const prepModes: Record<
   },
 };
 
-function PrepChecklist({
-  ready,
+function PrepNote({
   mode,
+  note,
 }: {
-  ready: boolean;
   mode: EditorSource["prep"];
+  note: string;
 }) {
-  const { title, badge, steps } = prepModes[mode];
+  const { title, steps } = prepModes[mode];
   return (
-    <div className="rounded-lg border bg-card p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold">{title}</p>
-        <Badge variant="outline">{badge}</Badge>
-      </div>
-      <ul className="space-y-1.5">
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      <ul className="space-y-1">
         {steps.map((s) => (
-          <li
-            key={s.label}
-            className="flex items-center gap-2 text-xs text-muted-foreground"
-          >
-            {!s.done ? (
-              <XCircle
-                className="size-3.5 text-[var(--status-excluded)]"
-                aria-hidden="true"
-              />
-            ) : ready ? (
+          <li key={s.label} className="flex items-start gap-2">
+            {s.done ? (
               <CheckCircle2
-                className="size-3.5 text-[var(--status-available)]"
+                className="mt-0.5 size-4 shrink-0 text-[var(--status-available)]"
                 aria-hidden="true"
               />
             ) : (
-              <Circle className="size-3.5" aria-hidden="true" />
+              <XCircle
+                className="mt-0.5 size-4 shrink-0 text-[var(--status-excluded)]"
+                aria-hidden="true"
+              />
             )}
-            {s.label}
-            <span className="sr-only">
-              {!s.done
-                ? "(not done)"
-                : ready
-                  ? "(done)"
-                  : "(waiting for a file)"}
+            <span>
+              {s.label}
+              <span className="sr-only">
+                {s.done ? " (done)" : " (not done)"}
+              </span>
             </span>
           </li>
         ))}
       </ul>
+      <p>{note}</p>
     </div>
   );
 }
 
-function Preview({ item }: { item: Item }) {
+function Preview({ item, big }: { item: Item; big: boolean }) {
   if (item.phase === "checking" || !item.kind || item.errors.length)
     return (
       <div className="grid size-full place-items-center bg-muted text-muted-foreground">
         {item.phase === "checking" ? (
-          <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+          <Loader2 className="size-6 animate-spin" aria-hidden="true" />
         ) : (
-          <AlertCircle className="size-5" aria-hidden="true" />
+          <AlertCircle className="size-6 text-destructive" aria-hidden="true" />
         )}
       </div>
     );
@@ -179,7 +167,7 @@ function Preview({ item }: { item: Item }) {
       // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
       <img
         src={item.url}
-        alt={`Local preview of ${item.file.name}`}
+        alt={`Preview of ${item.file.name}`}
         className="size-full object-cover"
       />
     );
@@ -187,19 +175,20 @@ function Preview({ item }: { item: Item }) {
     return (
       <video
         src={item.url}
-        controls
+        controls={big}
         className="size-full bg-black object-contain"
-        aria-label={`Local preview of ${item.file.name}`}
+        aria-label={`Preview of ${item.file.name}`}
       />
     );
+  const Icon = kindMeta.voice.icon;
   return (
-    <div className="flex size-full flex-col justify-center gap-2 bg-secondary p-3">
-      <kindMeta.voice.icon className="size-5 text-primary" aria-hidden="true" />
+    <div className="flex size-full flex-col items-center justify-center gap-3 bg-accent p-4">
+      <Icon className="size-8 text-primary" aria-hidden="true" />
       <audio
         src={item.url}
         controls
         className="w-full"
-        aria-label={`Local preview of ${item.file.name}`}
+        aria-label={`Preview of ${item.file.name}`}
       />
     </div>
   );
@@ -207,99 +196,76 @@ function Preview({ item }: { item: Item }) {
 
 function ItemCard({
   item,
-  showStory,
+  single,
   onChange,
   onRemove,
 }: {
   item: Item;
-  showStory: boolean;
+  single: boolean;
   onChange: (patch: Partial<Item>) => void;
   onRemove: () => void;
 }) {
   const ok = item.phase === "checked" && item.errors.length === 0;
-  const Icon = item.kind ? kindMeta[item.kind].icon : Upload;
   return (
-    <li className="overflow-hidden rounded-xl border bg-card">
-      <div className="grid gap-4 p-3 sm:grid-cols-[160px_minmax(0,1fr)]">
-        <div className="aspect-[4/3] overflow-hidden rounded-lg border sm:aspect-square">
-          <Preview item={item} />
-        </div>
-        <div className="min-w-0 space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0" aria-live="polite">
-              <p className="truncate text-sm font-medium">{item.file.name}</p>
-              {item.phase === "checking" ? (
-                <p className="text-xs text-muted-foreground">
-                  Checking on this device…
-                </p>
-              ) : ok && item.kind ? (
-                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
-                  <Badge variant="secondary" className="gap-1">
-                    <Icon aria-hidden="true" />
-                    {kindMeta[item.kind].label}
-                  </Badge>
-                  {item.format} · {formatBytes(item.file.size)}
-                  {item.media?.durationSec !== undefined &&
-                    ` · ${formatDuration(item.media.durationSec)}`}
-                  {item.media?.width &&
-                    ` · ${item.media.width}×${item.media.height}`}
-                </p>
-              ) : (
-                <p className="text-xs font-medium text-destructive">
-                  Can’t be used. Nothing was uploaded.
-                </p>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Remove ${item.file.name}`}
-              onClick={onRemove}
-            >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
-          {item.phase === "checked" && item.errors.length > 0 && (
-            <ul className="list-disc space-y-1 pl-4 text-xs text-destructive">
+    <li className="space-y-3">
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-3xl bg-card shadow-soft ring-1 ring-border",
+          single ? "aspect-[4/3]" : "aspect-[16/9]",
+        )}
+      >
+        <Preview item={item} big={single} />
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="absolute top-2 right-2 rounded-full shadow-soft"
+          aria-label={`Remove ${item.file.name}`}
+          onClick={onRemove}
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </div>
+      <div aria-live="polite">
+        {item.phase === "checking" ? (
+          <p className="text-sm text-muted-foreground">Checking your file</p>
+        ) : ok && item.kind ? (
+          <p className="tabular text-sm text-muted-foreground">
+            {kindMeta[item.kind].label} · {formatBytes(item.file.size)}
+            {item.media?.durationSec !== undefined &&
+              ` · ${formatDuration(item.media.durationSec)}`}
+          </p>
+        ) : (
+          <div role="alert" className="space-y-1 text-sm text-destructive">
+            <p className="font-medium">This file can’t be used. Try another.</p>
+            <ul className="list-disc pl-5">
               {item.errors.map((e) => (
                 <li key={e}>{e}</li>
               ))}
             </ul>
-          )}
-          {item.errors.length === 0 && (
-            <>
-              <CountedField
-                id={`${item.id}-title`}
-                label="Title"
-                value={item.title}
-                onChange={(title) => onChange({ title })}
-                limit={LIMITS.titleChars}
-                required
-              />
-              <CountedField
-                id={`${item.id}-caption`}
-                label="Caption"
-                value={item.caption}
-                onChange={(caption) => onChange({ caption })}
-                limit={LIMITS.captionChars}
-                placeholder="A line to go with it in the photozine"
-              />
-              {showStory && (
-                <CountedField
-                  id={`${item.id}-story`}
-                  label="Story"
-                  value={item.story}
-                  onChange={(story) => onChange({ story })}
-                  limit={LIMITS.storyChars}
-                  multiline
-                  placeholder="Anything you want people to know"
-                />
-              )}
-            </>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+      {ok && (
+        <div className="space-y-4">
+          <CountedField
+            id={`${item.id}-caption`}
+            label="Caption"
+            value={item.caption}
+            onChange={(caption) => onChange({ caption })}
+            limit={LIMITS.captionChars}
+            placeholder="A line to go with it"
+          />
+          <CountedField
+            id={`${item.id}-title`}
+            label="Title"
+            value={item.title}
+            onChange={(title) => onChange({ title })}
+            limit={LIMITS.titleChars}
+            required
+          />
+        </div>
+      )}
     </li>
   );
 }
@@ -403,7 +369,7 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
   if (!member || !viewer || !memories)
     return (
       <p role="status" className="text-sm text-muted-foreground">
-        Opening the editor…
+        Opening the editor
       </p>
     );
   const id = member.collectionId;
@@ -578,18 +544,17 @@ function MemoryEditorView({
     if (!storyTitle.trim()) errors.push("Add a title.");
     if (codePoints(storyTitle) > LIMITS.titleChars)
       errors.push(`Shorten the title to ${LIMITS.titleChars} characters.`);
-    if (!storyText.trim()) errors.push("Write the story for this memory.");
+    if (!storyText.trim()) errors.push("Write your story.");
     if (codePoints(storyText) > LIMITS.storyChars)
       errors.push(`Shorten the story to ${LIMITS.storyChars} characters.`);
-    if (slotsLeft < 1)
-      errors.push("This collection already has twelve active memories.");
+    if (slotsLeft < 1) errors.push("This zine already has twelve memories.");
   } else {
-    if (items.length === 0) errors.push("Add at least one file.");
-    if (pending) errors.push("Wait for every file to finish checking.");
+    if (items.length === 0) errors.push("Choose a photo, voice note or video.");
+    if (pending) errors.push("Hold on, still checking your file.");
     if (items.some((i) => i.phase === "checked" && i.errors.length))
-      errors.push("Remove the files that can’t be used.");
+      errors.push("Remove the file that can’t be used.");
     for (const i of usable) {
-      if (!i.title.trim()) errors.push(`Add a title for ${i.file.name}.`);
+      if (!i.title.trim()) errors.push("Add a title.");
       if (codePoints(i.title) > LIMITS.titleChars)
         errors.push(`Shorten the title of ${i.file.name}.`);
       if (codePoints(i.caption) > LIMITS.captionChars)
@@ -599,13 +564,14 @@ function MemoryEditorView({
     }
     if (usable.length > slotsLeft)
       errors.push(
-        `Only ${slotsLeft} more ${slotsLeft === 1 ? "memory fits" : "memories fit"} in this collection (twelve active at most). Remove ${usable.length - slotsLeft} to continue.`,
+        `Only ${slotsLeft} more ${slotsLeft === 1 ? "memory fits" : "memories fit"} in this zine. Remove ${usable.length - slotsLeft} to continue.`,
       );
     if (usedBytes + newBytes > LIMITS.collectionBytes)
       errors.push(
-        `These files would take the collection past its ${formatBytes(LIMITS.collectionBytes)} budget.`,
+        `This would go over the ${formatBytes(LIMITS.collectionBytes)} limit for the zine.`,
       );
   }
+  const uniqueErrors = Array.from(new Set(errors));
 
   function requestedFor(kind: MemoryKind) {
     return (source.processors ?? [])
@@ -674,332 +640,290 @@ function MemoryEditorView({
   }
 
   const count = mode === "story" ? 1 : usable.length;
-  const noun = count === 1 ? "memory" : "memories";
+  const single = items.length === 1;
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      id="memory-files"
+      type="file"
+      multiple
+      accept={acceptAny}
+      className="sr-only"
+      aria-label="Choose photos, voice notes, or videos"
+      onChange={(e) => {
+        addFiles(e.target.files);
+        e.target.value = "";
+      }}
+    />
+  );
 
   return (
-    <form onSubmit={onSubmit} className="space-y-8" noValidate>
-      <PageHeader
-        eyebrow="New memory"
-        title="Add memories"
-        description="Drop in anything: photos, voice notes, or short videos. Chorus recognizes each file. Every file becomes its own memory, and everyone you declare decides on it separately."
-      />
-
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
-          {mode === "files" ? (
-            <>
-              <div
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node))
-                    setDragging(false);
-                }}
-                onDrop={onDrop}
-                className={cn(
-                  "rounded-2xl border-2 border-dashed bg-card px-4 text-center transition-colors",
-                  items.length ? "py-6" : "py-12",
-                  dragging
-                    ? "border-primary bg-secondary/60"
-                    : "border-border hover:border-primary/40",
-                )}
-              >
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex -space-x-2" aria-hidden="true">
-                    {(["photo", "voice", "video"] as const).map((k) => {
-                      const Icon = kindMeta[k].icon;
-                      return (
-                        <span
-                          key={k}
-                          className="grid size-10 place-items-center rounded-full border bg-background text-primary"
-                        >
-                          <Icon className="size-4" />
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <p className="text-base font-medium">
-                    {dragging
-                      ? "Drop to add"
-                      : items.length
-                        ? "Add more files"
-                        : "Drop photos, voice notes, or videos here"}
-                  </p>
-                  <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => inputRef.current?.click()}
-                    >
-                      <Upload aria-hidden="true" />
-                      Choose files
-                    </Button>
-                    <span>or paste from your clipboard</span>
-                  </div>
-                  <input
-                    ref={inputRef}
-                    id="memory-files"
-                    type="file"
-                    multiple
-                    accept={acceptAny}
-                    className="sr-only"
-                    aria-label="Choose photos, voice notes, or videos"
-                    onChange={(e) => {
-                      addFiles(e.target.files);
-                      e.target.value = "";
-                    }}
-                  />
-                  <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">
-                      {anyFormatHelp}
-                    </summary>
-                    <ul className="mt-2 space-y-1 text-left">
-                      {(["photo", "voice", "video"] as const).map((k) => (
-                        <li key={k}>
-                          <span className="font-medium text-foreground">
-                            {kindMeta[k].label}:
-                          </span>{" "}
-                          {formatHelp[k]}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMode("story")}
-                className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left text-sm transition-colors hover:border-primary/40 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-              >
-                <FileText className="size-5 text-primary" aria-hidden="true" />
-                <span>
-                  <span className="block font-medium">
-                    No file? Write a story instead
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    A memory in your own words, with no photo or recording.
-                  </span>
-                </span>
-              </button>
-              {items.length > 0 && (
-                <section aria-labelledby="upload-list" className="space-y-3">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h2 id="upload-list" className="text-sm font-semibold">
-                      {items.length} {items.length === 1 ? "file" : "files"}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      {slotsLeft} of {LIMITS.activeMemories} memory slots left
-                    </p>
-                  </div>
-                  <ul className="space-y-3">
-                    {items.map((item) => (
-                      <ItemCard
-                        key={item.id}
-                        item={item}
-                        showStory={items.length === 1}
-                        onChange={(patch) => patchItem(item.id, patch)}
-                        onRemove={() => removeItem(item.id)}
-                      />
-                    ))}
-                  </ul>
-                  {items.length > 1 && (
-                    <p className="text-xs text-muted-foreground">
-                      Add a longer story to any memory later, from its own page.
-                    </p>
-                  )}
-                </section>
-              )}
-            </>
-          ) : (
-            <section
-              aria-labelledby="story-heading"
-              className="space-y-4 rounded-2xl border bg-card p-4"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h2
-                  id="story-heading"
-                  className="flex items-center gap-2 text-sm font-semibold"
-                >
-                  <FileText
-                    className="size-4 text-primary"
-                    aria-hidden="true"
-                  />
-                  Write a story
-                </h2>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setMode("files")}
-                >
-                  <Upload aria-hidden="true" />
-                  Add files instead
-                </Button>
-              </div>
-              <CountedField
-                id="story-title"
-                label="Title"
-                value={storyTitle}
-                onChange={setStoryTitle}
-                limit={LIMITS.titleChars}
-                required
-              />
-              <CountedField
-                id="story-text"
-                label="Story"
-                value={storyText}
-                onChange={setStoryText}
-                limit={LIMITS.storyChars}
-                multiline
-                required
-                placeholder="Write the memory in your own words"
-              />
-            </section>
-          )}
-        </div>
-
-        <div className="min-w-0 space-y-6">
-          <PeoplePicker
-            people={members}
-            uploaderId={source.viewerId}
-            selected={people}
-            onChange={setPeople}
-          />
-          {mode === "files" && items.length > 1 && (
-            <p className="-mt-3 text-xs text-muted-foreground">
-              Applies to every file here. You can change who is in each memory
-              afterwards, which creates a new version.
-            </p>
-          )}
-
-          {source.processors && (
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">
-                Ask permission for AI processing
-              </legend>
-              <p className="text-xs text-muted-foreground">
-                Each person decides on these separately from manual use. Nothing
-                is sent until everyone approves.
-              </p>
-              {applicable.length === 0 ? (
-                <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                  Add a file to see which processors apply.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {applicable.map((p) => {
-                    const id = `proc-${p.id}`;
-                    const on = !declined.includes(p.id);
-                    const kinds = p.appliesTo
-                      .filter((k) => kindsPresent.includes(k))
-                      .map((k) => kindMeta[k].label.toLowerCase());
-                    return (
-                      <li key={p.id}>
-                        <label
-                          htmlFor={id}
-                          className={cn(
-                            "flex cursor-pointer gap-3 rounded-lg border bg-card p-3 text-sm has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
-                            on && "border-primary/40",
-                          )}
-                        >
-                          <Checkbox
-                            id={id}
-                            checked={on}
-                            className="mt-0.5"
-                            onCheckedChange={(v) =>
-                              setDeclined((prev) =>
-                                v
-                                  ? prev.filter((x) => x !== p.id)
-                                  : [...prev, p.id],
-                              )
-                            }
-                          />
-                          <span className="min-w-0 space-y-1">
-                            <span className="block font-medium">{p.name}</span>
-                            <span className="block text-xs text-muted-foreground">
-                              {p.role}
-                              {mode === "files" && ` · for ${kinds.join(", ")}`}
-                            </span>
-                            <span className="block text-xs">
-                              <span className="text-muted-foreground">
-                                Receives:{" "}
-                              </span>
-                              {p.receives.join("; ")}
-                            </span>
-                            <span className="block text-xs">
-                              <span className="text-muted-foreground">
-                                Retention:{" "}
-                              </span>
-                              {p.retention}
-                            </span>
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </fieldset>
-          )}
-
-          {mode === "files" && (
-            <PrepChecklist
-              ready={usable.length > 0 && usable.length === items.length}
-              mode={source.prep}
-            />
-          )}
-
-          <TrustNote>{source.trustNote}</TrustNote>
-        </div>
+    <form
+      onSubmit={onSubmit}
+      className="mx-auto w-full max-w-xl space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
+      noValidate
+    >
+      <div className="space-y-2">
+        <Link
+          to="/collections/$collectionId"
+          params={{ collectionId }}
+          className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" /> Back
+        </Link>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          Add memory
+        </h1>
       </div>
 
-      {saveError && (
-        <Alert variant="destructive" role="alert">
-          <AlertCircle aria-hidden="true" />
-          <AlertTitle>Not saved</AlertTitle>
-          <AlertDescription>{saveError}</AlertDescription>
-        </Alert>
-      )}
-
-      {triedSubmit && errors.length > 0 && (
-        <Alert variant="destructive" role="alert">
-          <AlertCircle aria-hidden="true" />
-          <AlertTitle>Not saved yet</AlertTitle>
-          <AlertDescription>
-            <ul className="list-disc pl-4">
-              {errors.map((e) => (
-                <li key={e}>{e}</li>
+      {mode === "files" ? (
+        <div className="space-y-5">
+          {items.length > 0 && (
+            <ul className="space-y-6">
+              {items.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  single={single}
+                  onChange={(patch) => patchItem(item.id, patch)}
+                  onRemove={() => removeItem(item.id)}
+                />
               ))}
             </ul>
-          </AlertDescription>
-        </Alert>
+          )}
+          <div
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node))
+                setDragging(false);
+            }}
+            onDrop={onDrop}
+          >
+            {items.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className={cn(
+                  "press flex min-h-72 w-full flex-col items-center justify-center gap-4 rounded-[2rem] bg-card px-4 py-10 text-center shadow-soft ring-1 ring-border transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                  dragging && "bg-accent ring-2 ring-primary",
+                )}
+              >
+                <span className="flex -space-x-2" aria-hidden="true">
+                  {(["photo", "voice", "video"] as const).map((k) => {
+                    const Icon = kindMeta[k].icon;
+                    return (
+                      <span
+                        key={k}
+                        className="grid size-12 place-items-center rounded-full bg-lime text-lime-ink ring-4 ring-card"
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                    );
+                  })}
+                </span>
+                <span className="text-2xl font-semibold tracking-tight">
+                  {dragging
+                    ? "Drop to add"
+                    : "Add a photo, voice note or video"}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  Tap to choose
+                </span>
+              </button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => inputRef.current?.click()}
+              >
+                <Plus aria-hidden="true" /> Add another
+              </Button>
+            )}
+            {fileInput}
+          </div>
+          {items.length === 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => setMode("story")}
+            >
+              <FileText aria-hidden="true" /> Or write a story
+            </Button>
+          )}
+        </div>
+      ) : (
+        <section aria-label="Write a story" className="space-y-4">
+          <CountedField
+            id="story-title"
+            label="Title"
+            value={storyTitle}
+            onChange={setStoryTitle}
+            limit={LIMITS.titleChars}
+            required
+          />
+          <CountedField
+            id="story-text"
+            label="Story"
+            value={storyText}
+            onChange={setStoryText}
+            limit={LIMITS.storyChars}
+            multiline
+            required
+            placeholder="Write it in your own words"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setMode("files")}
+          >
+            Add a file instead
+          </Button>
+        </section>
       )}
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-5">
-        <Button variant="ghost" asChild>
-          <Link to="/collections/$collectionId" params={{ collectionId }}>
-            Cancel
-          </Link>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={submitting}
-          onClick={() => void save(false)}
+      <PeoplePicker
+        people={members}
+        uploaderId={source.viewerId}
+        selected={people}
+        onChange={setPeople}
+      />
+
+      {source.prep === "dev" && (
+        <TrustNote>
+          Dev mode: files are stored unencrypted, and consent is recorded
+          locally until Tide is connected.
+        </TrustNote>
+      )}
+      <Disclosure summary="More options">
+        {mode === "files" && single && usable.length === 1 && (
+          <CountedField
+            id="more-story"
+            label="Longer story"
+            value={items[0].story}
+            onChange={(story) => patchItem(items[0].id, { story })}
+            limit={LIMITS.storyChars}
+            multiline
+            placeholder="Anything you want people to know"
+          />
+        )}
+        {source.processors && applicable.length > 0 && (
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-foreground">
+              Let AI help (optional)
+            </legend>
+            <p>Nothing is sent until everyone approves.</p>
+            <ul className="space-y-2">
+              {applicable.map((p) => {
+                const id = `proc-${p.id}`;
+                const on = !declined.includes(p.id);
+                return (
+                  <li key={p.id}>
+                    <label
+                      htmlFor={id}
+                      className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl bg-card p-3 ring-1 ring-border has-focus-visible:ring-2 has-focus-visible:ring-ring"
+                    >
+                      <Checkbox
+                        id={id}
+                        checked={on}
+                        className="mt-0.5"
+                        onCheckedChange={(v) =>
+                          setDeclined((prev) =>
+                            v
+                              ? prev.filter((x) => x !== p.id)
+                              : [...prev, p.id],
+                          )
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium text-foreground">
+                          {p.name}
+                        </span>
+                        <span className="block text-sm">{p.role}</span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </fieldset>
+        )}
+        <p className="tabular">
+          {slotsLeft} of {LIMITS.activeMemories} spots left in this zine.
+        </p>
+        <PrepNote mode={source.prep} note={source.trustNote} />
+        {mode === "files" && (
+          <details>
+            <summary className="min-h-11 cursor-pointer py-2">
+              {anyFormatHelp}
+            </summary>
+            <ul className="space-y-1">
+              {(["photo", "voice", "video"] as const).map((k) => (
+                <li key={k}>
+                  <span className="font-medium text-foreground">
+                    {kindMeta[k].label}:
+                  </span>{" "}
+                  {formatHelp[k]}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </Disclosure>
+
+      {saveError && (
+        <div
+          role="alert"
+          className="flex gap-2 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive"
         >
-          {count > 1 ? `Save ${count} private drafts` : "Save private draft"}
-        </Button>
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="font-medium">Not saved</p>
+            <p>{saveError}</p>
+          </div>
+        </div>
+      )}
+
+      {triedSubmit && uniqueErrors.length > 0 && (
+        <div
+          role="alert"
+          className="flex gap-2 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <ul className="space-y-0.5">
+            {uniqueErrors.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <ActionBar>
         {source.canSubmit && (
-          <Button type="submit" disabled={submitting}>
-            {count > 1
-              ? `Submit ${count} ${noun} for approval`
-              : "Submit for approval"}
+          <Button
+            type="submit"
+            size="lg"
+            variant="highlight"
+            disabled={submitting}
+          >
+            {count > 1 ? `Submit ${count} for approval` : "Submit for approval"}
           </Button>
         )}
-      </div>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={submitting}
+          className="sm:order-first"
+          onClick={() => void save(false)}
+        >
+          {count > 1 ? `Save ${count} drafts` : "Save as draft"}
+        </Button>
+      </ActionBar>
     </form>
   );
 }

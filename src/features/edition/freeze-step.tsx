@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, FileLock2, Loader2, PenTool } from "lucide-react";
-import { EmptyState, TrustNote } from "@/components/chorus/page-header";
+import { AlertTriangle, Loader2, PenTool } from "lucide-react";
+import { EmptyState } from "@/components/chorus/page-header";
+import { ActionBar, Disclosure } from "@/components/chorus/primitives";
 import { PersonAvatar } from "@/components/chorus/people";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -32,7 +32,6 @@ import {
   originSummary,
   PlanPages,
   ProvenanceRows,
-  SectionTitle,
 } from "./common";
 
 const RENDER_MS = 1500;
@@ -44,7 +43,7 @@ export function latestValidPlan(state: PrototypeState, collectionId: string) {
     .sort((a, b) => b.revision - a.revision)[0];
 }
 
-/** Why each final approver is required (CH-11 influence closure). */
+/** Why each final approver is required (influence closure). */
 function approverReasons(state: PrototypeState, plan: DesignPlan) {
   const reasons = new Map<PersonId, string[]>();
   const add = (id: PersonId, reason: string) =>
@@ -53,7 +52,7 @@ function approverReasons(state: PrototypeState, plan: DesignPlan) {
   for (const id of [...visible, ...plan.styleOnlyIds]) {
     const m = state.memories.find((x) => x.id === id);
     if (!m) continue;
-    const kind = visible.includes(id) ? "Appears in" : "Style-only source";
+    const kind = visible.includes(id) ? "Appears in" : "Shaped the style of";
     for (const p of approverIds(m))
       add(p, `${kind}: “${m.title}” v${m.version}`);
   }
@@ -104,28 +103,25 @@ export function FreezeStep({
     return (
       <EmptyState
         icon={<PenTool className="size-5" aria-hidden="true" />}
-        title="No design to freeze yet"
+        title="No design yet"
         action={
-          <Button asChild>
+          <Button asChild size="lg">
             <Link
               to="/collections/$collectionId/compose"
               params={{ collectionId: collection.id }}
             >
-              Open the composer
+              Open the designer
             </Link>
           </Button>
         }
       >
-        Start from a template or, when AI is on, create a design with AI.
-        Invalidated design revisions cannot be frozen.
+        Pick a layout first, then come back to lock it.
       </EmptyState>
     );
 
   const reasons = approverReasons(state, plan);
   const approvers = finalApproverIds(state, plan);
   const stale = staleSources(state, plan);
-  // The same CH-20 validator as the composer: invalid or unfinished plans,
-  // such as an empty template draft, cannot become a candidate.
   const failedChecks = validatePlan(
     plan,
     state.memories.filter((m) => m.collectionId === plan.collectionId),
@@ -161,121 +157,51 @@ export function FreezeStep({
   }
 
   return (
-    <div className="space-y-8">
-      <section aria-labelledby="freeze-preview" className="space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <SectionTitle>
-            <span id="freeze-preview">
-              Design revision {plan.revision} · {plan.tokens.name}
-            </span>
-          </SectionTitle>
-          <p className="text-xs text-muted-foreground">
-            {originSummary(plan)} · 6 portrait A5 pages
+    <div className="space-y-5">
+      <section
+        aria-labelledby="freeze-preview"
+        className="space-y-4 rounded-3xl bg-card p-4 shadow-soft ring-1 ring-border sm:p-6"
+      >
+        <div>
+          <h2
+            id="freeze-preview"
+            className="text-3xl font-semibold tracking-tighter"
+          >
+            Lock this version
+          </h2>
+          <p className="mt-1 text-base text-muted-foreground">
+            Six pages, ready for everyone to approve.
           </p>
         </div>
         <PlanPages plan={plan} state={state} />
-      </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>Who must approve this edition</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-4">
-              {approvers.map((id) => {
-                const person = personById(state, id);
-                return (
-                  <li key={id} className="flex gap-3">
-                    <PersonAvatar person={person} />
-                    <div className="min-w-0 text-sm">
-                      <p className="font-medium">{person.name}</p>
-                      <ul className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
-                        {(reasons.get(id) ?? []).map((r) => (
-                          <li key={r}>{r}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <TrustNote className="mt-5">
-              Sources that only shaped the palette, layout, or headings still
-              need their contributors’ approval. The creator cannot approve on
-              anyone’s behalf.
-            </TrustNote>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>Manifest preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="divide-y text-sm">
-              <ManifestRow label="Plan">
-                <code className="font-mono text-xs">
-                  {plan.id} · revision {plan.revision}
-                </code>
-              </ManifestRow>
-              <ProvenanceRows plan={plan} />
-              <ManifestRow label="Schema">{plan.schemaVersion}</ManifestRow>
-              <ManifestRow label="Renderer">
-                chorus-zine-renderer 0.1 (prototype)
-              </ManifestRow>
-              <ManifestRow label="Fonts">Local system stacks</ManifestRow>
-              <ManifestRow label="Visible sources">
-                <SourceList state={state} ids={visible} />
-              </ManifestRow>
-              <ManifestRow label="Style-only sources">
-                {plan.styleOnlyIds.length ? (
-                  <SourceList state={state} ids={plan.styleOnlyIds} />
-                ) : (
-                  "None"
-                )}
-              </ManifestRow>
-              <ManifestRow label="Review audience">
-                Required approvers only
-              </ManifestRow>
-              <ManifestRow label="Download members">
-                {collection.memberIds
-                  .map((id) => personById(state, id).name)
-                  .join(", ")}
-              </ManifestRow>
-            </dl>
-          </CardContent>
-        </Card>
-      </div>
-
-      <section
-        aria-labelledby="freeze-action"
-        className="space-y-4 rounded-xl border bg-card p-5"
-      >
-        <h2
-          id="freeze-action"
-          className="flex items-center gap-2 font-semibold"
-        >
-          <FileLock2 className="size-4" aria-hidden="true" /> Freeze an exact
-          candidate
-        </h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Freezing renders the plan once into exact PDF bytes and commits a
-          manifest. The edition identifier is printed inside the PDF before
-          freezing; approval signatures live in a separate receipt. The PDF is
-          never re-rendered after approval, and any change creates a new
-          candidate that needs fresh approvals. Freezing never needs AI; it
-          works the same whether AI is on or off.
-        </p>
-        <p className="text-xs text-muted-foreground">{aiToggleNote}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            Needs approval from
+          </span>
+          <ul className="flex flex-wrap gap-2">
+            {approvers.map((id) => {
+              const person = personById(state, id);
+              return (
+                <li
+                  key={id}
+                  className="flex items-center gap-2 rounded-full bg-muted py-1 pr-3 pl-1 text-sm"
+                >
+                  <PersonAvatar person={person} size="sm" />
+                  {person.name.split(" ")[0]}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
         {stale.length > 0 && (
           <Alert variant="destructive">
             <AlertTriangle aria-hidden="true" />
-            <AlertTitle>This design cannot be frozen</AlertTitle>
+            <AlertTitle>This design cannot be locked</AlertTitle>
             <AlertDescription>
               {stale.join(", ")} {stale.length === 1 ? "is" : "are"} no longer
-              approved. Return to the composer and rebuild the design without{" "}
+              approved. Rebuild the design without{" "}
               {stale.length === 1 ? "it" : "them"}.
             </AlertDescription>
           </Alert>
@@ -284,7 +210,7 @@ export function FreezeStep({
         {stale.length === 0 && failedChecks.length > 0 && (
           <Alert variant="destructive">
             <AlertTriangle aria-hidden="true" />
-            <AlertTitle>Finish the design before freezing</AlertTitle>
+            <AlertTitle>Finish the design first</AlertTitle>
             <AlertDescription>
               <ul className="list-disc pl-4">
                 {failedChecks.map((row) => (
@@ -296,9 +222,9 @@ export function FreezeStep({
               <Link
                 to="/collections/$collectionId/compose"
                 params={{ collectionId: plan.collectionId }}
-                className="mt-2 inline-block underline underline-offset-4"
+                className="mt-2 inline-flex min-h-11 items-center underline underline-offset-4"
               >
-                Open the composer
+                Open the designer
               </Link>
             </AlertDescription>
           </Alert>
@@ -307,104 +233,141 @@ export function FreezeStep({
         {failed && (
           <Alert variant="destructive">
             <AlertTriangle aria-hidden="true" />
-            <AlertTitle>Rendering failed</AlertTitle>
+            <AlertTitle>That did not work</AlertTitle>
             <AlertDescription>
-              No candidate was created, so nothing can be approved by mistake.
-              Your design revision is unchanged. Try again.
+              Nothing was locked and your design is unchanged. Try again.
             </AlertDescription>
           </Alert>
-        )}
-
-        {frozenFromThis && !rendering && (
-          <FrozenSummary candidate={frozenFromThis} />
         )}
 
         {rendering && (
           <div className="space-y-2" role="status" aria-live="polite">
             <p className="flex items-center gap-2 text-sm">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Rendering six A5 pages and embedding images and fonts…
+              Building the PDF
             </p>
             <Progress
               value={((elapsed ?? 0) / RENDER_MS) * 100}
-              aria-label="Render progress"
+              aria-label="Progress"
             />
-            <p className="text-xs text-muted-foreground">
-              {((elapsed ?? 0) / 1000).toFixed(1)} s elapsed · target under{" "}
-              {TARGET_S} s on the demo device (simulated)
-            </p>
           </div>
         )}
 
-        {isCreator ? (
-          <div className="flex flex-wrap items-center gap-4">
-            <Button
-              onClick={startRender}
-              disabled={
-                rendering || stale.length > 0 || failedChecks.length > 0
-              }
-            >
-              {frozenFromThis
-                ? "Freeze a replacement candidate"
-                : "Freeze candidate"}
-            </Button>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="simulate-failure"
-                checked={simulateFailure}
-                onCheckedChange={(v) => setSimulateFailure(v === true)}
-                disabled={rendering}
-              />
-              <Label
-                htmlFor="simulate-failure"
-                className="text-xs font-normal text-muted-foreground"
-              >
-                Simulate a render failure (prototype)
-              </Label>
-            </div>
-            {frozenFromThis && (
-              <p className="w-full text-xs text-muted-foreground">
-                A replacement invalidates {frozenFromThis.editionId} and its
-                approvals.
-              </p>
-            )}
-          </div>
-        ) : (
-          <p role="status" className="text-sm text-muted-foreground">
-            Waiting for {personById(state, collection.creatorId).name}, the
-            collection creator, to freeze a candidate.
+        {!isCreator && (
+          <p role="status" className="text-base text-muted-foreground">
+            Waiting for {personById(state, collection.creatorId).name} to lock
+            this version.
+          </p>
+        )}
+
+        {frozenFromThis && isCreator && !rendering && (
+          <p className="text-sm text-muted-foreground">
+            Locking again replaces {frozenFromThis.editionId} and clears its
+            approvals.
           </p>
         )}
       </section>
+
+      {isCreator && (
+        <ActionBar>
+          <Button
+            variant="highlight"
+            size="lg"
+            className="w-full sm:w-auto"
+            onClick={startRender}
+            disabled={rendering || stale.length > 0 || failedChecks.length > 0}
+          >
+            {frozenFromThis ? "Lock a new version" : "Lock this version"}
+          </Button>
+        </ActionBar>
+      )}
+
+      <Disclosure summary="Details">
+        <dl className="divide-y">
+          <Item label="Design">
+            Version {plan.revision}, {plan.tokens.name}. {originSummary(plan)}
+          </Item>
+          <ProvenanceRows plan={plan} />
+          <Item label="Format">
+            A5 portrait, 6 pages ({plan.schemaVersion})
+          </Item>
+          <Item label="Photos and notes in it">
+            <SourceList state={state} ids={visible} />
+          </Item>
+          <Item label="Only shaped the style">
+            {plan.styleOnlyIds.length ? (
+              <SourceList state={state} ids={plan.styleOnlyIds} />
+            ) : (
+              "None"
+            )}
+          </Item>
+          <Item label="Can download">
+            {collection.memberIds
+              .map((id) => personById(state, id).name)
+              .join(", ")}
+          </Item>
+          <Item label="Why each person approves">
+            <ul className="space-y-2">
+              {approvers.map((id) => (
+                <li key={id}>
+                  <span className="font-medium text-foreground">
+                    {personById(state, id).name}
+                  </span>
+                  <ul className="text-sm">
+                    {(reasons.get(id) ?? []).map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </Item>
+        </dl>
+        {frozenFromThis && <FrozenSummary candidate={frozenFromThis} />}
+        <p>{aiToggleNote}</p>
+        {isCreator && (
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="simulate-failure"
+              checked={simulateFailure}
+              onCheckedChange={(v) => setSimulateFailure(v === true)}
+              disabled={rendering}
+            />
+            <Label htmlFor="simulate-failure" className="font-normal">
+              Simulate a failure (prototype)
+            </Label>
+          </div>
+        )}
+        <p>
+          Target under {TARGET_S} seconds. Approvals are never done for others.
+        </p>
+      </Disclosure>
     </div>
   );
 }
 
 function FrozenSummary({ candidate }: { candidate: Candidate }) {
   return (
-    <div className="rounded-lg border bg-background p-4">
-      <p className="text-sm font-medium">
-        Frozen as <span className="font-mono">{candidate.editionId}</span>
+    <div>
+      <p className="font-medium text-foreground">
+        Locked as <span className="font-mono">{candidate.editionId}</span>
       </p>
-      <dl className="mt-2 divide-y">
-        <DigestRow label="PDF digest (SHA-256)" digest={candidate.pdfDigest} />
+      <dl className="divide-y">
+        <DigestRow label="PDF fingerprint" digest={candidate.pdfDigest} />
         <DigestRow
-          label="Manifest digest (SHA-256)"
+          label="Manifest fingerprint"
           digest={candidate.manifestDigest}
         />
-        <div className="flex justify-between py-2 text-xs">
-          <dt className="text-muted-foreground">File</dt>
-          <dd>{formatBytes(candidate.sizeBytes)} · A5 portrait × 6 pages</dd>
+        <div className="flex justify-between py-2 text-sm">
+          <dt>File</dt>
+          <dd>{formatBytes(candidate.sizeBytes)}</dd>
         </div>
       </dl>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Digests are synthetic in this prototype.
-      </p>
     </div>
   );
 }
 
-function ManifestRow({
+function Item({
   label,
   children,
 }: {
@@ -413,8 +376,8 @@ function ManifestRow({
 }) {
   return (
     <div className="grid gap-1 py-2 sm:grid-cols-[140px_minmax(0,1fr)]">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-sm">{children}</dd>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-sm text-foreground">{children}</dd>
     </div>
   );
 }
@@ -427,8 +390,8 @@ function SourceList({ state, ids }: { state: PrototypeState; ids: string[] }) {
         return (
           <li key={id}>
             {m ? m.title : "Missing source"}{" "}
-            <span className="text-xs text-muted-foreground">
-              {m ? `${m.kind} · v${m.version}` : id}
+            <span className="text-muted-foreground">
+              {m ? `${m.kind} v${m.version}` : id}
             </span>
           </li>
         );

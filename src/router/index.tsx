@@ -8,6 +8,7 @@ import {
   Link,
   RouterProvider,
 } from "@tanstack/react-router";
+import { Compass } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { ApprovalReview } from "@/features/approvals/approval-review";
@@ -39,13 +40,23 @@ import { PolicyProofPage } from "@/features/policy-proof/proof-page";
 
 function NotFoundPage() {
   return (
-    <div className="py-12">
-      <h1 className="font-serif text-4xl">This page is still unwritten.</h1>
-      <p className="mt-4 text-sm text-muted-foreground">
-        There isn’t a workspace page at this address.
+    <div className="mx-auto flex min-h-[60dvh] max-w-sm flex-col items-center justify-center text-center">
+      <span className="pop mb-6 grid size-16 -rotate-3 place-items-center rounded-3xl bg-lime text-lime-ink">
+        <Compass className="size-8" aria-hidden="true" />
+      </span>
+      <h1 className="rise text-4xl font-semibold tracking-tight text-balance">
+        We couldn’t find that page
+      </h1>
+      <p className="mt-2 text-base text-muted-foreground">
+        It may have moved, or the link is wrong.
       </p>
-      <Button asChild className="mt-6">
-        <Link to="/">Back to overview</Link>
+      <Button
+        asChild
+        variant="highlight"
+        size="lg"
+        className="mt-6 h-14 px-10 text-lg"
+      >
+        <Link to="/">Go home</Link>
       </Button>
     </div>
   );

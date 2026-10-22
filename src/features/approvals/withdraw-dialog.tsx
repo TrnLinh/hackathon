@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from "react";
 import { Undo2 } from "lucide-react";
-import { TrustNote } from "@/components/chorus/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,13 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Disclosure } from "@/components/chorus/primitives";
 import { actions, usePrototype } from "@/features/prototype/store";
 import { planInfluenceIds } from "@/features/prototype/selectors";
 import type { Memory } from "@/features/prototype/types";
 
 type Scope = "ai" | "all";
 
-/** CH-08: withdrawal with an exact statement of what it can and cannot do. */
+/** Withdraw permission: pick what to stop, then confirm. */
 export function WithdrawDialog({
   memory,
   trigger,
@@ -32,7 +32,7 @@ export function WithdrawDialog({
 }) {
   const state = usePrototype();
   const [open, setOpen] = useState(false);
-  const [scope, setScope] = useState<Scope>("ai");
+  const [scope, setScope] = useState<Scope>("all");
   const [pending, setPending] = useState(false);
 
   const plans = state.plans.filter(
@@ -59,104 +59,63 @@ export function WithdrawDialog({
     }, 600);
   }
 
+  const option =
+    "flex min-h-14 cursor-pointer items-center gap-3 rounded-xl p-3 font-normal ring-1 ring-border has-[[data-state=checked]]:bg-accent has-[[data-state=checked]]:ring-2 has-[[data-state=checked]]:ring-primary";
+
   return (
     <Dialog open={open} onOpenChange={(o) => !pending && setOpen(o)}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button variant="outline" size="sm">
+          <Button variant="ghost">
             <Undo2 aria-hidden="true" /> Withdraw
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-3xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Withdraw permission for “{memory.title}”</DialogTitle>
+          <DialogTitle>Withdraw “{memory.title}”?</DialogTitle>
           <DialogDescription>
-            Version {memory.version}. Choose what to stop. You don’t need to
-            give a reason.
+            It stops being used from now on. Anything already shared can’t be
+            taken back.
           </DialogDescription>
         </DialogHeader>
 
         <RadioGroup
           value={scope}
           onValueChange={(v) => setScope(v as Scope)}
-          aria-label="Withdrawal scope"
-          className="gap-3"
+          aria-label="What to stop"
+          className="gap-2"
         >
-          <Label
-            htmlFor="withdraw-ai"
-            className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal has-[[data-state=checked]]:border-primary"
-          >
-            <RadioGroupItem id="withdraw-ai" value="ai" className="mt-0.5" />
-            <span>
-              <span className="block text-sm font-medium">
-                AI processing only
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                The named editor can still use it manually. It stops being sent
-                to any processor and stops influencing AI designs.
-              </span>
-            </span>
+          <Label htmlFor="withdraw-all" className={option}>
+            <RadioGroupItem id="withdraw-all" value="all" />
+            <span className="text-base">Stop all use</span>
           </Label>
-          <Label
-            htmlFor="withdraw-all"
-            className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal has-[[data-state=checked]]:border-primary"
-          >
-            <RadioGroupItem id="withdraw-all" value="all" className="mt-0.5" />
-            <span>
-              <span className="block text-sm font-medium">All future use</span>
-              <span className="block text-xs text-muted-foreground">
-                The memory is excluded from composition, processing, and every
-                new edition until you approve again.
-              </span>
-            </span>
+          <Label htmlFor="withdraw-ai" className={option}>
+            <RadioGroupItem id="withdraw-ai" value="ai" />
+            <span className="text-base">Stop AI help only</span>
           </Label>
         </RadioGroup>
 
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <div className="rounded-lg border p-3">
-            <p className="mb-1.5 font-medium">What this does</p>
-            <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-              <li>Blocks future protected releases under this permission</li>
-              <li>Cancels queued processing and discards late results</li>
-              {scope === "all" && (
-                <li>Blocks new editions and new app downloads that use it</li>
-              )}
-              <li>Invalidates dependent designs and candidates</li>
-            </ul>
-          </div>
-          <div className="rounded-lg border p-3">
-            <p className="mb-1.5 font-medium">What it can’t do</p>
-            <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-              <li>Recall previews people have already seen</li>
-              <li>Recall PDFs that have already been downloaded</li>
-              <li>Undo content already sent to a processor</li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="text-sm">
-          <p className="mb-1.5 font-medium">Affected work</p>
+        <Disclosure summary="Details">
+          <p>
+            Blocks future releases and cancels queued AI work. It can’t recall
+            previews already seen, PDFs already downloaded, or content already
+            sent to an AI helper.
+          </p>
           {plans.length + candidates.length + jobs.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Nothing currently depends on this memory.
-            </p>
+            <p>Nothing currently depends on this memory.</p>
           ) : (
-            <ul className="space-y-1 text-xs text-muted-foreground">
+            <ul className="list-disc space-y-1 pl-4">
               {plans.map((p) => (
                 <li key={p.id}>
-                  Design revision {p.revision} ({p.tokens.name}){" "}
-                  {p.styleOnlyIds.includes(memory.id)
-                    ? "uses it for style only"
-                    : "shows it on a page"}{" "}
-                  and will be invalidated
+                  Design revision {p.revision} will be invalidated
                 </li>
               ))}
               {candidates.map((c) => (
                 <li key={c.id}>
                   {c.status === "issued"
-                    ? `Issued edition ${c.editionId}: new app downloads will be blocked${scope === "ai" ? " only if you withdraw all use" : ""}`
-                    : `Candidate ${c.editionId} will be invalidated and needs a new design and fresh final approvals`}
+                    ? `Official edition ${c.editionId}: new downloads will be blocked${scope === "ai" ? " only if you stop all use" : ""}`
+                    : `Draft edition ${c.editionId} will need a new design and fresh approvals`}
                 </li>
               ))}
               {jobs.map((j) => (
@@ -164,22 +123,16 @@ export function WithdrawDialog({
               ))}
             </ul>
           )}
-        </div>
-
-        <TrustNote>
-          Prototype: this updates browser-local data. The real flow commits a
-          Tide-ordered permission revision; whichever commits first, a release
-          or your withdrawal, decides the outcome.
-        </TrustNote>
+        </Disclosure>
 
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline" disabled={pending}>
-              Keep permission
+              Keep it
             </Button>
           </DialogClose>
           <Button variant="destructive" onClick={confirm} disabled={pending}>
-            {pending ? "Withdrawing…" : "Withdraw permission"}
+            {pending ? "Withdrawing..." : "Withdraw"}
           </Button>
         </DialogFooter>
       </DialogContent>

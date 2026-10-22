@@ -77,7 +77,7 @@ export function AiPanel({
         </span>
         <JobStatusBadge status={latest.status} />
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Started {formatWhen(latest.createdAt)}
       </p>
       {active && (
@@ -93,7 +93,7 @@ export function AiPanel({
       {latest.status === "failed" && (
         <div className="space-y-2">
           <p className="text-xs leading-relaxed">{latest.error}</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             No content was sent to any other provider.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -202,12 +202,12 @@ export function AiPanel({
           <span
             id="style-prompt-count"
             className={cn(
-              "text-[11px] text-muted-foreground tabular-nums",
+              "text-xs text-muted-foreground tabular-nums",
               promptTooLong && "font-medium text-[var(--status-excluded)]",
             )}
           >
             {promptLength} / {LIMITS.promptChars}
-            {promptTooLong && " — too long"}
+            {promptTooLong && " - too long"}
           </span>
           <Button
             size="sm"
@@ -225,7 +225,7 @@ export function AiPanel({
         </p>
       )}
       {jobStatus}
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         Sends approved derivatives to{" "}
         <strong>{designer?.name ?? "Team designer"}</strong> (
         {designer?.endpoint ?? "team cloud"}). {designer?.retention} The model
@@ -282,7 +282,7 @@ export function RevisionList({
                 {provenanceSummary(plan)}
               </span>
               {hasAiLineage(plan) && (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium">
                   <Sparkles className="size-3" aria-hidden="true" />
                   AI lineage
                 </span>

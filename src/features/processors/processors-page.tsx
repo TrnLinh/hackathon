@@ -1,9 +1,8 @@
 import { useId } from "react";
 import { Link } from "@tanstack/react-router";
-import { Cpu, ShieldCheck } from "lucide-react";
-import { PageHeader, TrustNote } from "@/components/chorus/page-header";
 import { JobStatusBadge } from "@/components/chorus/status";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/chorus/page-header";
+import { Disclosure } from "@/components/chorus/primitives";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -35,7 +34,7 @@ const healthMeta: Record<
     dot: "bg-[var(--status-available)]",
   },
   degraded: {
-    label: "Degraded",
+    label: "Slow",
     detail: "Slow responses; jobs may hit their deadline.",
     dot: "bg-[var(--status-awaiting)]",
   },
@@ -88,7 +87,7 @@ const budgets: { label: string; value: string }[] = [
   { label: "Active AI jobs per collection", value: "1" },
 ];
 
-function ProcessorCard({
+function ProcessorRow({
   processor,
   aiEnabled,
 }: {
@@ -99,63 +98,29 @@ function ProcessorCard({
   const health = aiEnabled
     ? healthMeta[processor.health]
     : {
-        label: "Not contacted",
+        label: "Not in use",
         detail:
-          "Not contacted while AI is off. Chorus sends no requests or health probes to it.",
+          "Not contacted while AI is off. Chorus sends no requests or health checks to it.",
         dot: "bg-muted-foreground/50",
       };
   return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <CardTitle className="flex items-center gap-2">
-              <Cpu className="size-4 text-primary" aria-hidden="true" />
-              {processor.name}
-            </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {processor.role}
-            </p>
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
-            <span
-              aria-hidden="true"
-              className={cn("size-2 rounded-full", health.dot)}
-            />
-            {health.label}
-          </span>
+    <li className="rise space-y-3 rounded-3xl bg-card p-4 shadow-soft ring-1 ring-border">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold">{processor.name}</h3>
+          <p className="text-sm text-muted-foreground">{processor.role}</p>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[120px_minmax(0,1fr)]">
-          <dt className="text-xs text-muted-foreground">Receives</dt>
-          <dd>
-            <ul className="space-y-0.5">
-              {processor.receives.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          </dd>
-          <dt className="text-xs text-muted-foreground">Retention</dt>
-          <dd>{processor.retention}</dd>
-          <dt className="text-xs text-muted-foreground">Model</dt>
-          <dd>{processor.model}</dd>
-          <dt className="text-xs text-muted-foreground">Runtime</dt>
-          <dd>{processor.runtime}</dd>
-          <dt className="text-xs text-muted-foreground">Endpoint</dt>
-          <dd>
-            <code className="font-mono text-xs break-all">
-              {processor.endpoint}
-            </code>{" "}
-            <span className="text-xs text-muted-foreground">
-              (internal, authenticated)
-            </span>
-          </dd>
-          <dt className="text-xs text-muted-foreground">Used for</dt>
-          <dd>{processor.appliesTo.join(", ")}</dd>
-        </dl>
-        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/60 p-3">
-          <Label htmlFor={selectId} className="text-xs">
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm font-medium">
+          <span
+            aria-hidden="true"
+            className={cn("size-2 rounded-full", health.dot)}
+          />
+          {health.label}
+        </span>
+      </div>
+      <Disclosure summary="Practice a failure">
+        <div className="flex flex-wrap items-center gap-3">
+          <Label htmlFor={selectId} className="text-sm">
             Simulate health
           </Label>
           <Select
@@ -164,21 +129,40 @@ function ProcessorCard({
               actions.setProcessorHealth(processor.id, v as Processor["health"])
             }
           >
-            <SelectTrigger id={selectId} className="h-8 w-36 bg-background">
+            <SelectTrigger
+              id={selectId}
+              className="h-12 w-44 bg-background data-[size=default]:h-12 sm:data-[size=default]:h-12"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="online">Online</SelectItem>
-              <SelectItem value="degraded">Degraded</SelectItem>
+              <SelectItem value="degraded">Slow</SelectItem>
               <SelectItem value="offline">Offline</SelectItem>
             </SelectContent>
           </Select>
-          <p className="basis-full text-xs text-muted-foreground">
-            {health.detail}
-          </p>
         </div>
-      </CardContent>
-    </Card>
+        <p>{health.detail}</p>
+        <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[110px_minmax(0,1fr)]">
+          <dt>Receives</dt>
+          <dd className="text-foreground">{processor.receives.join(", ")}</dd>
+          <dt>Retention</dt>
+          <dd className="text-foreground">{processor.retention}</dd>
+          <dt>Model</dt>
+          <dd className="text-foreground">{processor.model}</dd>
+          <dt>Runtime</dt>
+          <dd className="text-foreground">{processor.runtime}</dd>
+          <dt>Endpoint</dt>
+          <dd>
+            <code className="font-mono text-sm break-all text-foreground">
+              {processor.endpoint}
+            </code>
+          </dd>
+          <dt>Used for</dt>
+          <dd className="text-foreground">{processor.appliesTo.join(", ")}</dd>
+        </dl>
+      </Disclosure>
+    </li>
   );
 }
 
@@ -189,125 +173,63 @@ export function ProcessorsPage() {
     .slice(0, 12);
 
   return (
-    <div className="space-y-10">
+    <div className="mx-auto max-w-3xl space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
       <PageHeader
-        eyebrow="Disclosed recipients"
-        title="AI processors"
-        description="The inference services Chorus may send approved derivatives to when AI is on. Each runs in the team’s cloud and only receives content after every person involved grants that specific processor."
+        title="AI helpers"
+        description="Optional. Friends approve each helper before it sees anything."
       />
 
       <AiAvailabilityCard />
 
-      <section aria-label="Processors" className="grid gap-5 xl:grid-cols-3">
+      <ul aria-label="AI helpers" className="space-y-3">
         {state.processors.map((p) => (
-          <ProcessorCard
+          <ProcessorRow
             key={p.id}
             processor={p}
             aiEnabled={state.aiConfig.enabled}
           />
         ))}
-      </section>
-      <p className="-mt-6 text-xs text-muted-foreground">
-        Planned deployment: the team’s cloud, with eight H200 GPUs available,
-        for an English-only demo. Model weights and serving runtime are still to
-        be selected in CH-21. Health controls are a prototype tool for
-        demonstrating outages; the app starts and templates work without this
-        stack.
-      </p>
+      </ul>
 
-      <section
-        aria-labelledby="data-handling"
-        className="grid gap-6 lg:grid-cols-2"
-      >
-        <div className="space-y-3">
-          <h2
-            id="data-handling"
-            className="flex items-center gap-2 text-lg font-semibold tracking-tight"
-          >
-            <ShieldCheck className="size-4" aria-hidden="true" /> Data handling
-          </h2>
-          <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed">
-            <li>
-              TLS on every connection; anonymous requests to the endpoints are
-              rejected.
-            </li>
-            <li>
-              Service credentials stay on the server and are never shipped to
-              the browser.
-            </li>
-            <li>No logging of prompts, media, or transcripts.</li>
-            <li>
-              No training on requests; temporary data is deleted after each
-              response.
-            </li>
-            <li>
-              No managed AI API as a fallback. If a processor is down, the job
-              fails and you can retry or{" "}
-              <Link to="/collections" className="underline underline-offset-2">
-                continue manually
-              </Link>
-              .
-            </li>
-            <li>Endpoint access never replaces contributor permission.</li>
-          </ul>
-        </div>
-        <TrustNote className="self-start text-sm">
-          <p className="font-medium text-foreground">
-            Who can see what you approve
-          </p>
-          <p className="mt-1">
-            Self-hosting changes who receives your memories, not whether someone
-            does. The model process, and cloud operators with enough privileges,
-            can see the plaintext derivatives you authorize. Content already
-            sent to a processor cannot be recalled.
-          </p>
-        </TrustNote>
-      </section>
-
-      <section aria-labelledby="budgets" className="space-y-3">
-        <h2 id="budgets" className="text-lg font-semibold tracking-tight">
-          Budgets
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Initial engineering limits from the SRD, enforced before any dispatch.
-          Over-budget selections require you to reduce them; nothing is silently
-          truncated.
+      <Disclosure summary="Data handling and limits">
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li>Every connection uses TLS; anonymous requests are rejected.</li>
+          <li>Service credentials stay on the server.</li>
+          <li>No logging of prompts, media, or transcripts.</li>
+          <li>
+            No training on requests; temporary data is deleted after each
+            response.
+          </li>
+          <li>
+            No outside AI fallback. If a helper is down, the job fails and you
+            can retry or{" "}
+            <Link to="/collections" className="underline underline-offset-2">
+              continue manually
+            </Link>
+            .
+          </li>
+        </ul>
+        <p>
+          The model process, and cloud operators with enough privileges, can see
+          the content you authorize. Content already sent can’t be recalled.
         </p>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <caption className="sr-only">Processing budgets</caption>
-            <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Limit
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Value
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {budgets.map((b) => (
-                <tr key={b.label}>
-                  <th scope="row" className="px-3 py-2 text-left font-normal">
-                    {b.label}
-                  </th>
-                  <td className="px-3 py-2 font-mono text-xs">{b.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <dl className="divide-y">
+          {budgets.map((b) => (
+            <div key={b.label} className="flex justify-between gap-4 py-1.5">
+              <dt>{b.label}</dt>
+              <dd className="tabular text-right font-mono text-foreground">
+                {b.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Disclosure>
 
-      <section aria-labelledby="recent-jobs" className="space-y-3">
-        <h2 id="recent-jobs" className="text-lg font-semibold tracking-tight">
-          Recent jobs
-        </h2>
+      <Disclosure summary={`Recent jobs (${jobs.length})`}>
         {jobs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No jobs yet.</p>
+          <p>No jobs yet.</p>
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y">
             {jobs.map((job) => {
               const collection = state.collections.find(
                 (c) => c.id === job.collectionId,
@@ -318,17 +240,17 @@ export function ProcessorsPage() {
               return (
                 <li
                   key={job.id}
-                  className="flex flex-wrap items-start justify-between gap-3 px-3 py-3"
+                  className="flex flex-wrap items-start justify-between gap-3 py-2.5"
                 >
-                  <div className="min-w-0 text-sm">
-                    <p className="font-medium">{job.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {processor?.name ?? job.processorId} ·{" "}
-                      {collection?.title ?? "Unknown collection"} ·{" "}
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">{job.label}</p>
+                    <p>
+                      {processor?.name ?? job.processorId},{" "}
+                      {collection?.title ?? "Unknown zine"},{" "}
                       {formatWhen(job.createdAt)}
                     </p>
                     {job.error && (
-                      <p className="mt-1 text-xs text-[var(--status-excluded)]">
+                      <p className="mt-1 text-[var(--status-excluded)]">
                         {job.error}
                       </p>
                     )}
@@ -339,7 +261,7 @@ export function ProcessorsPage() {
             })}
           </ul>
         )}
-      </section>
+      </Disclosure>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { FileText, Image as ImageIcon, Mic, Play, Video } from "lucide-react";
+import { useSceneImage } from "@/lib/sample-media";
 import { cn } from "@/lib/utils";
 import type { Artwork, Memory, MemoryKind } from "@/features/prototype/types";
 
@@ -24,6 +25,24 @@ export function ArtworkFill({
   className?: string;
   showScene?: boolean;
 }) {
+  const photo = useSceneImage(art.scene);
+  if (photo) {
+    return (
+      <div
+        role="img"
+        aria-label={art.scene}
+        className={cn("relative overflow-hidden bg-muted", className)}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 size-full object-cover"
+        />
+      </div>
+    );
+  }
   return (
     <div
       role="img"

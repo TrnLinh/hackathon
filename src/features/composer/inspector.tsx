@@ -81,7 +81,7 @@ export function BlockInspector({
 }) {
   if (!block)
     return (
-      <div className="flex items-start gap-2 rounded-lg border border-dashed p-3 text-xs leading-relaxed text-muted-foreground">
+      <div className="flex items-start gap-2 rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
         <MousePointerClick
           className="mt-0.5 size-3.5 shrink-0"
           aria-hidden="true"
@@ -120,7 +120,7 @@ export function BlockInspector({
           {kindLabel[block.kind]} block
         </h3>
         {block.edited && (
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
             Edited · needs final review
           </span>
         )}
@@ -188,15 +188,15 @@ export function BlockInspector({
           <p
             id="block-text-count"
             className={cn(
-              "text-[11px] text-muted-foreground tabular-nums",
+              "text-xs text-muted-foreground tabular-nums",
               length > limit && "font-medium text-[var(--status-excluded)]",
             )}
           >
             {length} / {limit.toLocaleString()}
-            {length > limit && " — over the limit"}
+            {length > limit && " - over the limit"}
           </p>
           {block.kind === "quote" && excerpt && block.text !== excerpt.text && (
-            <p className="flex gap-1.5 text-[11px] leading-relaxed text-[var(--status-awaiting)]">
+            <p className="flex gap-1.5 text-xs leading-relaxed text-[var(--status-awaiting)]">
               <AlertTriangle
                 className="mt-0.5 size-3 shrink-0"
                 aria-hidden="true"
@@ -384,7 +384,7 @@ export function BlockInspector({
           Remove block
         </Button>
         {!canRemove && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Each page keeps at least one block.
           </p>
         )}
@@ -409,7 +409,7 @@ export function PlanProvenance({
           Provenance
         </h3>
         {hasAiLineage(plan) && (
-          <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium">
+          <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium">
             <Sparkles className="size-3" aria-hidden="true" />
             AI lineage
           </span>
@@ -547,7 +547,7 @@ export function StyleControls({
       </div>
       <p
         className={cn(
-          "text-[11px]",
+          "text-xs",
           ratio >= 4.5
             ? "text-muted-foreground"
             : "font-medium text-[var(--status-excluded)]",
