@@ -1,18 +1,29 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock3, DoorOpen, LinkIcon, UsersRound } from "lucide-react";
 import { EmptyState, TrustNote } from "@/components/chorus/page-header";
-import { PersonStack } from "@/components/chorus/people";
 import { Button } from "@/components/ui/button";
-import { actions, usePrototype } from "@/features/prototype/store";
-import { personById } from "@/features/prototype/selectors";
+import {
+  useCollectionActions,
+  useJoinPreview,
+} from "@/features/data/collections";
+
+// CH-04: a join code lets a signed-in person ask to join. Until admitted they
+// see who invited them, never the collection's private details.
 
 export function JoinPage({ code }: { code: string }) {
-  const state = usePrototype();
-  const collection = state.collections.find(
-    (c) => c.joinCode.toUpperCase() === code.toUpperCase(),
-  );
+  const preview = useJoinPreview(code);
+  const { requestJoin } = useCollectionActions();
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
-  if (!collection)
+  if (preview === undefined)
+    return (
+      <p role="status" className="py-10 text-sm text-muted-foreground">
+        Checking the join link…
+      </p>
+    );
+  if (preview === null)
     return (
       <EmptyState
         icon={<LinkIcon className="size-5" aria-hidden="true" />}
@@ -28,9 +39,15 @@ export function JoinPage({ code }: { code: string }) {
       </EmptyState>
     );
 
-  const creator = personById(state, collection.creatorId);
-  const member = collection.memberIds.includes(state.viewerId);
-  const waiting = collection.pendingIds.includes(state.viewerId);
+  const creator = preview.creatorName ?? "The creator";
+  const firstName = creator.split(" ")[0];
+
+  async function ask() {
+    setSending(true);
+    const result = await requestJoin(code);
+    setSending(false);
+    setError(result.ok ? null : result.reason);
+  }
 
   return (
     <div className="mx-auto max-w-lg space-y-6 py-6">
@@ -39,23 +56,19 @@ export function JoinPage({ code }: { code: string }) {
           <DoorOpen className="size-5" aria-hidden="true" />
         </span>
         <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-          {creator.name} invited you to
+          {creator} invited you to
         </p>
         <h1 className="mt-2 font-serif text-3xl tracking-tight">
-          {collection.title}
+          a shared collection
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {collection.occasion}
+          {preview.memberCount}{" "}
+          {preview.memberCount === 1 ? "member" : "members"} so far. You’ll see
+          its title once you’re admitted.
         </p>
-        <div className="mt-4 flex justify-center">
-          <PersonStack
-            people={collection.memberIds.map((id) => personById(state, id))}
-            size="md"
-          />
-        </div>
 
-        <div className="mt-6" role="status">
-          {member ? (
+        <div className="mt-6 space-y-3" role="status">
+          {preview.viewerStatus === "active" ? (
             <div className="space-y-3">
               <p className="inline-flex items-center gap-2 text-sm">
                 <UsersRound
@@ -68,34 +81,47 @@ export function JoinPage({ code }: { code: string }) {
                 <Button asChild>
                   <Link
                     to="/collections/$collectionId"
-                    params={{ collectionId: collection.id }}
+                    params={{ collectionId: preview.collectionId }}
                   >
                     Open the collection
                   </Link>
                 </Button>
               </div>
             </div>
-          ) : waiting ? (
+          ) : preview.viewerStatus === "requested" ? (
             <p className="inline-flex items-center gap-2 text-sm">
               <Clock3
                 className="size-4 text-[var(--status-awaiting)]"
                 aria-hidden="true"
               />
-              Request sent. Waiting for {creator.name.split(" ")[0]} to admit
-              you.
+              Request sent. Waiting for {firstName} to admit you.
             </p>
           ) : (
-            <Button onClick={() => actions.requestJoin(collection.id)}>
-              Ask to join
-            </Button>
+            <>
+              {preview.viewerStatus !== "none" && (
+                <p className="text-sm text-muted-foreground">
+                  {preview.viewerStatus === "declined"
+                    ? `${firstName} declined your last request.`
+                    : `${firstName} removed you from this collection.`}{" "}
+                  You can ask again.
+                </p>
+              )}
+              <Button disabled={sending} onClick={() => void ask()}>
+                {sending ? "Sending…" : "Ask to join"}
+              </Button>
+            </>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
           )}
         </div>
       </div>
       <TrustNote>
         Joining makes you a member, but it doesn’t unlock anyone’s memories.
         Each memory is shared only after everyone in it approves. You decide the
-        same for yours. In this prototype, sign-in is simulated by the viewer
-        switcher.
+        same for yours.
       </TrustNote>
     </div>
   );

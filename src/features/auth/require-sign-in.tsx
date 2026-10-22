@@ -4,13 +4,25 @@ import { useConvexAuth } from "convex/react";
 import type { ReactNode } from "react";
 import { useAuthConfiguration } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import { useViewer } from "@/features/data/current-user";
 import { useTideSession } from "./auth-provider";
+
+/** Waits for users.ensureCurrent so screens can rely on a registry row. */
+function RegisteredGate({ children }: { children: ReactNode }) {
+  const viewer = useViewer();
+  if (viewer) return children;
+  return (
+    <p role="status" className="py-10 text-sm text-muted-foreground">
+      Setting up your account…
+    </p>
+  );
+}
 
 function SessionGate({ children }: { children: ReactNode }) {
   const session = useTideSession();
   const convex = useConvexAuth();
   if (session.phase === "authenticated" && convex.isAuthenticated)
-    return children;
+    return <RegisteredGate>{children}</RegisteredGate>;
   const loading =
     session.phase === "loading" ||
     (session.phase === "authenticated" && convex.isLoading);

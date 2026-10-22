@@ -65,6 +65,16 @@ const messages: Record<string, string> = {
     "Someone changed AI availability first. Review the current state and try again.",
   PROCESSOR_CONFIG_REQUIRED: "Configure processor roles before enabling AI.",
   RETRY_KEY_REUSED: "This change conflicts with an earlier request. Try again.",
+  DEV_ENVELOPE_DISABLED:
+    "This server doesn’t accept unencrypted development data. Ask the team to enable the dev envelope or wait for encryption.",
+  UNSUPPORTED_ENVELOPE: "This data format isn’t supported yet.",
+  INVALID_ENVELOPE: "These details are too long to save.",
+  INVALID_JOIN_CODE: "This join link isn’t valid.",
+  NOT_COLLECTION_MEMBER: "You’re not a member of this collection.",
+  NOT_COLLECTION_CREATOR: "Only the collection’s creator can do that.",
+  INVALID_MEMBERSHIP_TRANSITION:
+    "That person’s membership changed. Refresh and try again.",
+  COLLECTION_UNAVAILABLE: "This collection is no longer available.",
 };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };

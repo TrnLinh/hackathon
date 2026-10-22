@@ -39,13 +39,32 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("archived")),
     eventSequence: v.number(),
     createdAt: v.number(),
-  }).index("by_owner", ["ownerId"]),
+    // Capability to ask to join; admission is still the creator's decision.
+    joinCode: v.optional(v.string()),
+  })
+    .index("by_owner", ["ownerId"])
+    .index("by_join_code", ["joinCode"]),
+  collectionReceipts: defineTable({
+    actorId: v.id("users"),
+    retryKey: v.string(),
+    inputDigest: v.string(),
+    collectionId,
+  }).index("by_retry", ["actorId", "retryKey"]),
   memberships: defineTable({
     collectionId,
     userId: v.id("users"),
     role: v.union(v.literal("creator"), v.literal("contributor")),
-    status: v.union(v.literal("active"), v.literal("removed")),
-  }).index("by_collection_and_user", ["collectionId", "userId"]),
+    status: v.union(
+      v.literal("requested"),
+      v.literal("active"),
+      v.literal("declined"),
+      v.literal("removed"),
+    ),
+    // Set on first admission; a former member keeps evidence/withdraw rights.
+    admittedAt: v.optional(v.number()),
+  })
+    .index("by_collection_and_user", ["collectionId", "userId"])
+    .index("by_user", ["userId"]),
   memories: defineTable({
     collectionId,
     uploaderId: v.id("users"),

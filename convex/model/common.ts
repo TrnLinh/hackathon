@@ -36,7 +36,10 @@ export async function member(
   if (membership?.status !== "active") return fail("NOT_COLLECTION_MEMBER");
   return identity;
 }
-/** Current or former member: a membership row exists in any status. */
+/**
+ * Current or former member: admitted at some point. A join request that was
+ * never admitted (requested/declined) confers nothing.
+ */
 export async function anyMember(
   ctx: Reader,
   collectionId: Id<"collections">,
@@ -49,7 +52,11 @@ export async function anyMember(
       q.eq("collectionId", collectionId).eq("userId", userId),
     )
     .unique();
-  if (!membership) return fail("NOT_COLLECTION_MEMBER");
+  const admitted =
+    membership?.status === "active" ||
+    membership?.status === "removed" ||
+    membership?.admittedAt !== undefined;
+  if (!admitted) return fail("NOT_COLLECTION_MEMBER");
   return identity;
 }
 export async function sameCollection<
@@ -81,9 +88,10 @@ export async function approvers(
 /**
  * Who may record a new mutation. "active" requires current membership. "any"
  * also admits removed members, for operations they must still be able to make,
- * such as withdrawing a decision they gave while a member.
+ * such as withdrawing a decision they gave while a member. "none" is only for
+ * asking to join; the caller must authorize that operation itself.
  */
-export type MembershipRequirement = "active" | "any";
+export type MembershipRequirement = "active" | "any" | "none";
 
 export async function recordMutation<T extends string>(
   ctx: MutationCtx,
@@ -115,9 +123,11 @@ export async function recordMutation<T extends string>(
     if (existing.inputDigest !== inputDigest) return fail("RETRY_KEY_REUSED");
     return existing.resultId as T;
   }
-  if ((options.membership ?? "active") === "active")
+  const membership = options.membership ?? "active";
+  if (membership === "active")
     await member(ctx, args.collectionId, args.actorId);
-  else await anyMember(ctx, args.collectionId, args.actorId);
+  else if (membership === "any")
+    await anyMember(ctx, args.collectionId, args.actorId);
   const collection = await ctx.db.get(args.collectionId);
   if (!collection || collection.status !== "active")
     return fail("COLLECTION_UNAVAILABLE");

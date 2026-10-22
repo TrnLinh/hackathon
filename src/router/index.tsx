@@ -12,7 +12,10 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { ApprovalReview } from "@/features/approvals/approval-review";
 import { ApprovalsInbox } from "@/features/approvals/approvals-inbox";
-import { CollectionLayout } from "@/features/collections/collection-layout";
+import {
+  CollectionLayout,
+  PrototypeOnly,
+} from "@/features/collections/collection-layout";
 import { CollectionsPage } from "@/features/collections/collections-page";
 import { MembersPage } from "@/features/collections/members-page";
 import { MemoriesBoard } from "@/features/collections/memories-board";
@@ -20,6 +23,7 @@ import { ComposerPage } from "@/features/composer/composer-page";
 import { EditionPage } from "@/features/edition/edition-page";
 import { HistoryPage } from "@/features/history/history-page";
 import { JoinPage } from "@/features/join/join-page";
+import { RequireSignIn } from "@/features/auth/require-sign-in";
 import { MemoryDetail } from "@/features/memories/memory-detail";
 import { MemoryEditor } from "@/features/memories/memory-editor";
 import { OverviewPage } from "@/features/overview/overview-page";
@@ -29,8 +33,9 @@ import { VerifyPage } from "@/features/verify/verify-page";
 import { createWorkspaceHistory } from "@/router/history";
 import { PolicyProofPage } from "@/features/policy-proof/proof-page";
 
-// Prototype routes render mock data from features/prototype and are not wrapped
-// in RequireSignIn. Re-apply the sign-in gate when screens move to Convex.
+// Routes on Convex (collections, members, join) require sign-in. Other routes
+// still render mock data from features/prototype; collection child routes on
+// mock data are wrapped in PrototypeOnly until they move to Convex.
 
 function NotFoundPage() {
   return (
@@ -58,14 +63,24 @@ const overviewRoute = createRoute({
 const collectionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/collections",
-  component: CollectionsPage,
+  component: function CollectionsRoute() {
+    return (
+      <RequireSignIn>
+        <CollectionsPage />
+      </RequireSignIn>
+    );
+  },
 });
 const collectionRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/collections/$collectionId",
   component: function CollectionRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return <CollectionLayout collectionId={collectionId} />;
+    return (
+      <RequireSignIn>
+        <CollectionLayout collectionId={collectionId} />
+      </RequireSignIn>
+    );
   },
 });
 const memoriesRoute = createRoute({
@@ -73,7 +88,11 @@ const memoriesRoute = createRoute({
   path: "/",
   component: function MemoriesRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return <MemoriesBoard collectionId={collectionId} />;
+    return (
+      <PrototypeOnly>
+        <MemoriesBoard collectionId={collectionId} />
+      </PrototypeOnly>
+    );
   },
 });
 const membersRoute = createRoute({
@@ -89,7 +108,11 @@ const newMemoryRoute = createRoute({
   path: "/memories/new",
   component: function NewMemoryRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return <MemoryEditor collectionId={collectionId} />;
+    return (
+      <PrototypeOnly>
+        <MemoryEditor collectionId={collectionId} />
+      </PrototypeOnly>
+    );
   },
 });
 const memoryRoute = createRoute({
@@ -97,7 +120,11 @@ const memoryRoute = createRoute({
   path: "/memories/$memoryId",
   component: function MemoryRoute() {
     const { collectionId, memoryId } = memoryRoute.useParams();
-    return <MemoryDetail collectionId={collectionId} memoryId={memoryId} />;
+    return (
+      <PrototypeOnly>
+        <MemoryDetail collectionId={collectionId} memoryId={memoryId} />
+      </PrototypeOnly>
+    );
   },
 });
 const composeRoute = createRoute({
@@ -105,7 +132,11 @@ const composeRoute = createRoute({
   path: "/compose",
   component: function ComposeRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return <ComposerPage collectionId={collectionId} />;
+    return (
+      <PrototypeOnly>
+        <ComposerPage collectionId={collectionId} />
+      </PrototypeOnly>
+    );
   },
 });
 const editionRoute = createRoute({
@@ -113,7 +144,11 @@ const editionRoute = createRoute({
   path: "/edition",
   component: function EditionRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return <EditionPage collectionId={collectionId} />;
+    return (
+      <PrototypeOnly>
+        <EditionPage collectionId={collectionId} />
+      </PrototypeOnly>
+    );
   },
 });
 const historyRoute = createRoute({
@@ -121,7 +156,11 @@ const historyRoute = createRoute({
   path: "/history",
   component: function HistoryRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return <HistoryPage collectionId={collectionId} />;
+    return (
+      <PrototypeOnly>
+        <HistoryPage collectionId={collectionId} />
+      </PrototypeOnly>
+    );
   },
 });
 const joinRoute = createRoute({
@@ -129,7 +168,11 @@ const joinRoute = createRoute({
   path: "/join/$code",
   component: function JoinRoute() {
     const { code } = joinRoute.useParams();
-    return <JoinPage code={code} />;
+    return (
+      <RequireSignIn>
+        <JoinPage code={code} />
+      </RequireSignIn>
+    );
   },
 });
 const approvalsRoute = createRoute({
