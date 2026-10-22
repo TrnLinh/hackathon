@@ -1,0 +1,6 @@
+node_modules
+.next
+.convex
+convex/_generated
+package-lock.json
+next-env.d.ts

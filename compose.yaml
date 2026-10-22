@@ -1,0 +1,25 @@
+name: chorus
+
+services:
+  backend:
+    # Official Convex backend, pinned to the image verified for this starter.
+    image: ghcr.io/convex/convex-backend@sha256:294944b33dc55e8f68b2feda11c5e7b195f7778b9ad2951f1bea2744ad392e5a
+    ports:
+      - "127.0.0.1:3210:3210"
+      - "127.0.0.1:3211:3211"
+    volumes:
+      - convex-data:/convex/data
+    environment:
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      DISABLE_BEACON: "true"
+    stop_signal: SIGINT
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3210/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  convex-data:
