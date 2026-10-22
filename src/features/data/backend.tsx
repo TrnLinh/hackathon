@@ -1,7 +1,7 @@
 "use client";
 
 import { ConvexError } from "convex/values";
-import type { ReactNode } from "react";
+import { Component, useCallback, useRef, type ReactNode } from "react";
 import { useBackendConfigured } from "@/components/providers";
 
 // Shared plumbing for the Convex data layer. Screens move off the prototype
@@ -18,9 +18,43 @@ export function BackendOnly({
   return useBackendConfigured() ? children : fallback;
 }
 
-/** One key per intended change; reuse it when retrying that same change. */
+/** Shows the fallback instead of crashing the page when a query fails. */
+export class QueryBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
 export function newRetryKey() {
   return crypto.randomUUID();
+}
+
+/**
+ * Keeps one retry key per intended change until it succeeds, so retrying the
+ * same change after a lost response recovers the committed result.
+ */
+export function useRetryKeys() {
+  const keys = useRef(new Map<string, string>());
+  return useCallback(
+    async <T,>(intent: string, run: (retryKey: string) => Promise<T>) => {
+      let key = keys.current.get(intent);
+      if (!key) {
+        key = newRetryKey();
+        keys.current.set(intent, key);
+      }
+      const result = await run(key);
+      keys.current.delete(intent);
+      return result;
+    },
+    [],
+  );
 }
 
 const messages: Record<string, string> = {

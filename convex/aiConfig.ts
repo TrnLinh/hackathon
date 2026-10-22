@@ -2,18 +2,20 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
-import { latestConfiguration } from "./model/configuration";
+import {
+  aiEnabled,
+  deployedProcessorRef,
+  latestConfiguration,
+} from "./model/configuration";
 import { isOperator, optionalViewer, requireViewer } from "./lib/viewer";
 
 // CH-22 public surface. Clients only ever see sanitized capability fields:
 // never the processor configuration reference or any credential.
 
-/** Opaque server-side reference to the processor roles (CH-21), if any. */
-function processorConfigRef() {
-  return process.env.CHORUS_PROCESSOR_CONFIG_REF?.trim() || undefined;
-}
-
-/** Public: missing configuration means AI is off at revision 0. */
+/**
+ * Public: missing configuration, or a processor reference this deployment no
+ * longer provides, means AI is off. Revision 0 means never configured.
+ */
 export const current = query({
   args: {},
   returns: v.object({
@@ -24,7 +26,7 @@ export const current = query({
   handler: async (ctx) => {
     const config = await latestConfiguration(ctx);
     return {
-      enabled: config?.enabled ?? false,
+      enabled: aiEnabled(config),
       revision: config?.revision ?? 0,
       changedAt: config?.createdAt ?? null,
     };
@@ -44,7 +46,7 @@ export const capabilities = query({
     return {
       signedIn: viewer !== null,
       isOperator: viewer ? await isOperator(ctx, viewer) : false,
-      processorsConfigured: processorConfigRef() !== undefined,
+      processorsConfigured: deployedProcessorRef() !== undefined,
     };
   },
 });
@@ -97,7 +99,7 @@ export const setEnabled = mutation({
   returns: v.id("aiConfigurations"),
   handler: async (ctx, args): Promise<Id<"aiConfigurations">> => {
     const viewer = await requireViewer(ctx);
-    const ref = args.enabled ? processorConfigRef() : undefined;
+    const ref = args.enabled ? deployedProcessorRef() : undefined;
     return ctx.runMutation(internal.model.configuration.configure, {
       actorId: viewer._id,
       retryKey: args.retryKey,

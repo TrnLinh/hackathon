@@ -11,6 +11,23 @@ export async function latestConfiguration(ctx: Pick<QueryCtx, "db">) {
     .order("desc")
     .first();
 }
+/** Opaque reference to the processor roles this deployment provides (CH-21). */
+export function deployedProcessorRef() {
+  return process.env.CHORUS_PROCESSOR_CONFIG_REF?.trim() || undefined;
+}
+/**
+ * AI is on only if an operator enabled it for processor roles this deployment
+ * still provides. A missing or changed reference reads as off (FR-34).
+ */
+export function aiEnabled(
+  config: { enabled: boolean; processorConfigRef?: string } | null,
+) {
+  return (
+    config?.enabled === true &&
+    config.processorConfigRef !== undefined &&
+    config.processorConfigRef === deployedProcessorRef()
+  );
+}
 export const current = internalQuery({
   args: {},
   handler: async (ctx) =>

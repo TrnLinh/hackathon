@@ -168,6 +168,33 @@ describe("CH-22 AI availability API", () => {
     expect(changes.map((c) => c.active)).toEqual([true, false]);
   });
 
+  it("reads as off when the deployment no longer provides the enabled processor roles", async () => {
+    vi.stubEnv("CHORUS_PROCESSOR_CONFIG_REF", "team-inference-v1");
+    const { t, as } = setup();
+    const avery = as("avery");
+    await avery.mutation(api.users.ensureCurrent, {});
+    await t.mutation(internal.model.operators.grant, {
+      tokenIdentifier: `${issuer}|avery`,
+    });
+    await avery.mutation(api.aiConfig.setEnabled, {
+      enabled: true,
+      expectedRevision: 0,
+      retryKey: "k",
+    });
+    expect(await t.query(api.aiConfig.current, {})).toMatchObject({
+      enabled: true,
+    });
+    vi.stubEnv("CHORUS_PROCESSOR_CONFIG_REF", "");
+    expect(await t.query(api.aiConfig.current, {})).toMatchObject({
+      enabled: false,
+      revision: 1,
+    });
+    vi.stubEnv("CHORUS_PROCESSOR_CONFIG_REF", "team-inference-v2");
+    expect(await t.query(api.aiConfig.current, {})).toMatchObject({
+      enabled: false,
+    });
+  });
+
   it("refuses to enable without configured processor roles", async () => {
     vi.stubEnv("CHORUS_PROCESSOR_CONFIG_REF", "");
     const { t, as } = setup();

@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { useCallback } from "react";
 import { api } from "@convex/_generated/api";
-import { attempt, newRetryKey } from "./backend";
+import { attempt, useRetryKeys } from "./backend";
 
 // CH-22: server-authoritative AI availability. Replaces state.aiConfig and
 // actions.setAiEnabled from the prototype store.
@@ -24,11 +24,14 @@ export function useAiHistory() {
 /** Mirrors actions.setAiEnabled. The server re-checks operator status. */
 export function useSetAiEnabled() {
   const setEnabled = useMutation(api.aiConfig.setEnabled);
+  const withRetryKey = useRetryKeys();
   return useCallback(
     (enabled: boolean, expectedRevision: number) =>
       attempt(() =>
-        setEnabled({ enabled, expectedRevision, retryKey: newRetryKey() }),
+        withRetryKey(`${enabled}:${expectedRevision}`, (retryKey) =>
+          setEnabled({ enabled, expectedRevision, retryKey }),
+        ),
       ),
-    [setEnabled],
+    [setEnabled, withRetryKey],
   );
 }

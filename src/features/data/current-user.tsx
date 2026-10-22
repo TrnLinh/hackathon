@@ -1,7 +1,7 @@
 "use client";
 
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@convex/_generated/api";
 
 /**
@@ -11,9 +11,24 @@ import { api } from "@convex/_generated/api";
 export function EnsureCurrentUser() {
   const { isAuthenticated } = useConvexAuth();
   const ensure = useMutation(api.users.ensureCurrent);
+  const [failures, setFailures] = useState(0);
   useEffect(() => {
-    if (isAuthenticated) void ensure({}).catch(() => {});
-  }, [isAuthenticated, ensure]);
+    if (!isAuthenticated) return;
+    let timer: number | undefined;
+    let active = true;
+    // Retry with backoff; screens wait for the registry row meanwhile.
+    ensure({}).catch(() => {
+      if (active)
+        timer = window.setTimeout(
+          () => setFailures((n) => n + 1),
+          Math.min(30_000, 1_000 * 2 ** failures),
+        );
+    });
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [isAuthenticated, ensure, failures]);
   return null;
 }
 

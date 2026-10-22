@@ -25,7 +25,7 @@ import {
 import { useAuthConfiguration } from "@/components/providers";
 import { AccountControls } from "@/features/auth/auth-status";
 import { useAiConfig } from "@/features/data/ai-config";
-import { BackendOnly } from "@/features/data/backend";
+import { BackendOnly, QueryBoundary } from "@/features/data/backend";
 import { EnsureCurrentUser } from "@/features/data/current-user";
 import { actions, usePrototype } from "@/features/prototype/store";
 import { inboxFor, personById } from "@/features/prototype/selectors";
@@ -58,15 +58,26 @@ function AiStatusPill({ on, revision }: { on: boolean; revision: number }) {
   );
 }
 
+/** Without a readable server configuration, AI is off everywhere. */
+function OfflineAiStatus() {
+  const mock = usePrototype().aiConfig;
+  useEffect(() => {
+    actions.syncAiConfig({ enabled: false, revision: 0, changedAt: null });
+  }, [mock.enabled, mock.revision]);
+  return <AiStatusPill on={false} revision={0} />;
+}
+
 /**
  * Reads AI availability from the server and mirrors it into the prototype
  * store, so screens still on mock data agree with the server.
  */
 function ServerAiStatus() {
   const config = useAiConfig();
+  const mock = usePrototype().aiConfig;
+  // Re-sync whenever either side changes, e.g. after a prototype data reset.
   useEffect(() => {
     if (config) actions.syncAiConfig(config);
-  }, [config]);
+  }, [config, mock.enabled, mock.revision]);
   // Missing or unreadable configuration means off.
   return (
     <AiStatusPill
@@ -134,10 +145,16 @@ export function AppShell() {
             <Brand />
           </Link>
           <div className="flex flex-wrap items-center gap-3">
-            <BackendOnly fallback={<AiStatusPill on={false} revision={0} />}>
-              <ServerAiStatus />
+            <BackendOnly fallback={<OfflineAiStatus />}>
+              <QueryBoundary fallback={<OfflineAiStatus />}>
+                <ServerAiStatus />
+              </QueryBoundary>
             </BackendOnly>
-            {authConfigured && <EnsureCurrentUser />}
+            {authConfigured && (
+              <QueryBoundary fallback={null}>
+                <EnsureCurrentUser />
+              </QueryBoundary>
+            )}
             <ViewerSwitcher />
             <AccountControls />
           </div>

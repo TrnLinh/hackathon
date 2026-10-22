@@ -6,7 +6,7 @@ The public functions in `convex/*.ts` (outside `convex/model/`) are the only cli
 
 - The actor comes from `ctx.auth` only (`convex/lib/viewer.ts`): the verified token's `tokenIdentifier` resolves the `users` row. No public function accepts a user ID for the caller.
 - Each function authorizes the specific resource, then calls the internal model logic, which re-checks membership/operator status and keeps retry-receipt idempotency.
-- Clients send one `retryKey` per intended change (`newRetryKey()` in `src/features/data/backend.tsx`) and reuse it only when retrying that same change.
+- Clients send one `retryKey` per intended change and reuse it only when retrying that same change (`useRetryKeys()` in `src/features/data/backend.tsx` keeps the key until the change succeeds).
 - Errors are `ConvexError` codes; `describeError` maps them to user-facing copy.
 
 ## Identity registry
@@ -27,7 +27,7 @@ The app shell mounts `EnsureCurrentUser` whenever sign-in is configured, so a si
 | `aiConfig.history`      | query    | Last 10 revisions for signed-in people. Who made a change is shown to operators only.                                                                           |
 | `aiConfig.setEnabled`   | mutation | `{ enabled, expectedRevision, retryKey }`. Wraps `model/configuration.configure`: active operator only, compare-and-set revision, receipt-based retry recovery. |
 
-Enabling requires the Convex environment variable `CHORUS_PROCESSOR_CONFIG_REF`, an opaque reference to the CH-21 processor roles (never a credential). Without it `capabilities.processorsConfigured` is false and enabling fails with `PROCESSOR_CONFIG_REQUIRED`.
+Enabling requires the Convex environment variable `CHORUS_PROCESSOR_CONFIG_REF`, an opaque reference to the CH-21 processor roles (never a credential). Without it `capabilities.processorsConfigured` is false and enabling fails with `PROCESSOR_CONFIG_REQUIRED`. The enabled revision records that reference; if the deployment later stops providing it (unset or changed), `aiConfig.current` and the job admission, dispatch and completion checks all read AI as off until an operator enables it again.
 
 ```bash
 npx convex env set CHORUS_PROCESSOR_CONFIG_REF team-inference-v1

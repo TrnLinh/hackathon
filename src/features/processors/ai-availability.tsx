@@ -38,7 +38,8 @@ function ConnectedAiAvailabilityCard() {
   // Missing or unreadable configuration means off.
   const enabled = config?.enabled ?? false;
   const isOperator = capabilities?.isOperator ?? false;
-  const latest = audit[0];
+  const latest = audit.find((e) => e.revision === config?.revision);
+  const loading = config === undefined;
   const StateIcon = enabled ? Power : PowerOff;
 
   async function toggle() {
@@ -71,7 +72,7 @@ function ConnectedAiAvailabilityCard() {
             )}
           >
             <StateIcon className="size-4" aria-hidden="true" />
-            AI is {enabled ? "on" : "off"}
+            {loading ? "Checking…" : `AI is ${enabled ? "on" : "off"}`}
           </span>
         </div>
       </CardHeader>
@@ -81,6 +82,7 @@ function ConnectedAiAvailabilityCard() {
             type="button"
             role="switch"
             aria-checked={enabled}
+            aria-busy={loading || pending}
             aria-label="AI processing"
             aria-describedby="ai-switch-help"
             disabled={!isOperator || !config || pending}
