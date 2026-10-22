@@ -6,3 +6,5 @@ package-lock.json
 next-env.d.ts
 # Copied verbatim by @tidecloak/js during installation.
 public/silent-check-sso.html
+# Generated base64 font data (scripts/vendor-fonts.mjs).
+src/lib/render/fonts/data/
