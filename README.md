@@ -119,6 +119,10 @@ npm run build
 
 For the browser smoke check, open /app, navigate to Collections and Project Setup, refresh those URLs directly, and use browser back and forward. With a backend running, confirm that Project Setup displays Connected. Without configuration, confirm that the workspace still loads and reports Not configured.
 
+## Implementation backlog
+
+See the [implementation issues](docs/backlog.md) for priorities, dependencies, scope, and acceptance criteria. The issue manifest in docs/backlog/issues.json can be published by the Publish Chorus backlog workflow. Existing issue edits and closed states are preserved on retries. Regenerate the readable backlog with npm run backlog:docs; run publication tests with npm test.
+
 ## Product documents
 
 - [Product specification](docs/chorus-product-spec.md): user experience, consent, photozine output, and MVP scope.

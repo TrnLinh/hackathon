@@ -13,7 +13,9 @@
     "check": "npm run lint && npm run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "setup:local": "node scripts/setup-local-convex.mjs"
+    "setup:local": "node scripts/setup-local-convex.mjs",
+    "test": "node --test scripts/publish-backlog.test.mjs",
+    "backlog:docs": "node scripts/render-backlog.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.45",

@@ -1,0 +1,41 @@
+name: Publish Chorus backlog
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/backlog/issues.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: chorus-backlog-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Create missing issues and link dependencies
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { publishBacklog } = await import(process.env.GITHUB_WORKSPACE + '/scripts/publish-backlog.mjs');
+            const result = await publishBacklog({ github, context, core });
+            const fs = await import('node:fs/promises');
+            await fs.writeFile('backlog-publication.json', JSON.stringify(result, null, 2));
+            await core.summary.addHeading('Chorus implementation backlog')
+              .addTable([
+                [{ data: 'Ticket', header: true }, { data: 'Issue', header: true }],
+                ...result.issues.map(issue => [issue.id, issue.url]),
+              ]).write();
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chorus-backlog-publication
+          path: backlog-publication.json
