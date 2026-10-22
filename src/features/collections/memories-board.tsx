@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Ban, Images, Plus } from "lucide-react";
+import { Ban, Images, Plus, Sparkles } from "lucide-react";
 import { kindMeta, MemoryThumb } from "@/components/chorus/memory-thumb";
 import { EmptyState, TrustNote } from "@/components/chorus/page-header";
 import { PersonAvatar, PersonStack } from "@/components/chorus/people";
@@ -23,8 +23,8 @@ import { BudgetMeter } from "./budget-meter";
 
 const filters: { value: MemoryStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "available", label: "Available" },
-  { value: "manual-only", label: "Manual only" },
+  { value: "available", label: "Available · AI allowed" },
+  { value: "manual-only", label: "Available · no AI" },
   { value: "awaiting", label: "Awaiting" },
   { value: "excluded", label: "Excluded" },
   { value: "private", label: "My drafts" },
@@ -145,7 +145,15 @@ export function MemoriesBoard({ collectionId }: { collectionId: string }) {
                       {uploader.id === state.viewerId ? "you" : uploader.name}
                     </div>
                     <div className="mt-auto space-y-2">
-                      <MemoryStatusBadge status={status} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <MemoryStatusBadge status={status} />
+                        {status === "available" && (
+                          <span className="inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[11px] text-muted-foreground">
+                            <Sparkles className="size-3" aria-hidden="true" />
+                            AI allowed
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         {memoryStatusHint(status)}
                       </p>

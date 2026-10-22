@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Inbox, PenLine } from "lucide-react";
+import { ArrowRight, Cpu, Inbox, PenLine } from "lucide-react";
 import { kindMeta, MemoryThumb } from "@/components/chorus/memory-thumb";
 import { PersonAvatar } from "@/components/chorus/people";
 import {
@@ -15,6 +15,7 @@ import {
   formatWhen,
   inboxFor,
   memoryStatus,
+  pendingAiApproverIds,
   personById,
 } from "@/features/prototype/selectors";
 import type { Memory, PrototypeState } from "@/features/prototype/types";
@@ -78,11 +79,11 @@ function WaitingCard({
           <strong className="font-medium">manual use and private review</strong>
           {processorCount > 0 && (
             <>
-              , plus{" "}
+              . You can also decide on{" "}
               <strong className="font-medium">
                 {processorCount} AI processor{processorCount === 1 ? "" : "s"}
-              </strong>{" "}
-              decided separately
+              </strong>
+              , now or later
             </>
           )}
           .
@@ -154,6 +155,40 @@ function DecidedCard({
   );
 }
 
+function AiPendingCard({
+  state,
+  memory,
+}: {
+  state: PrototypeState;
+  memory: Memory;
+}) {
+  const mine = memory.decisions[state.viewerId];
+  const undecided = memory.requestedProcessors.filter(
+    (p) => (mine?.processors[p] ?? "pending") === "pending",
+  ).length;
+  return (
+    <li className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center">
+      <MemoryThumb
+        memory={memory}
+        className="h-20 w-full shrink-0 rounded-lg sm:h-14 sm:w-20"
+      />
+      <div className="min-w-0 flex-1 space-y-1">
+        <MemoryMeta state={state} memory={memory} />
+        <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Cpu className="size-3.5" aria-hidden="true" />
+          {undecided} AI processor{undecided === 1 ? "" : "s"} not decided ·
+          already usable in templates
+        </p>
+      </div>
+      <Button asChild variant="outline" size="sm" className="shrink-0">
+        <Link to="/approvals/$memoryId" params={{ memoryId: memory.id }}>
+          Decide <ArrowRight aria-hidden="true" />
+        </Link>
+      </Button>
+    </li>
+  );
+}
+
 export function ApprovalsInbox() {
   const state = usePrototype();
   const viewer = personById(state, state.viewerId);
@@ -172,6 +207,12 @@ export function ApprovalsInbox() {
         a.decisions[state.viewerId]?.decidedAt ?? "",
       ),
     );
+  // Manual use decided (and still approved), but some AI choices left open.
+  const aiOptional = decided.filter(
+    (m) =>
+      m.decisions[state.viewerId]?.manual === "approved" &&
+      pendingAiApproverIds(m).includes(state.viewerId),
+  );
 
   return (
     <div className="space-y-8">
@@ -185,15 +226,15 @@ export function ApprovalsInbox() {
         {[
           [
             "Silence isn’t consent",
-            "A memory stays private until every person in it approves.",
+            "A memory stays out of the photozine until every person in it approves manual use.",
           ],
           [
             "No reason needed",
             "You can decline without explaining. Others only see “declined”.",
           ],
           [
-            "AI is a separate choice",
-            "You can allow manual use while declining every AI processor.",
+            "AI is optional",
+            "Templates only need manual use. Decide on AI now, later, or never.",
           ],
         ].map(([title, body]) => (
           <div key={title} className="rounded-xl border bg-card/60 p-4">
@@ -231,6 +272,32 @@ export function ApprovalsInbox() {
           </ul>
         )}
       </section>
+
+      {aiOptional.length > 0 && (
+        <section aria-labelledby="ai-optional-heading" className="space-y-3">
+          <div>
+            <h2
+              id="ai-optional-heading"
+              className="text-lg font-semibold tracking-tight"
+            >
+              Optional AI decisions{" "}
+              <span className="font-normal text-muted-foreground">
+                ({aiOptional.length})
+              </span>
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You approved manual use. Until you approve AI, these memories are
+              never sent to a model.
+              {!state.aiConfig.enabled && " AI is currently turned off anyway."}
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {aiOptional.map((m) => (
+              <AiPendingCard key={m.id} state={state} memory={m} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="decided-heading" className="space-y-3">
         <h2

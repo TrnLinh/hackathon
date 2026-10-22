@@ -4,12 +4,14 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  Clock3,
   Cpu,
   Fingerprint,
   Loader2,
   Pause,
   PenLine,
   Play,
+  PowerOff,
   ShieldAlert,
   UserRoundX,
   X,
@@ -57,6 +59,8 @@ import { DecisionSummary } from "./decision-summary";
 import { WithdrawDialog } from "./withdraw-dialog";
 
 type Choice = "approved" | "declined" | undefined;
+/** Processor choices may stay pending: AI decisions are optional (CH-07). */
+type ProcChoice = Choice | "later";
 
 /** Synthetic commitment for display. Not a real hash. */
 function commitment(memory: Memory) {
@@ -356,28 +360,48 @@ function Recipients({
   );
 }
 
-function ChoiceGroup({
+function ChoiceGroup<V extends "approved" | "declined" | "later">({
   name,
   label,
   value,
   onChange,
   disabled,
+  allowLater,
 }: {
   name: string;
   label: string;
-  value: Choice;
-  onChange: (v: "approved" | "declined") => void;
+  value: V | undefined;
+  onChange: (v: V) => void;
   disabled?: boolean;
+  allowLater?: boolean;
 }) {
+  const options = (
+    allowLater ? ["approved", "declined", "later"] : ["approved", "declined"]
+  ) as V[];
   return (
     <RadioGroup
       aria-label={label}
       value={value ?? ""}
-      onValueChange={(v) => onChange(v as "approved" | "declined")}
+      onValueChange={(v) => onChange(v as V)}
       disabled={disabled}
-      className="grid-cols-2 gap-2"
+      className={cn(
+        "gap-2",
+        allowLater ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2",
+      )}
     >
-      {(["approved", "declined"] as const).map((v) => {
+      {options.map((v) => {
+        if (v === "later")
+          return (
+            <Label
+              key={v}
+              htmlFor={`${name}-${v}`}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 font-normal transition-colors hover:bg-muted/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[[data-state=checked]]:border-foreground/30 has-[[data-state=checked]]:bg-muted"
+            >
+              <RadioGroupItem id={`${name}-${v}`} value={v} />
+              <span className="flex-1">Decide later</span>
+              {value === v && <Clock3 className="size-4" aria-hidden="true" />}
+            </Label>
+          );
         const approve = v === "approved";
         const Icon = approve ? Check : X;
         return (
@@ -416,8 +440,8 @@ function ProcessorCard({
   disabled,
 }: {
   processor: Processor;
-  value: Choice;
-  onChange: (v: "approved" | "declined") => void;
+  value: ProcChoice;
+  onChange: (v: "approved" | "declined" | "later") => void;
   disabled: boolean;
 }) {
   return (
@@ -430,7 +454,7 @@ function ProcessorCard({
           </p>
           <p className="text-xs text-muted-foreground">{processor.role}</p>
         </div>
-        {!value && <DecisionBadge decision="pending" />}
+        {(!value || value === "later") && <DecisionBadge decision="pending" />}
       </div>
       <dl className="grid gap-2 text-xs sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -461,9 +485,10 @@ function ProcessorCard({
       <ChoiceGroup
         name={`proc-${processor.id}`}
         label={`Decision for ${processor.name}`}
-        value={value}
+        value={value ?? "later"}
         onChange={onChange}
         disabled={disabled}
+        allowLater
       />
     </div>
   );
@@ -551,7 +576,7 @@ function DecisionForm({
   const [manual, setManual] = useState<Choice>(
     existing?.editRequested ? undefined : initialChoice(existing?.manual),
   );
-  const [procs, setProcs] = useState<Partial<Record<ProcessorId, Choice>>>(
+  const [procs, setProcs] = useState<Partial<Record<ProcessorId, ProcChoice>>>(
     () =>
       existing?.editRequested
         ? {}
@@ -572,14 +597,13 @@ function DecisionForm({
     .map((id) => state.processors.find((p) => p.id === id))
     .filter((p): p is Processor => Boolean(p));
   const manualDeclined = manual === "declined";
-  const effective = (id: ProcessorId): Choice =>
-    manualDeclined ? "declined" : procs[id];
+  const effective = (id: ProcessorId): ProcChoice =>
+    manualDeclined ? "declined" : (procs[id] ?? "later");
 
-  const missing = [
-    ...(manual ? [] : ["Manual composition and private review"]),
-    ...processors.filter((p) => !effective(p.id)).map((p) => p.name),
-  ];
+  // Only manual use is required. AI decisions can be left for later.
+  const missing = manual ? [] : ["Manual composition and private review"];
   const aiDeclined = processors.some((p) => effective(p.id) === "declined");
+  const aiUndecided = processors.some((p) => effective(p.id) === "later");
 
   function submit() {
     if (inFlight.current) return;
@@ -593,7 +617,10 @@ function DecisionForm({
       actions.decide(memory.id, {
         manual: manual!,
         processors: Object.fromEntries(
-          processors.map((p) => [p.id, effective(p.id)!]),
+          processors.map((p) => {
+            const v = effective(p.id);
+            return [p.id, v === "later" || !v ? "pending" : v];
+          }),
         ),
       });
       inFlight.current = false;
@@ -687,13 +714,25 @@ function DecisionForm({
           <legend className="sr-only">AI processing</legend>
           <div>
             <h2 className="text-base font-semibold">
-              2. AI processing, decided separately
+              2. AI processing (optional)
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Each processor needs its own permission. You can approve manual
-              use and decline every processor.
+              Each processor needs its own permission, and you don’t have to
+              decide now. If AI isn’t approved, the memory can still be used in
+              templates, but it’s never sent to a model.
             </p>
           </div>
+          {!state.aiConfig.enabled && (
+            <p className="flex items-start gap-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+              <PowerOff
+                className="mt-0.5 size-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              AI is currently turned off for this workspace. Your choice is
+              recorded for if it’s turned on later; turning AI on never grants
+              permission by itself.
+            </p>
+          )}
           {manualDeclined && (
             <p className="flex items-start gap-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
               <UserRoundX
@@ -713,12 +752,14 @@ function DecisionForm({
               onChange={(v) => setProcs((prev) => ({ ...prev, [p.id]: v }))}
             />
           ))}
-          {manual === "approved" && aiDeclined && (
+          {manual === "approved" && (aiDeclined || aiUndecided) && (
             <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-              With a processor declined, this memory becomes{" "}
-              <strong className="font-medium">manual use only</strong>. The
-              editor can still place it by hand, but it won’t be sent to AI or
-              influence an AI-generated style.
+              Unless every processor is approved by everyone, this memory is{" "}
+              <strong className="font-medium">available · no AI</strong>. The
+              editor can place it in a template by hand, but it won’t be sent to
+              AI or influence an AI-generated style.
+              {aiUndecided &&
+                " You can come back and decide on AI later from your approvals."}
             </p>
           )}
         </fieldset>
@@ -729,7 +770,7 @@ function DecisionForm({
           role="alert"
           className="rounded-lg border border-[var(--status-awaiting)]/40 p-3 text-sm"
         >
-          <p className="font-medium">Decide each item before submitting:</p>
+          <p className="font-medium">Decide this before submitting:</p>
           <ul className="mt-1 list-disc pl-5 text-muted-foreground">
             {missing.map((m) => (
               <li key={m}>{m}</li>
@@ -770,7 +811,7 @@ function DecisionForm({
           {submitting
             ? "Recording your decision. Don’t close this page."
             : missing.length
-              ? `${missing.length} item${missing.length === 1 ? "" : "s"} not decided`
+              ? "Manual use isn’t decided yet"
               : "Ready to submit"}
         </span>
       </div>
@@ -783,7 +824,7 @@ function memoryStatusLabel(memory: Memory) {
     private: "a private draft",
     awaiting: "awaiting permission",
     available: "available",
-    "manual-only": "manual use only",
+    "manual-only": "available · no AI",
     excluded: "excluded",
   }[memoryStatus(memory)];
 }

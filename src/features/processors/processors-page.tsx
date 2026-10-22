@@ -20,9 +20,10 @@ import {
   LIMITS,
 } from "@/features/prototype/selectors";
 import type { Processor } from "@/features/prototype/types";
+import { AiAvailabilityCard } from "./ai-availability";
 
-// CH-21: disclosure of the team-cloud inference services, with a health
-// switch for demonstrating outages and manual recovery.
+// CH-21/CH-22: runtime AI availability, disclosure of the team-cloud
+// inference services, and a health switch for demonstrating outages.
 
 const healthMeta: Record<
   Processor["health"],
@@ -87,9 +88,22 @@ const budgets: { label: string; value: string }[] = [
   { label: "Active AI jobs per collection", value: "1" },
 ];
 
-function ProcessorCard({ processor }: { processor: Processor }) {
+function ProcessorCard({
+  processor,
+  aiEnabled,
+}: {
+  processor: Processor;
+  aiEnabled: boolean;
+}) {
   const selectId = useId();
-  const health = healthMeta[processor.health];
+  const health = aiEnabled
+    ? healthMeta[processor.health]
+    : {
+        label: "Not contacted",
+        detail:
+          "Not contacted while AI is off. Chorus sends no requests or health probes to it.",
+        dot: "bg-muted-foreground/50",
+      };
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -179,18 +193,26 @@ export function ProcessorsPage() {
       <PageHeader
         eyebrow="Disclosed recipients"
         title="AI processors"
-        description="The inference services Chorus may send approved derivatives to. Each runs in the team’s cloud and only receives content after every person involved grants that specific processor."
+        description="The inference services Chorus may send approved derivatives to when AI is on. Each runs in the team’s cloud and only receives content after every person involved grants that specific processor."
       />
+
+      <AiAvailabilityCard />
 
       <section aria-label="Processors" className="grid gap-5 xl:grid-cols-3">
         {state.processors.map((p) => (
-          <ProcessorCard key={p.id} processor={p} />
+          <ProcessorCard
+            key={p.id}
+            processor={p}
+            aiEnabled={state.aiConfig.enabled}
+          />
         ))}
       </section>
       <p className="-mt-6 text-xs text-muted-foreground">
-        Model weights, runtime versions, and GPU capacity are pending the CH-21
-        selection. Health controls are a prototype tool for demonstrating
-        outages.
+        Planned deployment: the team’s cloud, with eight H200 GPUs available,
+        for an English-only demo. Model weights and serving runtime are still to
+        be selected in CH-21. Health controls are a prototype tool for
+        demonstrating outages; the app starts and templates work without this
+        stack.
       </p>
 
       <section

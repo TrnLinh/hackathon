@@ -9,6 +9,8 @@ export type MemoryId = string;
 export type Person = {
   id: PersonId;
   name: string;
+  /** Infrastructure operator who may change runtime AI availability (CH-22). */
+  operator?: boolean;
   /** Hue used for the avatar background. Never the only status signal. */
   hue: number;
 };
@@ -43,6 +45,8 @@ export type TranscriptExcerpt = {
   /** Declared speaker; never inferred automatically. */
   speakerId: PersonId;
   reviewed: boolean;
+  /** Typed by a person while listening locally, or produced by the transcriber. */
+  source?: "manual" | "ai";
 };
 
 export type VideoStill = {
@@ -177,13 +181,20 @@ export type StyleTokens = {
   texture: "film" | "tape" | "none" | "grain";
 };
 
-export type PlanOrigin = "ai" | "manual" | "refinement";
+/** Original creation provenance; it survives manual edits (FR-33). */
+export type PlanOrigin = "template" | "ai" | "manual" | "refinement";
 
 export type DesignPlan = {
   id: string;
   collectionId: CollectionId;
   revision: number;
   origin: PlanOrigin;
+  /** Template the plan started from, if any. */
+  templateId?: string;
+  /** Revision this plan was derived from. */
+  parentRevision?: number;
+  /** True when an AI-origin plan was later edited by hand ("Continue manually"). */
+  aiLineage?: boolean;
   createdAt: string;
   prompt?: string;
   inspiration: string;
@@ -200,6 +211,8 @@ export type JobStatus =
   "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 export type ProcessingJob = {
+  /** AI configuration revision captured at admission (FR-34). */
+  configRevision?: number;
   id: string;
   collectionId: CollectionId;
   processorId: ProcessorId;
@@ -264,11 +277,15 @@ export type HistoryKind =
   | "final.approved"
   | "final.declined"
   | "edition.issued"
-  | "edition.downloaded";
+  | "edition.downloaded"
+  | "ai.enabled"
+  | "ai.disabled"
+  | "job.invalidated";
 
 export type HistoryEvent = {
   id: string;
-  collectionId: CollectionId;
+  /** "*" marks a workspace-wide event such as an AI configuration change. */
+  collectionId: CollectionId | "*";
   at: string;
   actorId: PersonId | "system";
   kind: HistoryKind;
@@ -277,7 +294,21 @@ export type HistoryEvent = {
   resource?: string;
 };
 
+/**
+ * Server-authoritative runtime AI availability (CH-22). The browser only
+ * reflects it; a missing or unreadable configuration means AI is off.
+ */
+export type AIConfiguration = {
+  enabled: boolean;
+  revision: number;
+  changedAt: string;
+  changedBy: PersonId | "system";
+  /** Whether processor roles are configured; enabling requires them. */
+  processorsConfigured: boolean;
+};
+
 export type PrototypeState = {
+  aiConfig: AIConfiguration;
   viewerId: PersonId;
   people: Person[];
   processors: Processor[];

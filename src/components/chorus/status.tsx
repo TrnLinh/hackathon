@@ -90,13 +90,13 @@ const memoryStatusMeta: Record<
     tone: "available",
     icon: CheckCircle2,
     label: "Available",
-    hint: "Everyone involved approved manual use and AI processing.",
+    hint: "Approved for templates and manual editing, and for AI processing.",
   },
   "manual-only": {
     tone: "manual",
     icon: Hand,
-    label: "Manual use only",
-    hint: "Approved for the named editor, but excluded from AI processing.",
+    label: "Available · no AI",
+    hint: "Approved for templates and manual editing. AI processing isn’t approved, so it never reaches a model.",
   },
   excluded: {
     tone: "excluded",

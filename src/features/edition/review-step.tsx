@@ -21,7 +21,7 @@ import type {
   Collection,
   PrototypeState,
 } from "@/features/prototype/types";
-import { PlanPages } from "./common";
+import { aiToggleNote, PlanPages, ProvenanceRows } from "./common";
 
 export const APPROVAL_STATEMENT =
   "I approve this edition as a file that the named collection members can download, keep, print, and share outside Chorus.";
@@ -106,7 +106,22 @@ export function ReviewStep({
       </div>
 
       {plan ? (
-        <PlanPages plan={plan} state={state} editionId={candidate.editionId} />
+        <>
+          <PlanPages
+            plan={plan}
+            state={state}
+            editionId={candidate.editionId}
+          />
+          <details className="rounded-xl border bg-card px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              How this design was made
+            </summary>
+            <dl className="mt-2 divide-y">
+              <ProvenanceRows plan={plan} />
+            </dl>
+            <p className="mt-2 text-xs text-muted-foreground">{aiToggleNote}</p>
+          </details>
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">
           The candidate’s pages are unavailable.

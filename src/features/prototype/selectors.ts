@@ -48,33 +48,37 @@ export function aiEligible(memory: Memory) {
   );
 }
 
+/**
+ * Manual approval alone makes a memory usable in templates and manual editing.
+ * AI processing is a separate, optional permission (FR-15, CH-07).
+ */
 export function memoryStatus(memory: Memory): MemoryStatus {
   if (!memory.submitted) return "private";
-  const ids = approverIds(memory);
-  const manual = ids.map((id) => memory.decisions[id]?.manual ?? "pending");
+  const manual = approverIds(memory).map(
+    (id) => memory.decisions[id]?.manual ?? "pending",
+  );
   if (manual.some((d) => d === "declined" || d === "withdrawn"))
     return "excluded";
   if (manual.some((d) => d === "pending")) return "awaiting";
-  if (aiEligible(memory)) return "available";
-  const processorDecisions = ids.flatMap((id) =>
-    memory.requestedProcessors.map(
-      (proc) => memory.decisions[id]?.processors[proc] ?? "pending",
-    ),
-  );
-  if (processorDecisions.some((d) => d === "declined" || d === "withdrawn"))
-    return "manual-only";
-  return "awaiting";
+  return aiEligible(memory) ? "available" : "manual-only";
 }
 
-/** Approvers who have not yet decided something on the current version. */
+/** Approvers who still owe the required manual-use decision. AI is optional. */
 export function pendingApproverIds(memory: Memory): PersonId[] {
   return approverIds(memory).filter((id) => {
     const d = memory.decisions[id];
-    if (!d || d.manual === "pending") return true;
-    return memory.requestedProcessors.some(
-      (proc) => (d.processors[proc] ?? "pending") === "pending",
-    );
+    return !d || d.manual === "pending";
   });
+}
+
+/** Approvers who have not decided on every requested AI processor yet. */
+export function pendingAiApproverIds(memory: Memory): PersonId[] {
+  return approverIds(memory).filter((id) =>
+    memory.requestedProcessors.some(
+      (proc) =>
+        (memory.decisions[id]?.processors[proc] ?? "pending") === "pending",
+    ),
+  );
 }
 
 export function inboxFor(state: PrototypeState, viewerId: PersonId) {

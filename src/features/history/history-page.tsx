@@ -10,12 +10,15 @@ import {
   FolderPlus,
   Layers,
   PenLine,
+  Power,
+  PowerOff,
   RefreshCw,
   Snowflake,
   Undo2,
   UserMinus,
   UserPlus,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { PersonAvatar } from "@/components/chorus/people";
 import { EmptyState, TrustNote } from "@/components/chorus/page-header";
@@ -26,7 +29,7 @@ import { formatWhen, personById } from "@/features/prototype/selectors";
 import type { HistoryKind } from "@/features/prototype/types";
 
 type Filter =
-  "all" | "decisions" | "processing" | "design" | "editions" | "members";
+  "all" | "decisions" | "processing" | "design" | "editions" | "members" | "ai";
 
 const filters: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
@@ -35,6 +38,7 @@ const filters: { id: Filter; label: string }[] = [
   { id: "design", label: "Design" },
   { id: "editions", label: "Editions" },
   { id: "members", label: "Members" },
+  { id: "ai", label: "AI settings" },
 ];
 
 const kindMeta: Record<
@@ -62,6 +66,9 @@ const kindMeta: Record<
   "final.declined": { icon: XCircle, group: "editions" },
   "edition.issued": { icon: BookCheck, group: "editions" },
   "edition.downloaded": { icon: Download, group: "editions" },
+  "ai.enabled": { icon: Power, group: "ai" },
+  "ai.disabled": { icon: PowerOff, group: "ai" },
+  "job.invalidated": { icon: Zap, group: "processing" },
 };
 
 function dayLabel(iso: string) {
@@ -78,7 +85,8 @@ export function HistoryPage({ collectionId }: { collectionId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const events = state.history
-    .filter((e) => e.collectionId === collectionId)
+    // Workspace-wide events (AI availability) appear in every timeline.
+    .filter((e) => e.collectionId === collectionId || e.collectionId === "*")
     .filter((e) => filter === "all" || kindMeta[e.kind]?.group === filter)
     .sort((a, b) => b.at.localeCompare(a.at));
 
@@ -102,8 +110,9 @@ export function HistoryPage({ collectionId }: { collectionId: string }) {
             Consent and activity history
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Every decision, withdrawal, processing job, design revision, and
-            edition event, in order. Past events are never rewritten.
+            Every decision, withdrawal, processing job, design revision, edition
+            event, and AI availability change, in order. Past events are never
+            rewritten.
           </p>
         </div>
         <p className="rounded-lg border bg-card px-3 py-2 text-xs">
@@ -112,6 +121,10 @@ export function HistoryPage({ collectionId }: { collectionId: string }) {
           </span>
           <span className="font-mono font-medium">
             #{state.permissionRevision}
+          </span>
+          <span className="text-muted-foreground"> · AI config </span>
+          <span className="font-mono font-medium">
+            r{state.aiConfig.revision} ({state.aiConfig.enabled ? "on" : "off"})
           </span>
         </p>
       </div>
@@ -236,6 +249,15 @@ export function HistoryPage({ collectionId }: { collectionId: string }) {
                       <p className="font-medium">{j.label}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatWhen(j.createdAt)}
+                        {j.configRevision !== undefined && (
+                          <>
+                            {" "}
+                            · admitted under AI config{" "}
+                            <span className="font-mono">
+                              r{j.configRevision}
+                            </span>
+                          </>
+                        )}
                       </p>
                       {j.error && (
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -289,9 +311,11 @@ export function HistoryPage({ collectionId }: { collectionId: string }) {
 
       <TrustNote>
         History is shown only to collection members. Private explanations for a
-        decline are never recorded or exported. Telemetry and error traces
-        exclude media, transcripts, style prompts, and tokens. Prototype: these
-        events live in this browser, not in an authoritative log.
+        decline are never recorded or exported. Turning AI off is an operator
+        setting, not a withdrawal: it changes no contributor permission.
+        Telemetry and error traces exclude media, transcripts, style prompts,
+        and tokens. Prototype: these events live in this browser, not in an
+        authoritative log.
       </TrustNote>
     </div>
   );

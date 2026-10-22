@@ -58,26 +58,26 @@ Without NEXT_PUBLIC_CONVEX_URL, the setup page displays Not configured. No fake 
 
 Next.js serves the root layout and the optional catch-all page at src/app/app/[[...path]]/page.tsx. The root URL redirects to /app. A client-only entry mounts TanStack Router with basepath /app.
 
-| URL                                     | Page                                                  |
-| --------------------------------------- | ----------------------------------------------------- |
-| /app                                    | Overview and demo journey                             |
-| /app/collections                        | Collections and creation (CH-04)                      |
-| /app/collections/:id                    | Memories board with consent states (CH-05, CH-07)     |
-| /app/collections/:id/members            | Members, join link, and admission (CH-04)             |
-| /app/collections/:id/memories/new       | Multimedia memory editor (CH-05)                      |
-| /app/collections/:id/memories/:memoryId | Versions, decisions, and derivative review (CH-19)    |
-| /app/collections/:id/compose            | Six-page AI and manual composer (CH-09, CH-18, CH-20) |
-| /app/collections/:id/edition            | Freeze, final approval, receipt, download (CH-10–13)  |
-| /app/collections/:id/history            | Consent and processing history (CH-14)                |
-| /app/join/:code                         | Join request flow (CH-04)                             |
-| /app/approvals                          | Approval inbox and past decisions (CH-07, CH-08)      |
-| /app/approvals/:memoryId                | Source review, AI permissions, withdrawal (CH-06–08)  |
-| /app/processors                         | Self-hosted inference disclosures and health (CH-21)  |
-| /app/verify                             | Offline receipt verification (CH-12)                  |
-| /app/settings                           | Project setup and live backend connection             |
-| /app/policy-proof                       | Synthetic Tide policy workbench (development only)    |
+| URL                                     | Page                                                    |
+| --------------------------------------- | ------------------------------------------------------- |
+| /app                                    | Overview and demo journey                               |
+| /app/collections                        | Collections and creation (CH-04)                        |
+| /app/collections/:id                    | Memories board with consent states (CH-05, CH-07)       |
+| /app/collections/:id/members            | Members, join link, and admission (CH-04)               |
+| /app/collections/:id/memories/new       | Multimedia memory editor (CH-05)                        |
+| /app/collections/:id/memories/:memoryId | Versions, decisions, and derivative review (CH-19)      |
+| /app/collections/:id/compose            | Template and optional AI composer (CH-09, CH-18, CH-20) |
+| /app/collections/:id/edition            | Freeze, final approval, receipt, download (CH-10–13)    |
+| /app/collections/:id/history            | Consent and processing history (CH-14)                  |
+| /app/join/:code                         | Join request flow (CH-04)                               |
+| /app/approvals                          | Approval inbox and past decisions (CH-07, CH-08)        |
+| /app/approvals/:memoryId                | Source review, AI permissions, withdrawal (CH-06–08)    |
+| /app/processors                         | AI switch, inference disclosures, health (CH-21, CH-22) |
+| /app/verify                             | Offline receipt verification (CH-12)                    |
+| /app/settings                           | Project setup and live backend connection               |
+| /app/policy-proof                       | Synthetic Tide policy workbench (development only)      |
 
-The collection, approval, composer, edition, processor, and receipt screens are a UI prototype. They read synthetic data from src/features/prototype, persisted in browser localStorage, and use a "Viewing as" switcher instead of verified sign-in. Their consent, encryption, AI, PDF, and signature behavior is simulated and is not a verified protection. Replace the prototype store with protected Convex and Tide operations, and restore the sign-in gate, as each backend ticket lands.
+The collection, approval, composer, edition, processor, and receipt screens are a UI prototype. They read synthetic data from src/features/prototype, persisted in browser localStorage, and use a "Viewing as" switcher instead of verified sign-in. The composer defaults to template mode, which builds a six-page plan with no AI. A simulated server-side AI switch (CH-22), which only the operator persona can change, starts off; create-with-AI appears only when it is on. Consent, encryption, AI, PDF, and signature behavior is simulated and is not a verified protection. Replace the prototype store with protected Convex and Tide operations, and restore the sign-in gate, as each backend ticket lands.
 
 Define workspace routes in src/router/index.tsx using TanStack's programmatic route API. Use TanStack Link inside the workspace; its destinations are relative to the router base, such as /collections. Use Next.js routes for future server endpoints or pages outside the workspace. Do not add a second Next.js page for a path already owned by the workspace router.
 

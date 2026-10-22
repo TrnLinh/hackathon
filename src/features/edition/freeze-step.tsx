@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { validatePlan } from "@/features/composer/plan-utils";
 import { actions } from "@/features/prototype/store";
 import {
   approverIds,
@@ -25,7 +26,14 @@ import type {
   PersonId,
   PrototypeState,
 } from "@/features/prototype/types";
-import { DigestRow, PlanPages, SectionTitle } from "./common";
+import {
+  aiToggleNote,
+  DigestRow,
+  originSummary,
+  PlanPages,
+  ProvenanceRows,
+  SectionTitle,
+} from "./common";
 
 const RENDER_MS = 1500;
 const TARGET_S = 30;
@@ -108,14 +116,20 @@ export function FreezeStep({
           </Button>
         }
       >
-        Generate or compose a six-page design first. Invalidated design
-        revisions cannot be frozen.
+        Start from a template or, when AI is on, create a design with AI.
+        Invalidated design revisions cannot be frozen.
       </EmptyState>
     );
 
   const reasons = approverReasons(state, plan);
   const approvers = finalApproverIds(state, plan);
   const stale = staleSources(state, plan);
+  // The same CH-20 validator as the composer: invalid or unfinished plans,
+  // such as an empty template draft, cannot become a candidate.
+  const failedChecks = validatePlan(
+    plan,
+    state.memories.filter((m) => m.collectionId === plan.collectionId),
+  ).filter((row) => !row.ok);
   const visible = planVisibleIds(plan);
   const frozenFromThis =
     candidate &&
@@ -155,8 +169,7 @@ export function FreezeStep({
             </span>
           </SectionTitle>
           <p className="text-xs text-muted-foreground">
-            {plan.origin === "manual" ? "Manual design" : "AI-inferred design"}{" "}
-            · 6 portrait A5 pages
+            {originSummary(plan)} · 6 portrait A5 pages
           </p>
         </div>
         <PlanPages plan={plan} state={state} />
@@ -205,6 +218,7 @@ export function FreezeStep({
                   {plan.id} · revision {plan.revision}
                 </code>
               </ManifestRow>
+              <ProvenanceRows plan={plan} />
               <ManifestRow label="Schema">{plan.schemaVersion}</ManifestRow>
               <ManifestRow label="Renderer">
                 chorus-zine-renderer 0.1 (prototype)
@@ -249,8 +263,10 @@ export function FreezeStep({
           manifest. The edition identifier is printed inside the PDF before
           freezing; approval signatures live in a separate receipt. The PDF is
           never re-rendered after approval, and any change creates a new
-          candidate that needs fresh approvals.
+          candidate that needs fresh approvals. Freezing never needs AI; it
+          works the same whether AI is on or off.
         </p>
+        <p className="text-xs text-muted-foreground">{aiToggleNote}</p>
 
         {stale.length > 0 && (
           <Alert variant="destructive">
@@ -260,6 +276,29 @@ export function FreezeStep({
               {stale.join(", ")} {stale.length === 1 ? "is" : "are"} no longer
               approved. Return to the composer and rebuild the design without{" "}
               {stale.length === 1 ? "it" : "them"}.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stale.length === 0 && failedChecks.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden="true" />
+            <AlertTitle>Finish the design before freezing</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc pl-4">
+                {failedChecks.map((row) => (
+                  <li key={row.id}>
+                    {row.label}: {row.detail}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to="/collections/$collectionId/compose"
+                params={{ collectionId: plan.collectionId }}
+                className="mt-2 inline-block underline underline-offset-4"
+              >
+                Open the composer
+              </Link>
             </AlertDescription>
           </Alert>
         )}
@@ -300,7 +339,9 @@ export function FreezeStep({
           <div className="flex flex-wrap items-center gap-4">
             <Button
               onClick={startRender}
-              disabled={rendering || stale.length > 0}
+              disabled={
+                rendering || stale.length > 0 || failedChecks.length > 0
+              }
             >
               {frozenFromThis
                 ? "Freeze a replacement candidate"

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { createSeedState } from "./fixtures";
+import { buildTemplatePlan, templateById } from "./templates";
 import {
   aiEligible,
   approverIds,
@@ -29,7 +30,7 @@ import type {
 // refresh. It simulates outcomes for UI work only; it is not an authority for
 // consent, release, or issuance.
 
-const STORAGE_KEY = "chorus-prototype-v1";
+const STORAGE_KEY = "chorus-prototype-v2";
 const listeners = new Set<() => void>();
 let state: PrototypeState = createSeedState();
 let hydrated = false;
@@ -39,7 +40,17 @@ function hydrate() {
   hydrated = true;
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved) state = JSON.parse(saved) as PrototypeState;
+    if (saved) {
+      state = JSON.parse(saved) as PrototypeState;
+      // Simulated jobs run on in-page timers, so a reload interrupts them.
+      // Never leave one "running": that would block new jobs indefinitely.
+      for (const job of state.jobs)
+        if (job.status === "running" || job.status === "queued") {
+          job.status = "failed";
+          job.error =
+            "Interrupted when the page reloaded. No result was applied; retry or continue manually.";
+        }
+    }
   } catch {
     // Corrupt or unavailable storage falls back to seed data.
   }
@@ -532,6 +543,14 @@ export const actions = {
    */
   generateDesign(collectionId: string, prompt?: string) {
     const s = getPrototypeState();
+    // Server-authoritative gate at admission (FR-32). The UI hides the
+    // action too, but hiding a button is not the control.
+    if (!s.aiConfig.enabled)
+      return {
+        ok: false as const,
+        reason:
+          "AI is turned off for this workspace. Template creation and manual editing remain available.",
+      };
     if (
       s.jobs.some(
         (j) =>
@@ -564,6 +583,7 @@ export const actions = {
         status: "running",
         createdAt: now(),
         memoryIds: eligible.map((m) => m.id),
+        configRevision: d.aiConfig.revision,
       });
       log(d, {
         collectionId,
@@ -576,6 +596,20 @@ export const actions = {
       update((d) => {
         const job = d.jobs.find((j) => j.id === jobId);
         if (!job || job.status !== "running") return; // cancelled: discard late result
+        // A disable (or any config change) after admission invalidates the
+        // job; its late result never enters the draft, even after re-enable.
+        if (!d.aiConfig.enabled || d.aiConfig.revision !== job.configRevision) {
+          job.status = "cancelled";
+          job.error =
+            "Invalidated because the AI configuration changed. The late result was discarded.";
+          log(d, {
+            collectionId,
+            actorId: "system",
+            kind: "job.invalidated",
+            summary: "Discarded a late design result after AI was turned off",
+          });
+          return;
+        }
         const designer = d.processors.find((p) => p.id === "designer");
         if (designer?.health === "offline") {
           job.status = "failed";
@@ -607,6 +641,8 @@ export const actions = {
           (prev?.revision ?? 0) + 1,
           prompt,
         );
+        plan.parentRevision = prev?.revision;
+        plan.aiLineage = true;
         d.plans.push(plan);
         job.status = "succeeded";
         log(d, {
@@ -621,6 +657,114 @@ export const actions = {
     return { ok: true as const, jobId };
   },
 
+  /**
+   * Operator-only runtime AI switch (CH-22). Disabling cancels queued work and
+   * invalidates running jobs. Re-enabling never resumes them and never
+   * processes existing manual drafts. It grants no contributor consent.
+   */
+  setAiEnabled(enabled: boolean) {
+    const s = getPrototypeState();
+    const viewer = s.people.find((p) => p.id === s.viewerId);
+    if (!viewer?.operator)
+      return {
+        ok: false as const,
+        reason: "Only an authorized operator can change AI availability.",
+      };
+    if (enabled && !s.aiConfig.processorsConfigured)
+      return {
+        ok: false as const,
+        reason: "Configure processor roles before enabling AI.",
+      };
+    update((d) => {
+      if (d.aiConfig.enabled === enabled) return;
+      d.aiConfig = {
+        ...d.aiConfig,
+        enabled,
+        revision: d.aiConfig.revision + 1,
+        changedAt: now(),
+        changedBy: d.viewerId,
+      };
+      let invalidated = 0;
+      if (!enabled)
+        for (const job of d.jobs)
+          if (job.status === "queued" || job.status === "running") {
+            job.status = "cancelled";
+            job.error =
+              "Invalidated because AI was turned off. Anything already sent can’t be recalled; a late result will be discarded.";
+            invalidated += 1;
+          }
+      log(d, {
+        collectionId: "*",
+        actorId: d.viewerId,
+        kind: enabled ? "ai.enabled" : "ai.disabled",
+        summary: enabled
+          ? `Turned AI on (configuration revision ${d.aiConfig.revision}). No job resumes automatically.`
+          : `Turned AI off (configuration revision ${d.aiConfig.revision})${invalidated ? `; invalidated ${invalidated} job${invalidated === 1 ? "" : "s"}` : ""}. Template creation stays available.`,
+        resource: `ai-config r${d.aiConfig.revision}`,
+      });
+    });
+    return { ok: true as const };
+  },
+
+  /** Builds a deterministic template plan. Never contacts a model. */
+  startTemplate(
+    collectionId: string,
+    templateId: string,
+    options: { empty?: boolean } = {},
+  ) {
+    const id = uid("plan");
+    update((d) => {
+      const latest = d.plans
+        .filter((p) => p.collectionId === collectionId)
+        .reduce((max, p) => Math.max(max, p.revision), 0);
+      const plan = buildTemplatePlan(d, collectionId, templateId, {
+        id,
+        revision: latest + 1,
+        empty: options.empty,
+      });
+      d.plans.push(plan);
+      log(d, {
+        collectionId,
+        actorId: d.viewerId,
+        kind: "plan.created",
+        summary: `Started design revision ${plan.revision} from the ${templateById(templateId)?.name ?? "selected"} template${options.empty ? " (empty draft)" : ""}`,
+        resource: `${id} r${plan.revision}`,
+      });
+    });
+    return id;
+  },
+
+  /**
+   * Adds an excerpt typed by a person while listening or watching locally.
+   * No transcription service is involved (CH-05, AT-08).
+   */
+  addManualExcerpt(
+    memoryId: string,
+    excerpt: Pick<
+      TranscriptExcerpt,
+      "startSec" | "endSec" | "text" | "speakerId"
+    >,
+  ) {
+    const id = uid("x");
+    update((d) => {
+      const m = d.memories.find((x) => x.id === memoryId);
+      if (!m) return;
+      m.transcript = [
+        ...(m.transcript ?? []),
+        { id, ...excerpt, reviewed: true, source: "manual" },
+      ];
+    });
+    return id;
+  },
+
+  removeExcerpt(memoryId: string, excerptId: string) {
+    update((d) => {
+      const m = d.memories.find((x) => x.id === memoryId);
+      if (m?.transcript)
+        m.transcript = m.transcript.filter((e) => e.id !== excerptId);
+    });
+  },
+
   cancelJob(jobId: string) {
     update((d) => {
       const job = d.jobs.find((j) => j.id === jobId);
@@ -631,8 +775,15 @@ export const actions = {
     });
   },
 
-  /** Manual edits and accepted refinements always create a new immutable revision. */
-  savePlanRevision(plan: DesignPlan, origin: DesignPlan["origin"] = "manual") {
+  /**
+   * Manual edits always create a new immutable revision. The original creation
+   * provenance (template or AI) is kept, and AI lineage survives manual edits
+   * ("Continue manually", FR-33).
+   */
+  savePlanRevision(
+    plan: DesignPlan,
+    origin: DesignPlan["origin"] = plan.origin,
+  ) {
     const id = uid("plan");
     update((d) => {
       const latest = d.plans
@@ -643,6 +794,11 @@ export const actions = {
         id,
         revision: latest + 1,
         origin,
+        parentRevision: plan.revision,
+        aiLineage:
+          plan.aiLineage ||
+          plan.origin === "ai" ||
+          plan.origin === "refinement",
         createdAt: now(),
         invalidatedReason: undefined,
       };
@@ -651,7 +807,7 @@ export const actions = {
         collectionId: plan.collectionId,
         actorId: d.viewerId,
         kind: "plan.created",
-        summary: `Saved design revision ${next.revision} (${origin})`,
+        summary: `Saved design revision ${next.revision} (edited by hand from revision ${plan.revision})`,
         resource: `${id} r${next.revision}`,
       });
     });

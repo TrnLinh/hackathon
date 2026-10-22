@@ -2,6 +2,8 @@ import { Link, Outlet } from "@tanstack/react-router";
 import {
   BookOpen,
   Cpu,
+  Power,
+  PowerOff,
   FileCheck2,
   Home,
   Inbox,
@@ -31,6 +33,27 @@ const links = [
   { to: "/verify", label: "Verify a receipt", icon: FileCheck2, exact: false },
   { to: "/settings", label: "Project setup", icon: Settings2, exact: false },
 ] as const;
+
+/** Reflects server-authoritative AI availability (CH-22). */
+function AiStatusPill() {
+  const state = usePrototype();
+  const on = state.aiConfig.enabled;
+  const Icon = on ? Power : PowerOff;
+  return (
+    <Link
+      to="/processors"
+      title={`AI is ${on ? "on" : "off"} (configuration r${state.aiConfig.revision})`}
+      className={
+        on
+          ? "inline-flex h-6 items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--status-available)_35%,transparent)] bg-[color-mix(in_srgb,var(--status-available)_10%,transparent)] px-2.5 text-xs font-medium text-[var(--status-available)] hover:underline"
+          : "inline-flex h-6 items-center gap-1.5 rounded-full border bg-muted px-2.5 text-xs font-medium text-muted-foreground hover:underline"
+      }
+    >
+      <Icon className="size-3.5" aria-hidden="true" />
+      AI {on ? "on" : "off"}
+    </Link>
+  );
+}
 
 /** Demo-only persona switcher. Real identity comes from TideCloak (CH-01). */
 function ViewerSwitcher() {
@@ -89,6 +112,7 @@ export function AppShell() {
             <Brand />
           </Link>
           <div className="flex flex-wrap items-center gap-3">
+            <AiStatusPill />
             <ViewerSwitcher />
             <AccountControls />
           </div>

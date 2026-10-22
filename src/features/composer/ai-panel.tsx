@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Ban, Hand, RefreshCw, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  Hand,
+  PowerOff,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { JobStatusBadge } from "@/components/chorus/status";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,10 +20,16 @@ import type {
   ProcessingJob,
   Processor,
 } from "@/features/prototype/types";
-import { codePoints } from "./plan-utils";
+import {
+  codePoints,
+  hasAiLineage,
+  originLabel,
+  provenanceSummary,
+} from "./plan-utils";
 
 export function AiPanel({
   collectionId,
+  aiEnabled,
   designer,
   jobs,
   eligibleCount,
@@ -25,6 +38,8 @@ export function AiPanel({
   onManual,
 }: {
   collectionId: string;
+  /** Server-reported runtime availability (CH-22). */
+  aiEnabled: boolean;
   designer?: Processor;
   jobs: ProcessingJob[];
   eligibleCount: number;
@@ -54,6 +69,82 @@ export function AiPanel({
     setMessage(result.ok ? null : result.reason);
   }
 
+  const jobStatus = latest && (
+    <div className="space-y-2 rounded-lg border bg-card p-3" aria-live="polite">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-xs font-medium">
+          {latest.label}
+        </span>
+        <JobStatusBadge status={latest.status} />
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Started {formatWhen(latest.createdAt)}
+      </p>
+      {active && (
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => actions.cancelJob(active.id)}
+        >
+          <Ban aria-hidden="true" />
+          Cancel
+        </Button>
+      )}
+      {latest.status === "failed" && (
+        <div className="space-y-2">
+          <p className="text-xs leading-relaxed">{latest.error}</p>
+          <p className="text-[11px] text-muted-foreground">
+            No content was sent to any other provider.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {aiEnabled && (
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={blocked}
+                onClick={() => run(lastPrompt)}
+              >
+                <RefreshCw aria-hidden="true" />
+                Retry
+              </Button>
+            )}
+            <Button size="xs" variant="ghost" onClick={onManual}>
+              <Hand aria-hidden="true" />
+              Continue manually
+            </Button>
+          </div>
+        </div>
+      )}
+      {latest.status === "cancelled" && latest.error && (
+        <p className="text-xs text-muted-foreground">{latest.error}</p>
+      )}
+    </div>
+  );
+
+  if (!aiEnabled)
+    return (
+      <section aria-labelledby="ai-heading" className="space-y-3">
+        <h3
+          id="ai-heading"
+          className="flex items-center gap-2 text-sm font-semibold"
+        >
+          <PowerOff
+            className="size-4 text-muted-foreground"
+            aria-hidden="true"
+          />
+          AI is off
+        </h3>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          An operator turned AI off for this workspace. Templates and manual
+          editing work exactly the same, and no model is contacted.{" "}
+          <Link to="/processors" className="underline underline-offset-2">
+            AI processors
+          </Link>
+        </p>
+        {jobStatus}
+      </section>
+    );
+
   return (
     <section aria-labelledby="ai-heading" className="space-y-3">
       <h3
@@ -61,7 +152,7 @@ export function AiPanel({
         className="flex items-center gap-2 text-sm font-semibold"
       >
         <Sparkles className="size-4 text-primary" aria-hidden="true" />
-        AI art direction
+        Create with AI
       </h3>
       {offline && (
         <p
@@ -133,58 +224,7 @@ export function AiPanel({
           {message}
         </p>
       )}
-      {latest && (
-        <div
-          className="space-y-2 rounded-lg border bg-card p-3"
-          aria-live="polite"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-xs font-medium">
-              {latest.label}
-            </span>
-            <JobStatusBadge status={latest.status} />
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Started {formatWhen(latest.createdAt)}
-          </p>
-          {active && (
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={() => actions.cancelJob(active.id)}
-            >
-              <Ban aria-hidden="true" />
-              Cancel
-            </Button>
-          )}
-          {latest.status === "failed" && (
-            <div className="space-y-2">
-              <p className="text-xs leading-relaxed">{latest.error}</p>
-              <p className="text-[11px] text-muted-foreground">
-                No content was sent to any other provider.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="xs"
-                  variant="outline"
-                  disabled={blocked}
-                  onClick={() => run(lastPrompt)}
-                >
-                  <RefreshCw aria-hidden="true" />
-                  Retry
-                </Button>
-                <Button size="xs" variant="ghost" onClick={onManual}>
-                  <Hand aria-hidden="true" />
-                  Continue manually
-                </Button>
-              </div>
-            </div>
-          )}
-          {latest.status === "cancelled" && latest.error && (
-            <p className="text-xs text-muted-foreground">{latest.error}</p>
-          )}
-        </div>
-      )}
+      {jobStatus}
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Sends approved derivatives to{" "}
         <strong>{designer?.name ?? "Team designer"}</strong> (
@@ -195,12 +235,6 @@ export function AiPanel({
     </section>
   );
 }
-
-const originLabel: Record<DesignPlan["origin"], string> = {
-  ai: "AI",
-  manual: "Manual",
-  refinement: "Refinement",
-};
 
 export function RevisionList({
   plans,
@@ -244,6 +278,15 @@ export function RevisionList({
                 {plan.tokens.name}
                 {plan.prompt && ` · “${plan.prompt}”`}
               </span>
+              <span className="mt-0.5 block text-muted-foreground">
+                {provenanceSummary(plan)}
+              </span>
+              {hasAiLineage(plan) && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                  <Sparkles className="size-3" aria-hidden="true" />
+                  AI lineage
+                </span>
+              )}
               {plan.invalidatedReason && (
                 <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-[var(--status-excluded)]/30 bg-[var(--status-excluded)]/5 px-2 py-0.5 font-medium text-[var(--status-excluded)]">
                   <Ban className="size-3" aria-hidden="true" />

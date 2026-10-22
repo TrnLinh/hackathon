@@ -125,6 +125,7 @@ const memories: Memory[] = [
         text: "Do you remember thinking a year was a long time?",
         speakerId: "p-priya",
         reviewed: true,
+        source: "ai",
       },
       {
         id: "x-2",
@@ -133,6 +134,7 @@ const memories: Memory[] = [
         text: "It went by in about four phone calls home and one very bad haircut.",
         speakerId: "p-maya",
         reviewed: true,
+        source: "ai",
       },
       {
         id: "x-3",
@@ -141,6 +143,7 @@ const memories: Memory[] = [
         text: "Next summer we do the coast again. Same pier, same terrible chips.",
         speakerId: "p-priya",
         reviewed: false,
+        source: "ai",
       },
     ],
     requestedProcessors: ["transcriber", "designer"],
@@ -430,6 +433,7 @@ const scrapbookPlan: DesignPlan = {
   collectionId: "c-first-year",
   revision: 1,
   origin: "ai",
+  aiLineage: true,
   createdAt: "2026-10-20T16:00:00Z",
   inspiration:
     "Golden-hour photos, a cardboard-box move-in, and a voice note about “same pier, same terrible chips” suggested a warm, handmade scrapbook: sunset oranges, taped corners, film-grain edges, and handwritten-style headings.",
@@ -548,6 +552,7 @@ const editorialPlan: DesignPlan = {
   collectionId: "c-neon",
   revision: 1,
   origin: "ai",
+  aiLineage: true,
   createdAt: "2026-09-04T12:00:00Z",
   inspiration:
     "High-contrast neon photos and a setlist written at 1am suggested a bold editorial treatment: black paper, magenta and cyan accents, oversized condensed headings, and full-bleed images.",
@@ -643,12 +648,21 @@ const editorialPlan: DesignPlan = {
 export function createSeedState(): PrototypeState {
   return {
     viewerId: "p-maya",
+    // AI starts off: the default demo is the template path (FR-32, NFR-11).
+    aiConfig: {
+      enabled: false,
+      revision: 4,
+      changedAt: "2026-10-21T09:00:00Z",
+      changedBy: "p-ops",
+      processorsConfigured: true,
+    },
     permissionRevision: 42,
     people: [
       { id: "p-maya", name: "Maya Chen", hue: 18 },
       { id: "p-leo", name: "Leo Okafor", hue: 205 },
       { id: "p-priya", name: "Priya Raman", hue: 140 },
       { id: "p-sam", name: "Sam Rivera", hue: 280 },
+      { id: "p-ops", name: "Avery Kim (operator)", hue: 40, operator: true },
     ],
     processors: [
       {
@@ -895,6 +909,16 @@ export function createSeedState(): PrototypeState {
         kind: "edition.issued",
         summary: "Issued edition CH-ED-7F3A-01 with 2 of 2 approvals",
         resource: "CH-ED-7F3A-01",
+      },
+      {
+        id: "h-13",
+        collectionId: "*",
+        at: "2026-10-21T09:00:00Z",
+        actorId: "p-ops",
+        kind: "ai.disabled",
+        summary:
+          "Turned AI off (configuration revision 4). Template creation stays available.",
+        resource: "ai-config r4",
       },
     ],
   };

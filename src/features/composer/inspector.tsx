@@ -3,8 +3,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   MousePointerClick,
+  Sparkles,
+  Trash2,
   XCircle,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,13 +26,21 @@ import {
   LIMITS,
   manualEligible,
 } from "@/features/prototype/selectors";
+import { templateById } from "@/features/prototype/templates";
 import type {
   Block,
+  DesignPlan,
   Memory,
   Person,
   StyleTokens,
 } from "@/features/prototype/types";
-import { codePoints, contrastRatio, type ValidationRow } from "./plan-utils";
+import {
+  codePoints,
+  contrastRatio,
+  hasAiLineage,
+  originLabel,
+  type ValidationRow,
+} from "./plan-utils";
 
 const textKinds: Block["kind"][] = [
   "cover",
@@ -66,12 +77,17 @@ export function BlockInspector({
   people,
   collectionId,
   onChange,
+  onRemove,
+  canRemove,
 }: {
   block?: Block;
   memories: Memory[];
   people: Person[];
   collectionId: string;
   onChange: (block: Block) => void;
+  onRemove: () => void;
+  /** A page keeps at least one block. */
+  canRemove: boolean;
 }) {
   if (!block)
     return (
@@ -91,6 +107,17 @@ export function BlockInspector({
   const sourceId = block.memoryIds?.[0];
   const source = memories.find((m) => m.id === sourceId);
   const excerpt = source?.transcript?.find((e) => e.id === block.excerptId);
+  // Reviewed excerpts from voice/video memories approved for this editor,
+  // whether typed by hand while listening or transcribed by AI.
+  const excerptOptions = memories
+    .filter(
+      (m) => manualEligible(m) && (m.kind === "voice" || m.kind === "video"),
+    )
+    .flatMap((m) =>
+      (m.transcript ?? [])
+        .filter((e) => e.reviewed)
+        .map((e) => ({ m, e, key: `${m.id}::${e.id}` })),
+    );
   const limit = limitFor(block.kind);
   const length = codePoints(block.text);
   const edit = (patch: Partial<Block>) =>
@@ -108,6 +135,56 @@ export function BlockInspector({
           </span>
         )}
       </div>
+
+      {block.kind === "quote" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="block-excerpt" className="text-xs">
+            Reviewed excerpt
+          </Label>
+          <Select
+            value={
+              block.excerptId && sourceId
+                ? `${sourceId}::${block.excerptId}`
+                : ""
+            }
+            onValueChange={(key) => {
+              const option = excerptOptions.find((o) => o.key === key);
+              if (!option) return;
+              edit({
+                memoryIds: [option.m.id],
+                excerptId: option.e.id,
+                text: option.e.text,
+                attributionId: option.e.speakerId,
+              });
+            }}
+          >
+            <SelectTrigger id="block-excerpt" className="w-full">
+              <SelectValue
+                placeholder={
+                  excerptOptions.length
+                    ? "Choose an excerpt"
+                    : "No reviewed excerpts yet"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {excerptOptions.map(({ m, e, key }) => (
+                <SelectItem key={key} value={key}>
+                  {m.title} {formatDuration(e.startSec)}–
+                  {formatDuration(e.endSec)} ·{" "}
+                  {e.source === "manual"
+                    ? "Typed by hand"
+                    : "Transcribed by AI"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Excerpts are typed by a contributor while listening, or transcribed
+            by AI when it was allowed. Either way they are reviewed first.
+          </p>
+        </div>
+      )}
 
       {textKinds.includes(block.kind) && (
         <div className="space-y-1.5">
@@ -268,6 +345,12 @@ export function BlockInspector({
                 {formatDuration(excerpt.startSec)}–
                 {formatDuration(excerpt.endSec)}
               </dd>
+              <dt>Origin</dt>
+              <dd className="text-foreground">
+                {excerpt.source === "manual"
+                  ? "Typed by hand"
+                  : "Transcribed by AI"}
+              </dd>
               <dt>Speaker</dt>
               <dd className="text-foreground">
                 {people.find((p) => p.id === excerpt.speakerId)?.name ??
@@ -308,6 +391,72 @@ export function BlockInspector({
             </Link>
           )}
         </div>
+      )}
+
+      <div className="border-t pt-3">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-[var(--status-excluded)]"
+          disabled={!canRemove}
+          onClick={onRemove}
+        >
+          <Trash2 aria-hidden="true" />
+          Remove block
+        </Button>
+        {!canRemove && (
+          <p className="text-[11px] text-muted-foreground">
+            Each page keeps at least one block.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Origin, template, parent revision, and AI lineage for the open plan. */
+export function PlanProvenance({
+  plan,
+  isDraft,
+}: {
+  plan: DesignPlan;
+  isDraft: boolean;
+}) {
+  const template = templateById(plan.templateId);
+  return (
+    <section aria-labelledby="provenance-heading" className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <h3 id="provenance-heading" className="text-sm font-semibold">
+          Provenance
+        </h3>
+        {hasAiLineage(plan) && (
+          <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium">
+            <Sparkles className="size-3" aria-hidden="true" />
+            AI lineage
+          </span>
+        )}
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <dt>Created as</dt>
+        <dd className="text-foreground">{originLabel[plan.origin]}</dd>
+        <dt>Template</dt>
+        <dd className="text-foreground">
+          {template ? `${template.name} v${template.version}` : "None"}
+        </dd>
+        <dt>Revision</dt>
+        <dd className="text-foreground">
+          {isDraft
+            ? `Unsaved, from revision ${plan.revision}`
+            : `${plan.revision}${plan.parentRevision !== undefined ? `, from revision ${plan.parentRevision}` : ""}`}
+        </dd>
+        <dt>Schema</dt>
+        <dd className="text-foreground">{plan.schemaVersion}</dd>
+      </dl>
+      {hasAiLineage(plan) && (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Manual edits keep this AI lineage. Every source that shaped the
+          design, including style-only ones, still needs final approval.
+        </p>
       )}
     </section>
   );

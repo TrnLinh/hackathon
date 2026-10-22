@@ -47,9 +47,9 @@ const journey = [
   },
   {
     icon: PenTool,
-    title: "Design from memories",
+    title: "Design your zine",
     description:
-      "AI proposes a six-page style from approved memories; edit anything.",
+      "Pick a template, or create with AI when it’s on. Edit anything either way.",
   },
   {
     icon: FileDown,
@@ -156,16 +156,20 @@ export function OverviewPage() {
               person’s inbox and decisions.
             </p>
             <p>
-              Turn the designer offline under AI processors to rehearse the
-              manual recovery path. The reset button restores the seed data.
+              AI starts off, so the default path is a template. To try AI,
+              switch to{" "}
+              <strong className="text-foreground">Avery Kim (operator)</strong>{" "}
+              and turn it on under AI processors. Turning it off again, or
+              taking the designer offline, rehearses manual recovery.
             </p>
+            <p>The reset button restores the seed data.</p>
           </CardContent>
         </Card>
         <TrustNote className="h-full">
           This is a UI prototype with synthetic data stored in your browser.
           Consent, Tide-protected release, encryption, AI inference, PDF
           rendering, and receipt signatures are simulated. They are not verified
-          protections until CH-02 through CH-21 integrate the real services.
+          protections until CH-02 through CH-22 integrate the real services.
         </TrustNote>
       </section>
     </div>

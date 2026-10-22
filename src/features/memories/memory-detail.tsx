@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -6,11 +6,17 @@ import {
   Circle,
   Clock3,
   Film,
+  Keyboard,
+  Laptop,
   Lock,
   Mic,
   PenLine,
+  Plus,
+  PowerOff,
   Send,
   ShieldCheck,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
   ArtworkFill,
@@ -26,6 +32,7 @@ import {
 } from "@/components/chorus/status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -190,6 +197,24 @@ function ReviseDialog({
   );
 }
 
+function parseTime(value: string): number | null {
+  const m = /^\s*(\d{1,2}):([0-5]\d)\s*$/.exec(value);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function SourceBadge({ source }: { source: TranscriptExcerpt["source"] }) {
+  return source === "ai" ? (
+    <Badge variant="outline" className="gap-1">
+      <Sparkles aria-hidden="true" /> Transcribed by AI
+    </Badge>
+  ) : (
+    <Badge variant="secondary" className="gap-1">
+      <Keyboard aria-hidden="true" /> Typed by hand
+    </Badge>
+  );
+}
+
 function ExcerptRow({
   memory,
   excerpt,
@@ -205,19 +230,22 @@ function ExcerptRow({
   const id = `excerpt-${excerpt.id}`;
   return (
     <li className="space-y-2 rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="font-mono">
           {formatDuration(excerpt.startSec)}–{formatDuration(excerpt.endSec)}
         </span>
-        {excerpt.reviewed ? (
-          <span className="inline-flex items-center gap-1 text-[var(--status-available)]">
-            <CheckCircle2 className="size-3.5" aria-hidden="true" /> Reviewed
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-[var(--status-awaiting)]">
-            <Circle className="size-3.5" aria-hidden="true" /> Needs review
-          </span>
-        )}
+        <SourceBadge source={excerpt.source} />
+        <span className="ml-auto">
+          {excerpt.reviewed ? (
+            <span className="inline-flex items-center gap-1 text-[var(--status-available)]">
+              <CheckCircle2 className="size-3.5" aria-hidden="true" /> Reviewed
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[var(--status-awaiting)]">
+              <Circle className="size-3.5" aria-hidden="true" /> Needs review
+            </span>
+          )}
+        </span>
       </div>
       <Label htmlFor={id} className="sr-only">
         Excerpt at {formatDuration(excerpt.startSec)}
@@ -265,22 +293,189 @@ function ExcerptRow({
           </SelectContent>
         </Select>
         {editable && (
-          <Button
-            size="sm"
-            variant={excerpt.reviewed ? "ghost" : "secondary"}
-            className="ml-auto"
-            aria-pressed={excerpt.reviewed}
-            onClick={() =>
-              actions.updateExcerpt(memory.id, excerpt.id, {
-                reviewed: !excerpt.reviewed,
-              })
-            }
-          >
-            {excerpt.reviewed ? "Mark as needing review" : "Mark reviewed"}
-          </Button>
+          <div className="ml-auto flex gap-1">
+            <Button
+              size="sm"
+              variant={excerpt.reviewed ? "ghost" : "secondary"}
+              aria-pressed={excerpt.reviewed}
+              onClick={() =>
+                actions.updateExcerpt(memory.id, excerpt.id, {
+                  reviewed: !excerpt.reviewed,
+                })
+              }
+            >
+              {excerpt.reviewed ? "Mark as needing review" : "Mark reviewed"}
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Remove excerpt at ${formatDuration(excerpt.startSec)}`}
+              onClick={() => actions.removeExcerpt(memory.id, excerpt.id)}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </div>
         )}
       </div>
     </li>
+  );
+}
+
+/** Typed while listening or watching locally. No transcription service. */
+function ManualExcerptForm({
+  memory,
+  state,
+}: {
+  memory: Memory;
+  state: PrototypeState;
+}) {
+  const duration = memory.media?.durationSec;
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [speakerId, setSpeakerId] = useState(state.viewerId);
+  const [text, setText] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [tried, setTried] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const startSec = parseTime(start);
+  const endSec = parseTime(end);
+  const errors: string[] = [];
+  if (startSec === null) errors.push("Enter the start time as m:ss.");
+  if (endSec === null) errors.push("Enter the end time as m:ss.");
+  if (startSec !== null && endSec !== null && endSec <= startSec)
+    errors.push("The end time must be after the start time.");
+  if (
+    duration !== undefined &&
+    ((startSec ?? 0) > duration || (endSec ?? 0) > duration)
+  )
+    errors.push(
+      `Times must be within the recording (${formatDuration(duration)}).`,
+    );
+  if (!memory.peopleIds.includes(speakerId))
+    errors.push("Choose a speaker declared in this memory.");
+  if (!text.trim()) errors.push("Type what was said.");
+  if (codePoints(text) > LIMITS.captionChars)
+    errors.push(`Keep an excerpt under ${LIMITS.captionChars} characters.`);
+  if (!confirmed) errors.push("Confirm the wording and attribution.");
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    setTried(true);
+    setSaved(false);
+    if (errors.length || startSec === null || endSec === null) return;
+    actions.addManualExcerpt(memory.id, {
+      startSec,
+      endSec,
+      speakerId,
+      text: text.trim(),
+    });
+    setStart("");
+    setEnd("");
+    setText("");
+    setConfirmed(false);
+    setTried(false);
+    setSaved(true);
+  }
+
+  const fid = `manual-excerpt-${memory.id}`;
+  return (
+    <form
+      onSubmit={submit}
+      noValidate
+      aria-labelledby={`${fid}-heading`}
+      className="space-y-3 rounded-lg border bg-card p-4"
+    >
+      <div>
+        <h4 id={`${fid}-heading`} className="text-sm font-semibold">
+          Type an excerpt
+        </h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Listen or watch on this device and type the words yourself. Nothing is
+          sent to a model.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${fid}-start`}>Start</Label>
+          <Input
+            id={`${fid}-start`}
+            inputMode="numeric"
+            placeholder="0:03"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            aria-invalid={tried && startSec === null}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${fid}-end`}>End</Label>
+          <Input
+            id={`${fid}-end`}
+            inputMode="numeric"
+            placeholder="0:11"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            aria-invalid={tried && endSec === null}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${fid}-speaker`}>Speaker</Label>
+          <Select value={speakerId} onValueChange={setSpeakerId}>
+            <SelectTrigger id={`${fid}-speaker`} className="w-full">
+              <SelectValue placeholder="Choose a speaker" />
+            </SelectTrigger>
+            <SelectContent>
+              {memory.peopleIds.map((pid) => (
+                <SelectItem key={pid} value={pid}>
+                  {personById(state, pid).name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${fid}-text`}>What was said</Label>
+        <Textarea
+          id={`${fid}-text`}
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </div>
+      <label
+        htmlFor={`${fid}-confirm`}
+        className="flex items-start gap-2 text-sm"
+      >
+        <Checkbox
+          id={`${fid}-confirm`}
+          checked={confirmed}
+          onCheckedChange={(v) => setConfirmed(v === true)}
+          className="mt-0.5"
+        />
+        I confirm this wording and attribution
+      </label>
+      {tried && errors.length > 0 && (
+        <ul
+          role="alert"
+          className="list-disc space-y-0.5 pl-4 text-xs text-destructive"
+        >
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" size="sm">
+          <Plus aria-hidden="true" /> Add excerpt
+        </Button>
+        {saved && (
+          <span role="status" className="text-xs text-muted-foreground">
+            Excerpt added and marked reviewed.
+          </span>
+        )}
+      </div>
+    </form>
   );
 }
 
@@ -292,20 +487,42 @@ function Derivatives({
   state: PrototypeState;
 }) {
   const approvers = approverIds(memory);
-  const editable = approvers.includes(state.viewerId);
+  const isUploader = memory.uploaderId === state.viewerId;
+  // Uploader always; declared people once the memory is approved for manual use.
+  const editable =
+    isUploader ||
+    (approvers.includes(state.viewerId) && manualEligible(memory));
   const transcriberApproved =
     memory.requestedProcessors.includes("transcriber") &&
     approvers.every(
       (id) => memory.decisions[id]?.processors.transcriber === "approved",
     );
-  const hasTranscript = memory.transcript !== undefined;
+  const aiOn = state.aiConfig.enabled;
+  const hasAudio = memory.kind === "voice" || memory.kind === "video";
   const hasStills = !!memory.stills?.length;
-  if (!hasTranscript && !hasStills) return null;
-  const transcriptChars = (memory.transcript ?? []).reduce(
+  if (!hasAudio && !hasStills) return null;
+  const transcript = memory.transcript ?? [];
+  const transcriptChars = transcript.reduce(
     (n, e) => n + codePoints(e.text),
     0,
   );
   const selectedStills = (memory.stills ?? []).filter((s) => s.selected).length;
+
+  const aiStatus = !aiOn
+    ? {
+        icon: PowerOff,
+        title: "Automatic transcription is off",
+        body: "Type excerpts while listening; no model is used.",
+      }
+    : !transcriberApproved
+      ? {
+          icon: Clock3,
+          title: "Automatic transcription waits for permission",
+          body: memory.requestedProcessors.includes("transcriber")
+            ? "No audio is sent to the transcriber until everyone in this memory approves it. You can still type excerpts by hand."
+            : "Transcription wasn’t requested for this version. Type excerpts by hand, or revise the memory to ask for it.",
+        }
+      : null;
 
   return (
     <section aria-labelledby="derivatives-heading" className="space-y-5">
@@ -314,66 +531,67 @@ function Derivatives({
           id="derivatives-heading"
           className="text-lg font-semibold tracking-tight"
         >
-          AI inputs from this memory
+          Quotes and stills from this memory
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Bounded, reviewable derivatives. They inherit this memory’s
-          permissions and are discarded if anyone withdraws.
+          Bounded, reviewable pieces for the photozine. They inherit this
+          memory’s permissions and are discarded if anyone withdraws.
         </p>
       </div>
 
-      {hasTranscript && (
+      {hasAudio && (
         <div className="space-y-3">
           <h3 className="inline-flex items-center gap-2 text-sm font-semibold">
-            <Mic className="size-4" aria-hidden="true" /> Transcript excerpts
+            <Mic className="size-4" aria-hidden="true" /> Excerpts
           </h3>
-          {!transcriberApproved ? (
-            <div className="flex gap-3 rounded-lg border border-dashed p-4 text-sm">
-              <Clock3
-                className="mt-0.5 size-4 shrink-0 text-[var(--status-awaiting)]"
+          {aiStatus && (
+            <div className="flex gap-3 rounded-lg border border-dashed p-3 text-sm">
+              <aiStatus.icon
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                 aria-hidden="true"
               />
               <div>
-                <p className="font-medium">
-                  Transcription waits for permission
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {memory.requestedProcessors.includes("transcriber")
-                    ? "No audio is sent to the transcriber until everyone in this memory approves it. Reviewing the source doesn’t trigger transcription."
-                    : "Transcription wasn’t requested for this version. Revise the memory to ask for it."}
+                <p className="font-medium">{aiStatus.title}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {aiStatus.body}
                 </p>
               </div>
             </div>
-          ) : (memory.transcript ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Transcription is queued.
-            </p>
-          ) : (
-            <>
-              <BudgetMeter
-                label="Transcript length"
-                used={transcriptChars}
-                limit={LIMITS.transcriptChars}
-              />
-              <ul className="space-y-2">
-                {memory.transcript!.map((ex) => (
-                  <ExcerptRow
-                    key={`${ex.id}-${ex.text}`}
-                    memory={memory}
-                    excerpt={ex}
-                    state={state}
-                    editable={editable}
-                  />
-                ))}
-              </ul>
-              <TrustNote>
-                Speakers come from the uploader’s declarations. Chorus doesn’t
-                identify voices automatically. Fixing a transcription error is
-                fine. If a correction changes what someone meant, publish a new
-                source version so everyone can review it again.
-              </TrustNote>
-            </>
           )}
+          <BudgetMeter
+            label="Excerpt length for this recording"
+            used={transcriptChars}
+            limit={LIMITS.transcriptChars}
+          />
+          {transcript.length > 0 ? (
+            <ul className="space-y-2">
+              {transcript.map((ex) => (
+                <ExcerptRow
+                  key={`${ex.id}-${ex.text}`}
+                  memory={memory}
+                  excerpt={ex}
+                  state={state}
+                  editable={editable}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No excerpts yet.</p>
+          )}
+          {editable ? (
+            <ManualExcerptForm memory={memory} state={state} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              The uploader and the people in this memory can add excerpts once
+              it’s approved for manual use.
+            </p>
+          )}
+          <TrustNote>
+            Speakers come from the uploader’s declarations. Chorus doesn’t
+            identify voices automatically. Fixing a typo is fine. If a
+            correction changes what someone meant, publish a new source version
+            so everyone can review it again.
+          </TrustNote>
         </div>
       )}
 
@@ -388,6 +606,10 @@ function Derivatives({
               {LIMITS.framesPerVideo} per clip
             </span>
           </div>
+          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Laptop className="size-3.5" aria-hidden="true" />
+            Selected locally on this device — no AI.
+          </p>
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {memory.stills!.slice(0, LIMITS.framesPerVideo).map((still) => (
               <li key={still.id}>
@@ -418,9 +640,10 @@ function Derivatives({
             ))}
           </ul>
           <TrustNote>
-            Stills are sampled on your device. The full raw video is never sent
-            to AI. Only the selected stills, resized to {1280} px, go to the
-            visual analyst after approval.
+            Stills are extracted on your device and can be placed in a template
+            without any AI. The full raw video is never sent to AI. If AI is on
+            and approved, only the selected stills, resized to 1280 px, go to
+            the visual analyst.
           </TrustNote>
         </div>
       )}

@@ -4,14 +4,12 @@ import {
   manualEligible,
   planInfluenceIds,
 } from "@/features/prototype/selectors";
-import { stylePresets } from "@/features/prototype/store";
+import { templateById } from "@/features/prototype/templates";
 import type {
   Block,
   BlockKind,
   DesignPlan,
   Memory,
-  Page,
-  PrototypeState,
 } from "@/features/prototype/types";
 
 // Local CH-20 checks for the prototype composer. The real validator must run
@@ -57,6 +55,44 @@ export function contrastRatio(a: string, b: string) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+export const originLabel: Record<DesignPlan["origin"], string> = {
+  template: "Template",
+  ai: "AI",
+  refinement: "Refinement",
+  manual: "Manual",
+};
+
+/** True when AI produced this plan or an ancestor it was edited from. */
+export function hasAiLineage(plan: DesignPlan) {
+  return Boolean(
+    plan.aiLineage || plan.origin === "ai" || plan.origin === "refinement",
+  );
+}
+
+/** Short provenance line: origin, template and version, parent revision. */
+export function provenanceSummary(plan: DesignPlan) {
+  const template = templateById(plan.templateId);
+  return [
+    originLabel[plan.origin],
+    template && `${template.name} v${template.version}`,
+    plan.parentRevision !== undefined && `from revision ${plan.parentRevision}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+const textSlotKinds: BlockKind[] = ["heading", "note", "caption", "quote"];
+
+/** Unfilled template slot: a photo slot without a source, or blank text. */
+export function isEmptyBlock(block: Block) {
+  if (block.kind === "cover" || block.kind === "image")
+    return !block.memoryIds?.length;
+  if (block.kind === "grid" || block.kind === "collage")
+    return !block.memoryIds?.length;
+  if (textSlotKinds.includes(block.kind)) return !block.text?.trim();
+  return false;
+}
+
 export type ValidationRow = {
   id: string;
   label: string;
@@ -77,7 +113,8 @@ export function validatePlan(
     const m = byId.get(id);
     return !m || !manualEligible(m);
   });
-  const isAi = plan.origin === "ai" || plan.origin === "refinement";
+  const isAi = hasAiLineage(plan);
+  const emptySlots = blocks.filter(isEmptyBlock);
   const aiViolations = isAi
     ? blocks
         .filter((b) => !b.edited)
@@ -131,10 +168,21 @@ export function validatePlan(
       label: "AI used only AI-approved sources",
       ok: aiViolations.length === 0,
       detail: !isAi
-        ? "Manual revision: no AI processing involved"
+        ? plan.origin === "template"
+          ? "Template plan: no AI processing involved"
+          : "Manual revision: no AI processing involved"
         : aiViolations.length === 0
           ? "Manual-only memories appear only where you placed them"
           : `${aiViolations.length} reference(s) lack AI permission`,
+    },
+    {
+      id: "slots",
+      label: "Every slot is filled",
+      ok: emptySlots.length === 0,
+      detail:
+        emptySlots.length === 0
+          ? "No empty photo or text slots"
+          : `${emptySlots.length} empty slot(s): fill or remove them before saving or freezing`,
     },
     {
       id: "length",
@@ -233,125 +281,4 @@ export function usageOf(plan: DesignPlan | undefined, memoryId: string): Usage {
     return "visible";
   if (plan.styleOnlyIds.includes(memoryId)) return "style-only";
   return "unused";
-}
-
-/**
- * Simple manual fallback layout from manually eligible memories. Needs no AI
- * processor; text is copied verbatim with its original attribution.
- */
-export function buildManualPlan(
-  state: PrototypeState,
-  collectionId: string,
-): DesignPlan {
-  const collection = state.collections.find((c) => c.id === collectionId);
-  const eligible = state.memories.filter(
-    (m) => m.collectionId === collectionId && manualEligible(m),
-  );
-  const visuals = eligible.filter(
-    (m) => m.art && (m.kind === "photo" || m.kind === "video"),
-  );
-  const texts = eligible.filter((m) => m.kind === "text");
-  const quotes = eligible.flatMap((m) =>
-    (m.transcript ?? []).filter((e) => e.reviewed).map((e) => ({ m, e })),
-  );
-  let n = 0;
-  const id = () => `man-${Date.now().toString(36)}-${++n}`;
-  const captionFor = (m: Memory): Block => ({
-    id: id(),
-    kind: "caption",
-    memoryIds: [m.id],
-    text: m.caption,
-    attributionId: m.uploaderId,
-  });
-  const pages: Page[] = [
-    {
-      role: "cover",
-      layout: "full",
-      blocks: [
-        {
-          id: id(),
-          kind: "cover",
-          memoryIds: visuals[0] ? [visuals[0].id] : [],
-          text: collection?.title ?? "Untitled",
-        },
-      ],
-    },
-    {
-      role: "opening",
-      layout: "stack",
-      blocks: [
-        { id: id(), kind: "heading", text: collection?.occasion ?? "" },
-        ...(texts[0]
-          ? [
-              {
-                id: id(),
-                kind: "note" as const,
-                memoryIds: [texts[0].id],
-                text: texts[0].story,
-                attributionId: texts[0].uploaderId,
-              },
-            ]
-          : []),
-      ],
-    },
-    {
-      role: "photos",
-      layout: "split",
-      blocks: visuals
-        .slice(0, 2)
-        .flatMap((m) => [
-          { id: id(), kind: "image" as const, memoryIds: [m.id] },
-          captionFor(m),
-        ]),
-    },
-    {
-      role: "perspectives",
-      layout: "stack",
-      blocks: quotes.length
-        ? quotes.slice(0, 3).map(({ m, e }) => ({
-            id: id(),
-            kind: "quote" as const,
-            memoryIds: [m.id],
-            excerptId: e.id,
-            text: e.text,
-            attributionId: e.speakerId,
-          }))
-        : texts.slice(1, 3).map((m) => ({
-            id: id(),
-            kind: "note" as const,
-            memoryIds: [m.id],
-            text: m.story,
-            attributionId: m.uploaderId,
-          })),
-    },
-    {
-      role: "more",
-      layout: "grid",
-      blocks: [
-        {
-          id: id(),
-          kind: "grid",
-          memoryIds: visuals.slice(2, 6).map((m) => m.id),
-        },
-      ],
-    },
-    {
-      role: "closing",
-      layout: "stack",
-      blocks: [{ id: id(), kind: "heading", text: "Until next time" }],
-    },
-  ];
-  return {
-    id: `draft-manual-${collectionId}`,
-    collectionId,
-    revision: 0,
-    origin: "manual",
-    createdAt: new Date().toISOString(),
-    inspiration:
-      "Manual layout: memories placed in upload order with their original captions. No AI processor was contacted.",
-    styleOnlyIds: [],
-    schemaVersion: "design-plan/0.1",
-    tokens: { ...stylePresets.film, name: "Simple manual" },
-    pages,
-  };
 }

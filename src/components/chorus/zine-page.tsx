@@ -38,6 +38,8 @@ type Ctx = {
   tokens: StyleTokens;
   memories: Memory[];
   people: Person[];
+  /** Editing shows placeholders for unfilled template slots. */
+  editing: boolean;
 };
 
 function artFor(
@@ -73,23 +75,34 @@ function attribution(ctx: Ctx, block: Block) {
   );
 }
 
-function MissingAsset() {
+function MissingAsset({ empty }: { empty?: boolean }) {
   return (
     <div
       className="grid size-full place-items-center border border-dashed text-center opacity-60"
       style={{ fontSize: "2.4cqw" }}
     >
-      Source not available
+      {empty ? "Choose a photo" : "Source not available"}
     </div>
+  );
+}
+
+/** Shown for unfilled template slots so an empty draft is still editable. */
+function Placeholder({ label }: { label: string }) {
+  return (
+    <span className="block rounded-sm border border-dashed px-[2cqw] py-[1cqw] opacity-50">
+      {label}
+    </span>
   );
 }
 
 function Img({
   art,
+  empty,
   className,
   style,
 }: {
   art?: Artwork;
+  empty?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -98,7 +111,7 @@ function Img({
       {art ? (
         <ArtworkFill art={art} className="absolute inset-0" showScene={false} />
       ) : (
-        <MissingAsset />
+        <MissingAsset empty={empty} />
       )}
     </div>
   );
@@ -129,6 +142,19 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
     letterSpacing: ctx.tokens.headingFont === "grotesk" ? "-0.02em" : undefined,
     fontWeight: ctx.tokens.headingFont === "grotesk" ? 800 : 600,
   };
+  const placeholders: Partial<Record<Block["kind"], string>> = {
+    heading: "Add a heading",
+    note: "Add a note",
+    caption: "Add a caption",
+    quote: "Add a quote",
+  };
+  const label = placeholders[block.kind];
+  if (label && !block.text?.trim())
+    return ctx.editing ? (
+      <span style={{ fontSize: "3cqw" }}>
+        <Placeholder label={label} />
+      </span>
+    ) : null;
   switch (block.kind) {
     case "cover": {
       const art = block.memoryIds?.[0]
@@ -136,7 +162,11 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
         : undefined;
       return (
         <div className="relative size-full">
-          <Img art={art} className="absolute inset-[6%] bottom-[28%]" />
+          <Img
+            art={art}
+            empty={!block.memoryIds?.length}
+            className="absolute inset-[6%] bottom-[28%]"
+          />
           <Tape ctx={ctx} className="top-[4%] left-[10%]" />
           <h2
             className="absolute right-[6%] bottom-[7%] left-[6%] leading-[0.95]"
@@ -206,6 +236,7 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
           <Tape ctx={ctx} className="-top-[1.5cqw] left-[35%]" />
           <Img
             art={art}
+            empty={!block.memoryIds?.length}
             className="aspect-[4/3] w-full"
             style={{
               boxShadow:
@@ -274,7 +305,7 @@ export function ZinePage({
   className?: string;
   overlay?: ReactNode;
 }) {
-  const ctx: Ctx = { tokens, memories, people };
+  const ctx: Ctx = { tokens, memories, people, editing: !!onSelectBlock };
   const isCover = page.role === "cover";
   return (
     <figure

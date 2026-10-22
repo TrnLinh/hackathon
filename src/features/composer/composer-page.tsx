@@ -6,13 +6,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Hand,
+  LayoutTemplate,
   Lightbulb,
   Save,
-  Sparkles,
   Undo2,
 } from "lucide-react";
 import { MemoryThumb } from "@/components/chorus/memory-thumb";
-import { EmptyState, TrustNote } from "@/components/chorus/page-header";
+import { TrustNote } from "@/components/chorus/page-header";
 import { pageRoleLabel, ZinePage } from "@/components/chorus/zine-page";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,8 +35,14 @@ import type {
   StyleTokens,
 } from "@/features/prototype/types";
 import { AiPanel, RevisionList } from "./ai-panel";
-import { BlockInspector, StyleControls, ValidationList } from "./inspector";
-import { buildManualPlan, computeBudget, validatePlan } from "./plan-utils";
+import {
+  BlockInspector,
+  PlanProvenance,
+  StyleControls,
+  ValidationList,
+} from "./inspector";
+import { ModeChooser } from "./mode-chooser";
+import { computeBudget, hasAiLineage, validatePlan } from "./plan-utils";
 import { BudgetPanel, SourcesPanel } from "./sources-panel";
 
 // CH-09 composer over the CH-20 plan contract. Edits stay in a local working
@@ -269,6 +275,8 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [selectedBlockId, setSelectedBlockId] = useState<string>();
   const [savedRevision, setSavedRevision] = useState<number | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const [aiMessage, setAiMessage] = useState<string | null>(null);
 
   const collection = state.collections.find((c) => c.id === collectionId);
   const memories = useMemo(
@@ -281,6 +289,7 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
   const plans = state.plans.filter((p) => p.collectionId === collectionId);
   const jobs = state.jobs.filter((j) => j.collectionId === collectionId);
   const designer = state.processors.find((p) => p.id === "designer");
+  const aiEnabled = state.aiConfig.enabled;
   const eligible = memories.filter(aiEligible);
   const budget = computeBudget(eligible);
 
@@ -295,8 +304,12 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
     : undefined;
   const validation = plan ? validatePlan(plan, memories) : [];
   const allPass = validation.every((r) => r.ok);
-  const selectedBlock = plan?.pages[pageIndex]?.blocks.find(
+  const currentPage = plan?.pages[pageIndex];
+  const selectedBlock = currentPage?.blocks.find(
     (b) => b.id === selectedBlockId,
+  );
+  const activeJob = jobs.some(
+    (j) => j.status === "running" || j.status === "queued",
   );
 
   function setDraft(next: Draft | null) {
@@ -325,6 +338,17 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
     });
   }
 
+  function removeBlock() {
+    if (!selectedBlockId) return;
+    mutate((p) => {
+      const page = p.pages[pageIndex];
+      if (page.blocks.length > 1)
+        page.blocks = page.blocks.filter((b) => b.id !== selectedBlockId);
+      return p;
+    });
+    setSelectedBlockId(undefined);
+  }
+
   function updateTokens(tokens: StyleTokens) {
     mutate((p) => ({ ...p, tokens }));
   }
@@ -337,20 +361,53 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
     setSavedRevision(null);
   }
 
-  function startManual() {
+  function openChooser() {
     if (!confirmDiscard()) return;
-    setDraft({
-      baseId: null,
-      plan: buildManualPlan(getPrototypeState(), collectionId),
-    });
+    setDraft(null);
+    setChoosing(true);
+    setAiMessage(null);
+  }
+
+  function startTemplate(templateId: string, empty: boolean) {
+    const id = actions.startTemplate(collectionId, templateId, { empty });
+    setDraft(null);
+    setSelectedPlanId(id);
+    setChoosing(false);
     setPageIndex(0);
     setSelectedBlockId(undefined);
     setSavedRevision(null);
   }
 
+  function startAi() {
+    const result = actions.generateDesign(collectionId);
+    if (!result.ok) {
+      setAiMessage(result.reason);
+      return;
+    }
+    setAiMessage(null);
+    setChoosing(false);
+    setSelectedPlanId(null);
+  }
+
+  /**
+   * Opens the last accepted design for hand editing. Assets, accepted text, and
+   * AI/style-source lineage are kept; nothing is reset to a template.
+   */
+  function continueManually() {
+    const accepted = basePlan ?? defaultPlan;
+    if (!accepted) {
+      setChoosing(true);
+      return;
+    }
+    if (!draft)
+      setDraft({ baseId: accepted.id, plan: structuredClone(accepted) });
+    setChoosing(false);
+    setSavedRevision(null);
+  }
+
   function save() {
     if (!draft || !allPass) return;
-    const id = actions.savePlanRevision(draft.plan, "manual");
+    const id = actions.savePlanRevision(draft.plan);
     const saved = getPrototypeState().plans.find((p) => p.id === id);
     setDraft(null);
     setSelectedPlanId(null);
@@ -371,21 +428,24 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
   const aiPanel = (
     <AiPanel
       collectionId={collectionId}
+      aiEnabled={aiEnabled}
       designer={designer}
       jobs={jobs}
       eligibleCount={eligible.length}
       overBudget={budget.over.length > 0}
       hasPlan={plans.length > 0}
-      onManual={startManual}
+      onManual={continueManually}
     />
   );
 
   const leftRail = (
     <div className="space-y-5">
       <Card>{aiPanel}</Card>
-      <Card>
-        <BudgetPanel budget={budget} />
-      </Card>
+      {aiEnabled && (
+        <Card>
+          <BudgetPanel budget={budget} />
+        </Card>
+      )}
       {plans.length > 0 && (
         <Card>
           <RevisionList
@@ -417,7 +477,7 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
               ·{" "}
               {draftBase
                 ? `based on revision ${draftBase.revision}`
-                : "new manual layout"}
+                : "new design"}
             </span>
           </>
         ) : (
@@ -443,16 +503,29 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
             </Button>
           </>
         )}
-        <Button size="sm" variant="outline" onClick={startManual}>
-          <Hand aria-hidden="true" />
-          Start manual layout
+        {!draft && hasAiLineage(plan) && (
+          <Button size="sm" variant="outline" onClick={continueManually}>
+            <Hand aria-hidden="true" />
+            Continue manually
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={openChooser}>
+          <LayoutTemplate aria-hidden="true" />
+          New design
         </Button>
       </div>
+      {!draft && hasAiLineage(plan) && (
+        <p className="w-full text-xs leading-relaxed text-muted-foreground">
+          Continue manually keeps this accepted design, its assets and text, and
+          its full AI and style-source lineage. Style-only sources still need
+          final approval. It works whether or not AI is on.
+        </p>
+      )}
       {draft && !allPass && (
         <p className="w-full text-xs text-[var(--status-excluded)]">
           Fix the failing plan checks before saving.
           {plan.invalidatedReason &&
-            " This design depends on a source that changed or was withdrawn: generate a new design or start a manual layout."}
+            " This design depends on a source that changed or was withdrawn: start a new design from a template, or generate again if AI is on."}
         </p>
       )}
     </div>
@@ -479,46 +552,53 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
     </div>
   );
 
-  const center = plan ? (
-    <div className="space-y-5">
-      {toolbar}
-      {freezeCallout}
-      <PagePreview
-        plan={plan}
+  const chooser = (
+    <div className="space-y-3">
+      <ModeChooser
+        state={state}
+        collectionId={collectionId}
         memories={memories}
         people={people}
-        pageIndex={Math.min(pageIndex, plan.pages.length - 1)}
-        onPage={goToPage}
-        selectedBlockId={selectedBlockId}
-        onSelectBlock={setSelectedBlockId}
+        aiEnabled={aiEnabled}
+        aiEligibleCount={eligible.length}
+        aiBlockedReason={
+          activeJob
+            ? "An AI job is already running for this collection."
+            : budget.over.length
+              ? `Over the AI budget (${budget.over.join(", ")}). Reduce the selection first.`
+              : undefined
+        }
+        onTemplate={startTemplate}
+        onAi={startAi}
+        onBack={plan ? () => setChoosing(false) : undefined}
       />
-      <InspirationCard plan={plan} memories={memories} />
+      {aiMessage && (
+        <p role="alert" className="text-xs text-[var(--status-excluded)]">
+          {aiMessage}
+        </p>
+      )}
     </div>
-  ) : (
-    <EmptyState
-      icon={<Sparkles className="size-5" aria-hidden="true" />}
-      title="No design yet"
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button
-            disabled={eligible.length === 0 || budget.over.length > 0}
-            onClick={() => actions.generateDesign(collectionId)}
-          >
-            <Sparkles aria-hidden="true" />
-            Generate from my memories
-          </Button>
-          <Button variant="outline" onClick={startManual}>
-            <Hand aria-hidden="true" />
-            Start manual layout
-          </Button>
-        </div>
-      }
-    >
-      AI can propose a six-page design from the memories everyone approved for
-      processing. You can also lay out the pages yourself without any AI
-      service.
-    </EmptyState>
   );
+
+  const center =
+    plan && !choosing ? (
+      <div className="space-y-5">
+        {toolbar}
+        {freezeCallout}
+        <PagePreview
+          plan={plan}
+          memories={memories}
+          people={people}
+          pageIndex={Math.min(pageIndex, plan.pages.length - 1)}
+          onPage={goToPage}
+          selectedBlockId={selectedBlockId}
+          onSelectBlock={setSelectedBlockId}
+        />
+        <InspirationCard plan={plan} memories={memories} />
+      </div>
+    ) : (
+      chooser
+    );
 
   const inspector = plan && (
     <Card>
@@ -528,7 +608,15 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
         people={people}
         collectionId={collectionId}
         onChange={updateBlock}
+        onRemove={removeBlock}
+        canRemove={(currentPage?.blocks.length ?? 0) > 1}
       />
+    </Card>
+  );
+
+  const provenance = plan && (
+    <Card>
+      <PlanProvenance plan={plan} isDraft={Boolean(draft)} />
     </Card>
   );
 
@@ -551,9 +639,10 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
         page.
       </TrustNote>
       <TrustNote>
-        Declined, withdrawn, or pending memories never appear in or influence
-        the design. Manual layout is a recovery path when AI is declined or
-        offline; it does not replace the required AI design.
+        Templates are a complete path on their own and never contact a model. AI
+        is optional for each design and can be turned off by an operator without
+        affecting templates, accepted designs, or approvals. Declined,
+        withdrawn, or pending memories never appear in or influence the design.
       </TrustNote>
       <TrustNote>
         Prototype: designs are simulated in this browser and no processor is
@@ -575,6 +664,7 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
         </section>
         <aside aria-label="Inspector and style" className="min-w-0 space-y-5">
           {inspector}
+          {provenance}
           {styleAndChecks}
           {trustNotes}
         </aside>
@@ -591,6 +681,7 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
       <TabsContent value="pages" className="space-y-5 pt-2">
         {center}
         {inspector}
+        {provenance}
       </TabsContent>
       <TabsContent value="sources" className="pt-2">
         {leftRail}
@@ -598,7 +689,7 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
       <TabsContent value="style" className="space-y-5 pt-2">
         {styleAndChecks ?? (
           <p className="text-sm text-muted-foreground">
-            Generate or start a layout to adjust its style.
+            Start a design from a template to adjust its style.
           </p>
         )}
         {trustNotes}
