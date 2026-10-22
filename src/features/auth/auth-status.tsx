@@ -1,6 +1,8 @@
 "use client";
 
-import { useConvexAuth, useQuery } from "convex/react";
+import { useState } from "react";
+import { ConvexHttpClient } from "convex/browser";
+import { useConvex, useConvexAuth, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useAuthConfiguration } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,46 @@ export function AccountControls() {
   return configured ? <SessionControls /> : null;
 }
 
+function RenewalCheck() {
+  const session = useTideSession();
+  const backend = useConvex();
+  const [checking, setChecking] = useState(false);
+  const [verified, setVerified] = useState(false);
+
+  async function check() {
+    setChecking(true);
+    setVerified(false);
+    try {
+      setVerified(
+        await session.verifyRenewal(async (token) => {
+          const client = new ConvexHttpClient(backend.url, { logger: false });
+          client.setAuth(token);
+          try {
+            return await client.query(api.identity.current, {});
+          } finally {
+            client.clearAuth();
+          }
+        }),
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button size="sm" variant="outline" disabled={checking} onClick={check}>
+        {checking ? "Checking renewal…" : "Verify session renewal"}
+      </Button>
+      {verified && (
+        <p role="status">
+          Session renewed; Convex confirmed the same identity.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function VerifiedIdentity() {
   const session = useTideSession();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -60,16 +102,19 @@ function VerifiedIdentity() {
       <SessionControls />
       {session.message && <p role="alert">{session.message}</p>}
       {signedIn && identity ? (
-        <dl className="space-y-2 break-all">
-          <div>
-            <dt className="text-muted-foreground">Verified subject</dt>
-            <dd>{identity.subject}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Issuer</dt>
-            <dd>{identity.issuer}</dd>
-          </div>
-        </dl>
+        <>
+          <dl className="space-y-2 break-all">
+            <div>
+              <dt className="text-muted-foreground">Verified subject</dt>
+              <dd>{identity.subject}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Issuer</dt>
+              <dd>{identity.issuer}</dd>
+            </div>
+          </dl>
+          {process.env.NODE_ENV !== "production" && <RenewalCheck />}
+        </>
       ) : session.phase === "authenticated" && !isLoading ? (
         <p role="alert">
           The backend has not accepted your session. Check its TideCloak issuer

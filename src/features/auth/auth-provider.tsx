@@ -53,7 +53,12 @@ export function useTideSession() {
     session.getSnapshot,
     session.getSnapshot,
   );
-  return { ...state, login: session.login, logout: session.logout };
+  return {
+    ...state,
+    login: session.login,
+    logout: session.logout,
+    verifyRenewal: session.verifyRenewal,
+  };
 }
 
 export default function AuthProvider({

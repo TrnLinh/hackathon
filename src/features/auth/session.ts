@@ -161,6 +161,32 @@ export class TideSession {
     }
   };
 
+  verifyRenewal = async (
+    verify: (token: string) => Promise<{ subject: string; issuer: string }>,
+  ): Promise<boolean> => {
+    if (this.snapshot.phase !== "authenticated") return false;
+    const subject = this.snapshot.subject;
+    const generation = this.generation;
+    const token = await this.fetchAccessToken({ forceRefreshToken: true });
+    if (!token || generation !== this.generation) return false;
+    try {
+      const identity = await verify(token);
+      if (generation !== this.generation) return false;
+      if (
+        identity.subject !== subject ||
+        identity.issuer !== this.config.issuer
+      )
+        throw new Error("Renewed identity mismatch");
+      return true;
+    } catch {
+      if (generation === this.generation)
+        this.invalidate(
+          "Session renewal could not be verified. Sign in again.",
+        );
+      return false;
+    }
+  };
+
   login = async () => {
     this.invalidate();
     this.blocked = false;

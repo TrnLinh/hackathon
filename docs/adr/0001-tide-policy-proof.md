@@ -8,7 +8,17 @@ Issue: [CH-02 #3](https://github.com/TrnLinh/hackathon/issues/3). Parent impleme
 
 Use the existing browser TideCloak instance for policy-governed operations. Do not introduce a server decryption key, an application signer, or a database approval flag that substitutes for contributor signatures. The new development-only `/app/policy-proof` workbench invokes the installed SDK; it stores no requests, policy bytes or plaintext in Convex, local storage or application logs. Private binary downloads are explicit operator actions.
 
-No realm has been enrolled for this task. Enrollment and live checks were deferred during the original implementation. Setup subsequently progressed to a running local TideCloak server and an existing `chorus` realm, but external wallet finalization still returns HTTP 403, surfaced by TideCloak as HTTP 500. See the [current realm setup evidence](../authentication.md#realm-setup-follow-up). No cryptographic acceptance criterion is claimed complete. The local tests substitute the SDK boundary, use deliberately invalid synthetic signatures, and establish only request construction, binding and client failure handling.
+Enrollment and live checks were deferred during the original implementation.
+Later on 22 October 2026, a fresh local `chorus` realm was provisioned and its
+first administrator completed Tide enrollment and an actual governed mapper
+approval. The original failed realm's database was preserved separately. See the
+[fresh realm evidence](../authentication.md#fresh-realm-recovery-and-dpop-callback-follow-up).
+This removes the earlier activation blocker, but the remaining contributors,
+multi-administrator quorum, and CH-02 protected-operation proofs are still
+pending. No cryptographic acceptance criterion is claimed complete. The local
+tests substitute the SDK boundary, use deliberately invalid synthetic
+signatures, and establish only request construction, binding and client failure
+handling.
 
 The deployed Chorus Forseti contract is still missing. This change defines its input commitment and an SDK probe; it does **not** implement, compile, distribute or verify that contract. Its required invariants are below. Neither the workbench nor the SHA-256 tag provides those invariants against a compromised application. Downstream protected-release implementation remains gated on real-network evidence.
 
@@ -96,6 +106,37 @@ Example edition binding (replace digests, subjects and dependencies with the act
 ```
 
 ## Acceptance status
+
+### Single-account progress and remaining boundary
+
+The user explicitly deferred accounts 2 and 3. The original exact-contributor
+and multi-administrator criteria below remain open.
+
+With the existing enrolled identity, the development workbench's separate
+**Single-account primitive check** completed a real self-encryption round trip
+using tag `message`, its existing `_tide_message.selfencrypt` and
+`_tide_message.selfdecrypt` roles, and no shared policy. Tide returned 160
+ciphertext bytes and recovered the exact synthetic `abc` bytes, whose SHA-256
+is `ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`.
+The Chorus adapter's EXPLICIT approval and binding guards were not weakened.
+This is a self-encryption control, not a sharing or contributor-consent result.
+
+The real realm's `tide-realm-admin` policy was also verified offline with
+WebCrypto Ed25519 against the locally pinned provisioning adapter's realm VVK
+key set. Altering its signature caused verification to fail. Synthetic controls
+also reject a modified policy body, another key, another key identifier, and
+malformed bytes. The verifier authenticates the original inner TideMemory wire
+body, not reserialized JSON. This demonstrates policy integrity under that
+locally pinned trust root; it does not independently audit the trust bootstrap,
+establish current authorization/revocation, or verify a PDF receipt.
+
+Current primary-source research still identifies a Tide-team gate for custom
+contract deployment and no established application-facing authoritative
+revision/order primitive. The built-in relationship contract has narrower
+semantics and additionally requires `_tide_encryptor`/`_tide_decryptor` roles
+which this identity does not hold. No new role grants, custom uploads, or
+specification relaxation were performed. See the [capability research](../research/ch02-single-account-capabilities.md)
+and [current evidence matrix](../ch01-ch02-single-account-status.md).
 
 | CH-02 criterion                                                | Current result                                                                       |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
