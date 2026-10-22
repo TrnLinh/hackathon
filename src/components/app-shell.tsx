@@ -2,6 +2,7 @@ import { Link, Outlet } from "@tanstack/react-router";
 import { ArrowUpRight, BookOpen, Home, Settings2 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { Badge } from "@/components/ui/badge";
+import { AccountControls } from "@/features/auth/auth-status";
 
 const links = [
   { to: "/", label: "Overview", icon: Home, exact: true },
@@ -23,6 +24,7 @@ export function AppShell() {
           <Link to="/" aria-label="Chorus home">
             <Brand />
           </Link>
+          <AccountControls />
           <a
             href="https://github.com/TrnLinh/hackathon"
             target="_blank"

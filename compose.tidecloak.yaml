@@ -1,0 +1,18 @@
+name: chorus-identity
+
+services:
+  tidecloak:
+    # TideCloak dev 0.14.41, multi-platform digest resolved on 2026-10-22.
+    # Selected for reproducibility; live Tide enrollment still needs verification.
+    image: tideorg/tidecloak-dev@sha256:3f52d0bc3e4e3ae5153e172960003bbe94705cd40af6561fd4c7c4434aaa2708
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${TIDECLOAK_BOOTSTRAP_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${TIDECLOAK_BOOTSTRAP_PASSWORD:?Set a private bootstrap password in .env.tidecloak.local}
+    volumes:
+      - tidecloak-data:/opt/keycloak/data/h2
+    stop_grace_period: 30s
+
+volumes:
+  tidecloak-data:

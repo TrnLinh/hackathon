@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as identity from "../identity.js";
+import type * as lib_auth_config from "../lib/auth_config.js";
 import type * as system from "../system.js";
 
 import type {
@@ -17,6 +19,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  identity: typeof identity;
+  "lib/auth_config": typeof lib_auth_config;
   system: typeof system;
 }>;
 
