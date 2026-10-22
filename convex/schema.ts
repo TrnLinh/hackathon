@@ -47,6 +47,9 @@ export default defineSchema({
     collectionId,
     uploaderId: v.id("users"),
     createdAt: v.number(),
+    // Mutable pointer to the single current version. Versions themselves stay
+    // immutable; appends compare-and-set this head so history cannot fork.
+    headVersionId: v.optional(v.id("memoryVersions")),
   }).index("by_collection", ["collectionId"]),
   privatePayloads: defineTable({
     collectionId,
@@ -98,6 +101,8 @@ export default defineSchema({
     privateExplanationId: v.optional(v.id("privatePayloads")),
   })
     .index("by_target", ["target"])
+    .index("by_target_and_actor", ["target", "actorId"])
+    .index("by_evidence", ["evidenceId"])
     .index("by_collection", ["collectionId"]),
   mediaAssets: defineTable({
     ...record,

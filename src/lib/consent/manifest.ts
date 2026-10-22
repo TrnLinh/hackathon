@@ -477,3 +477,25 @@ export function manifestBytes(input: unknown): Uint8Array<ArrayBuffer> {
 export async function manifestDigest(input: unknown): Promise<string> {
   return commitment(parseManifest(input));
 }
+
+/**
+ * Statement that a decision's evidence must commit to (`chorus-decision/v1`).
+ * Binding the exact request, action, actor and revisions stops one person's
+ * evidence from backing another person's decision, or a different action.
+ */
+export function decisionStatement(input: {
+  requestDigest: string;
+  action: "approve" | "decline" | "withdraw";
+  actor: string;
+  revisions: unknown[];
+}) {
+  return commitment({
+    protocol: "chorus-decision/v1",
+    requestDigest: input.requestDigest,
+    action: input.action,
+    actor: input.actor,
+    revisions: [
+      ...new Set(input.revisions.map((r) => canonicalJson(r))),
+    ].sort(),
+  });
+}

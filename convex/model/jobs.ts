@@ -11,6 +11,7 @@ import {
   sameCollection,
   user,
 } from "./common";
+import { requireAllApproved, requireApproved } from "./approval";
 import { latestConfiguration } from "./configuration";
 import { inputPermissionIds, loadLineage } from "./lineage";
 import { lineageInput, processorSpec } from "./validators";
@@ -33,7 +34,24 @@ export async function completedJob(
     config.revision !== job.configRevision
   )
     return fail("STALE_JOB_CONFIGURATION");
+  // A withdrawal after dispatch means the late result is discarded.
+  await requireAllApproved(
+    ctx,
+    collectionId,
+    job.sources.map((s) => s.permissionId),
+  );
   return job;
+}
+
+/** The job's admitted configuration must still be the current enabled one. */
+async function requireCurrentConfiguration(
+  ctx: Pick<QueryCtx, "db">,
+  job: { configId: Id<"aiConfigurations">; configRevision: number },
+) {
+  const config = await latestConfiguration(ctx);
+  if (!config?.enabled) return fail("AI_DISABLED");
+  if (config._id !== job.configId || config.revision !== job.configRevision)
+    return fail("STALE_JOB_CONFIGURATION");
 }
 export const createJob = internalMutation({
   args: {
@@ -66,9 +84,10 @@ export const createJob = internalMutation({
       if (!args.inputs.length || args.inputs.length > 64)
         return fail("INVALID_JOB_INPUTS");
       for (const input of args.inputs) {
+        // Admission needs current consent from every approver, not just a grant row.
         const grants = await Promise.all(
           inputPermissionIds(input).map((id) =>
-            sameCollection(ctx, id, args.collectionId),
+            requireApproved(ctx, args.collectionId, id),
           ),
         );
         const primary = grants[0];
@@ -168,7 +187,7 @@ export const setJobState = internalMutation({
   },
   handler: async (ctx, args) =>
     recordMutation(ctx, "job-state", args, async () => {
-      await sameCollection(ctx, args.jobId, args.collectionId);
+      const job = await sameCollection(ctx, args.jobId, args.collectionId);
       const projection = await ctx.db
         .query("workflowProjections")
         .withIndex("by_target", (q) => q.eq("target", args.jobId))
@@ -184,6 +203,17 @@ export const setJobState = internalMutation({
       if (!projection || !allowed) return fail("INVALID_JOB_TRANSITION");
       if ((args.status === "invalidated") !== !!args.invalidationReason)
         return fail("INVALIDATION_REASON_REQUIRED");
+      // Recording "running" is the dispatch point (FR-34): if AI was disabled
+      // or a source withdrawn first, dispatch is denied. Completion rechecks
+      // the configuration so a late result is never marked complete.
+      if (args.status === "running" || args.status === "complete")
+        await requireCurrentConfiguration(ctx, job);
+      if (args.status === "running")
+        await requireAllApproved(
+          ctx,
+          args.collectionId,
+          job.sources.map((s) => s.permissionId),
+        );
       await ctx.db.patch(projection._id, {
         status: args.status,
         ...(args.invalidationReason

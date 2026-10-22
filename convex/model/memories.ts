@@ -31,6 +31,11 @@ export const appendVersion = internalMutation({
       if (memory.uploaderId !== args.actorId) return fail("NOT_UPLOADER");
       await sameCollection(ctx, args.payloadId, args.collectionId);
       parseSha256Hex(args.contentDigest);
+      // Compare-and-set against the current head so history stays linear:
+      // the first version has no predecessor, and every later one names the
+      // head it replaces. A stale or forked predecessor fails.
+      if ((args.priorVersionId ?? null) !== (memory.headVersionId ?? null))
+        return fail("STALE_VERSION_HEAD");
       if (args.priorVersionId) {
         const prior = await sameCollection(
           ctx,
@@ -39,6 +44,8 @@ export const appendVersion = internalMutation({
         );
         if (prior.memoryId !== args.memoryId)
           return fail("WRONG_MEMORY_PREDECESSOR");
+        if (prior.mediaKind !== args.mediaKind)
+          return fail("MEDIA_KIND_CHANGED");
       }
       const requiredApproverIds = await approvers(ctx, args.collectionId, [
         ...new Set([memory.uploaderId, ...args.requiredApproverIds]),
@@ -48,7 +55,7 @@ export const appendVersion = internalMutation({
         args.requiredApproverIds.length
       )
         return fail("INVALID_APPROVER_SET");
-      return ctx.db.insert("memoryVersions", {
+      const versionId = await ctx.db.insert("memoryVersions", {
         ...recorded(args),
         memoryId: args.memoryId,
         ...(args.priorVersionId ? { priorVersionId: args.priorVersionId } : {}),
@@ -57,5 +64,7 @@ export const appendVersion = internalMutation({
         mediaKind: args.mediaKind,
         requiredApproverIds,
       });
+      await ctx.db.patch(memory._id, { headVersionId: versionId });
+      return versionId;
     }),
 });

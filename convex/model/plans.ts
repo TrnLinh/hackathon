@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { requireAllApproved } from "./approval";
 import { internalMutation } from "../_generated/server";
 import {
   boundedText,
@@ -65,6 +66,13 @@ export const appendPlan = internalMutation({
           processingJobIds: [...job.processingJobIds, job._id],
         });
       }
+      // Every source the plan depends on, including inherited and style-only
+      // ones, must still be approved. A withdrawn source needs a new root plan.
+      await requireAllApproved(
+        ctx,
+        args.collectionId,
+        lineage.sources.map((s) => s.permissionId),
+      );
       for (const use of args.sourceUses) {
         const permission = await sameCollection(
           ctx,

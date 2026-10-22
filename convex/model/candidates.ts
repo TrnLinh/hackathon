@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { requireAllApproved } from "./approval";
 import type { Infer } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
@@ -118,6 +119,12 @@ async function buildManifest(
   }
   if (requiredApproverIds.some((id) => !args.reviewAudienceIds.includes(id)))
     return fail("REVIEW_AUDIENCE_MISSING_APPROVER");
+  // Pending, declined or withdrawn sources can't be frozen (CH-09/CH-10).
+  await requireAllApproved(
+    ctx,
+    args.collectionId,
+    plan.sources.map((s) => s.permissionId),
+  );
   for (const versionId of new Set(
     plan.sources.map((source) => source.versionId),
   )) {

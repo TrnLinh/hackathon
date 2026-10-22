@@ -7,6 +7,7 @@ import {
   permissionFixture,
   recordEvidence,
 } from "./model-fixtures";
+import { decisionStatement } from "../src/lib/consent/manifest";
 const prepareManifest = makeFunctionReference<"query">(
   "model/candidates:prepareManifest",
 );
@@ -121,6 +122,24 @@ describe("candidate commitments and append-only evidence history", () => {
       format: "synthetic",
       statementDigest: candidate.requestDigest,
     });
+    const revisions = candidate.sources.map(
+      (s: { revision: unknown }) => s.revision,
+    );
+    // Bob's evidence must commit to Bob approving this exact request.
+    const bobEvidenceId = await f.t.mutation(recordEvidence, {
+      collectionId: f.collectionId,
+      actorId: f.bob,
+      retryKey: "bob-final-evidence",
+      payloadId: f.payloadId,
+      authority: "synthetic-authority",
+      format: "synthetic",
+      statementDigest: await decisionStatement({
+        requestDigest: candidate.requestDigest,
+        action: "approve",
+        actor: "https://id.example|bob",
+        revisions,
+      }),
+    });
     const decisionArgs = {
       collectionId: f.collectionId,
       actorId: f.bob,
@@ -128,11 +147,23 @@ describe("candidate commitments and append-only evidence history", () => {
       target: candidateId,
       action: "approve",
       requestDigest: candidate.requestDigest,
-      revisions: candidate.sources.map(
-        (s: { revision: unknown }) => s.revision,
-      ),
-      evidenceId,
+      revisions,
+      evidenceId: bobEvidenceId,
     };
+    await expect(
+      f.t.mutation(appendDecision, {
+        ...decisionArgs,
+        retryKey: "borrowed-evidence",
+        evidenceId,
+      }),
+    ).rejects.toThrow("WRONG_EVIDENCE_ACTOR");
+    await expect(
+      f.t.mutation(appendDecision, {
+        ...decisionArgs,
+        retryKey: "wrong-action",
+        action: "withdraw",
+      }),
+    ).rejects.toThrow("WRONG_EVIDENCE_COMMITMENT");
     await expect(
       f.t.mutation(appendDecision, {
         ...decisionArgs,
@@ -169,7 +200,10 @@ describe("candidate commitments and append-only evidence history", () => {
     });
     const events = await f.t.query(history, { collectionId: f.collectionId });
     expect(
-      events.filter((e: { operation: string }) => e.operation === "decision"),
+      events.filter(
+        (e: { operation: string; resourceId: string }) =>
+          e.operation === "decision" && e.resourceId === decisionId,
+      ),
     ).toHaveLength(1);
     expect(
       events.filter(

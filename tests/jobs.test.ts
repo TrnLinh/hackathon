@@ -9,6 +9,7 @@ import {
   get,
   jobFixture,
   permissionFixture,
+  approveAll,
   setJobState,
 } from "./model-fixtures";
 
@@ -161,8 +162,8 @@ describe("processing lineage and immutable AI plans", () => {
       collectionId: f.collectionId,
       id: first.permissionId,
     });
-    const grant = async (versionId: string, retryKey: string) =>
-      f.t.mutation(createPermission, {
+    const grant = async (versionId: string, retryKey: string) => {
+      const id = await f.t.mutation(createPermission, {
         collectionId: f.collectionId,
         actorId: f.alice,
         retryKey,
@@ -177,6 +178,9 @@ describe("processing lineage and immutable AI plans", () => {
           },
         },
       });
+      await approveAll(f, id, retryKey);
+      return id;
+    };
     const primaryId = await grant(first.versionId, "primary-processor");
     const jobArgs = {
       ...j.jobArgs,
@@ -247,6 +251,7 @@ describe("processing lineage and immutable AI plans", () => {
         purpose: "composition",
       },
     });
+    await approveAll(f, manualId, "manual-scope");
     const artifactId = await f.t.mutation(
       makeFunctionReference<"mutation">("model/media:appendArtifact"),
       {

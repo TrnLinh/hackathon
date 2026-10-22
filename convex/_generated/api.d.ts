@@ -10,6 +10,7 @@
 
 import type * as identity from "../identity.js";
 import type * as lib_auth_config from "../lib/auth_config.js";
+import type * as model_approval from "../model/approval.js";
 import type * as model_candidates from "../model/candidates.js";
 import type * as model_common from "../model/common.js";
 import type * as model_configuration from "../model/configuration.js";
@@ -32,6 +33,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   identity: typeof identity;
   "lib/auth_config": typeof lib_auth_config;
+  "model/approval": typeof model_approval;
   "model/candidates": typeof model_candidates;
   "model/common": typeof model_common;
   "model/configuration": typeof model_configuration;

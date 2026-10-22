@@ -1,6 +1,7 @@
 import { convexTest } from "convex-test";
 import { makeFunctionReference } from "convex/server";
 import schema from "../convex/schema";
+import { decisionStatement } from "../src/lib/consent/manifest";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 export const appendVersion = makeFunctionReference<"mutation">(
@@ -13,6 +14,67 @@ export const recordEvidence = makeFunctionReference<"mutation">(
   "model/consent:recordEvidence",
 );
 export const get = makeFunctionReference<"query">("model/read:get");
+export const appendDecision = makeFunctionReference<"mutation">(
+  "model/consent:appendDecision",
+);
+
+type Fixture = Awaited<ReturnType<typeof fixture>>;
+
+/**
+ * Records one person's decision with evidence bound to that exact decision
+ * (chorus-decision/v1), as appendDecision now requires.
+ */
+export async function decide(
+  f: Fixture,
+  target: string,
+  actorId: string,
+  action: "approve" | "decline" | "withdraw",
+  key: string,
+) {
+  const record = await f.t.query(get, {
+    collectionId: f.collectionId,
+    id: target,
+  });
+  const revisions =
+    "revision" in record
+      ? [record.revision]
+      : record.sources.map((s: { revision: unknown }) => s.revision);
+  const actor = await f.t.run(async (ctx) => ctx.db.get(actorId as never));
+  const evidenceId = await f.t.mutation(recordEvidence, {
+    collectionId: f.collectionId,
+    actorId,
+    retryKey: `decision-evidence-${key}`,
+    payloadId: f.payloadId,
+    authority: "synthetic-authority",
+    format: "synthetic",
+    statementDigest: await decisionStatement({
+      requestDigest: record.requestDigest,
+      action,
+      actor: (actor as { tokenIdentifier: string }).tokenIdentifier,
+      revisions,
+    }),
+  });
+  return f.t.mutation(appendDecision, {
+    collectionId: f.collectionId,
+    actorId,
+    retryKey: `decision-${key}`,
+    target,
+    action,
+    requestDigest: record.requestDigest,
+    revisions,
+    evidenceId,
+  });
+}
+
+/** Every required approver approves the target. */
+export async function approveAll(f: Fixture, target: string, key: string) {
+  const record = await f.t.query(get, {
+    collectionId: f.collectionId,
+    id: target,
+  });
+  for (const actorId of record.requiredApproverIds)
+    await decide(f, target, actorId, "approve", `${key}-${actorId}`);
+}
 
 export async function fixture() {
   const t = convexTest(schema, modules);
@@ -59,15 +121,24 @@ export async function fixture() {
 }
 
 export async function permissionFixture(
-  f: Awaited<ReturnType<typeof fixture>>,
+  f: Fixture,
   key: string,
   kind: "manual" | "processor" = "manual",
+  options: { approve?: boolean } = {},
 ) {
+  // A fresh memory per fixture keeps each version the head of its own history.
+  const memoryId = await f.t.run(async (ctx) =>
+    ctx.db.insert("memories", {
+      collectionId: f.collectionId,
+      uploaderId: f.alice,
+      createdAt: 1,
+    }),
+  );
   const versionId = await f.t.mutation(appendVersion, {
     collectionId: f.collectionId,
     actorId: f.alice,
     retryKey: `version-${key}`,
-    memoryId: f.memoryId,
+    memoryId,
     payloadId: f.payloadId,
     contentDigest: "b".repeat(64),
     mediaKind: "text",
@@ -107,7 +178,8 @@ export async function permissionFixture(
           }
         : { kind: "processor", processor },
   });
-  return { versionId, permissionId, processor };
+  if (options.approve ?? true) await approveAll(f, permissionId, key);
+  return { versionId, permissionId, processor, memoryId };
 }
 export const configure = makeFunctionReference<"mutation">(
   "model/configuration:configure",

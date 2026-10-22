@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { requireApproved } from "./approval";
 import { internalMutation } from "../_generated/server";
 import { boundedText, parseSha256Hex } from "../../src/lib/consent/manifest";
 import {
@@ -144,10 +145,10 @@ export const appendArtifact = internalMutation({
             return fail("MANUAL_SCOPE_REQUIRED");
         }
         for (const use of args.sourceUses) {
-          const permission = await sameCollection(
+          const permission = await requireApproved(
             ctx,
-            use.permissionId,
             args.collectionId,
+            use.permissionId,
           );
           if (permission.scope.kind !== "manual")
             return fail("MANUAL_SCOPE_REQUIRED");
