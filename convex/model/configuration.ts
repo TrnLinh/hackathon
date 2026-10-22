@@ -11,13 +11,30 @@ export async function latestConfiguration(ctx: Pick<QueryCtx, "db">) {
     .order("desc")
     .first();
 }
+/** Opaque reference to the processor roles this deployment provides (CH-21). */
+export function deployedProcessorRef() {
+  return process.env.CHORUS_PROCESSOR_CONFIG_REF?.trim() || undefined;
+}
+/**
+ * AI is on only if an operator enabled it for processor roles this deployment
+ * still provides. A missing or changed reference reads as off (FR-34).
+ */
+export function aiEnabled(
+  config: { enabled: boolean; processorConfigRef?: string } | null,
+) {
+  return (
+    config?.enabled === true &&
+    config.processorConfigRef !== undefined &&
+    config.processorConfigRef === deployedProcessorRef()
+  );
+}
 export const current = internalQuery({
   args: {},
   handler: async (ctx) =>
     (await latestConfiguration(ctx)) ?? { enabled: false, revision: 0 },
 });
-// Internal persistence primitive. CH-22 must expose an authenticated operator API
-// and enforce current configuration immediately before every real dispatch.
+// Internal persistence primitive. The authenticated operator API is
+// aiConfig.setEnabled; jobs.ts enforces the current revision at dispatch.
 export const configure = internalMutation({
   args: {
     actorId: v.id("users"),
@@ -28,13 +45,10 @@ export const configure = internalMutation({
   },
   handler: async (ctx, args) => {
     await user(ctx, args.actorId);
-    const operator = await ctx.db
-      .query("operators")
-      .withIndex("by_user", (q) => q.eq("userId", args.actorId))
-      .unique();
-    if (!operator?.active) return fail("NOT_OPERATOR");
     boundedText(args.retryKey);
     const inputDigest = await commitment(args);
+    // Receipt first: a lost-response retry recovers the committed revision
+    // even if the operator has since been deactivated.
     const receipt = await ctx.db
       .query("configurationReceipts")
       .withIndex("by_retry", (q) =>
@@ -45,6 +59,11 @@ export const configure = internalMutation({
       if (receipt.inputDigest !== inputDigest) return fail("RETRY_KEY_REUSED");
       return receipt.configId;
     }
+    const operator = await ctx.db
+      .query("operators")
+      .withIndex("by_user", (q) => q.eq("userId", args.actorId))
+      .unique();
+    if (!operator?.active) return fail("NOT_OPERATOR");
     const previous = await latestConfiguration(ctx);
     if (args.expectedRevision !== (previous?.revision ?? 0))
       return fail("STALE_CONFIG_REVISION");

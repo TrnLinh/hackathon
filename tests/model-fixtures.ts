@@ -1,5 +1,6 @@
 import { convexTest } from "convex-test";
 import { makeFunctionReference } from "convex/server";
+import { vi } from "vitest";
 import schema from "../convex/schema";
 import { decisionStatement } from "../src/lib/consent/manifest";
 
@@ -194,6 +195,8 @@ export const appendPlan = makeFunctionReference<"mutation">(
   "model/plans:appendPlan",
 );
 export async function jobFixture(f: Awaited<ReturnType<typeof fixture>>) {
+  // AI reads as on only for the processor roles this deployment provides.
+  vi.stubEnv("CHORUS_PROCESSOR_CONFIG_REF", "synthetic-service");
   const source = await permissionFixture(f, "ai", "processor");
   await f.t.run(async (ctx) =>
     ctx.db.insert("operators", { userId: f.alice, active: true }),

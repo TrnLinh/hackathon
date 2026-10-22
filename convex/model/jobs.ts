@@ -12,7 +12,7 @@ import {
   user,
 } from "./common";
 import { requireAllApproved, requireApproved } from "./approval";
-import { latestConfiguration } from "./configuration";
+import { aiEnabled, latestConfiguration } from "./configuration";
 import { inputPermissionIds, loadLineage } from "./lineage";
 import { lineageInput, processorSpec } from "./validators";
 
@@ -29,7 +29,8 @@ export async function completedJob(
   if (projection?.status !== "complete") return fail("JOB_NOT_COMPLETE");
   const config = await latestConfiguration(ctx);
   if (
-    !config?.enabled ||
+    !config ||
+    !aiEnabled(config) ||
     config._id !== job.configId ||
     config.revision !== job.configRevision
   )
@@ -49,7 +50,7 @@ async function requireCurrentConfiguration(
   job: { configId: Id<"aiConfigurations">; configRevision: number },
 ) {
   const config = await latestConfiguration(ctx);
-  if (!config?.enabled) return fail("AI_DISABLED");
+  if (!config || !aiEnabled(config)) return fail("AI_DISABLED");
   if (config._id !== job.configId || config.revision !== job.configRevision)
     return fail("STALE_JOB_CONFIGURATION");
 }
@@ -70,7 +71,7 @@ export const createJob = internalMutation({
   handler: async (ctx, args) =>
     recordMutation(ctx, "processing-job", args, async () => {
       const config = await latestConfiguration(ctx);
-      if (!config?.enabled) return fail("AI_DISABLED");
+      if (!config || !aiEnabled(config)) return fail("AI_DISABLED");
       if (
         config._id !== args.configId ||
         config.revision !== args.configRevision

@@ -658,52 +658,37 @@ export const actions = {
   },
 
   /**
-   * Operator-only runtime AI switch (CH-22). Disabling cancels queued work and
-   * invalidates running jobs. Re-enabling never resumes them and never
-   * processes existing manual drafts. It grants no contributor consent.
+   * Mirrors server-authoritative AI availability (CH-22, convex/aiConfig.ts)
+   * into the mock state so screens not yet on Convex agree with the server.
+   * Disabling cancels simulated queued/running jobs; re-enabling resumes none.
    */
-  setAiEnabled(enabled: boolean) {
+  syncAiConfig(server: {
+    enabled: boolean;
+    revision: number;
+    changedAt: number | null;
+  }) {
     const s = getPrototypeState();
-    const viewer = s.people.find((p) => p.id === s.viewerId);
-    if (!viewer?.operator)
-      return {
-        ok: false as const,
-        reason: "Only an authorized operator can change AI availability.",
-      };
-    if (enabled && !s.aiConfig.processorsConfigured)
-      return {
-        ok: false as const,
-        reason: "Configure processor roles before enabling AI.",
-      };
+    if (
+      s.aiConfig.enabled === server.enabled &&
+      s.aiConfig.revision === server.revision
+    )
+      return;
     update((d) => {
-      if (d.aiConfig.enabled === enabled) return;
       d.aiConfig = {
         ...d.aiConfig,
-        enabled,
-        revision: d.aiConfig.revision + 1,
-        changedAt: now(),
-        changedBy: d.viewerId,
+        enabled: server.enabled,
+        revision: server.revision,
+        changedAt: new Date(server.changedAt ?? 0).toISOString(),
+        changedBy: "system",
       };
-      let invalidated = 0;
-      if (!enabled)
+      if (!server.enabled)
         for (const job of d.jobs)
           if (job.status === "queued" || job.status === "running") {
             job.status = "cancelled";
             job.error =
               "Invalidated because AI was turned off. Anything already sent can’t be recalled; a late result will be discarded.";
-            invalidated += 1;
           }
-      log(d, {
-        collectionId: "*",
-        actorId: d.viewerId,
-        kind: enabled ? "ai.enabled" : "ai.disabled",
-        summary: enabled
-          ? `Turned AI on (configuration revision ${d.aiConfig.revision}). No job resumes automatically.`
-          : `Turned AI off (configuration revision ${d.aiConfig.revision})${invalidated ? `; invalidated ${invalidated} job${invalidated === 1 ? "" : "s"}` : ""}. Template creation stays available.`,
-        resource: `ai-config r${d.aiConfig.revision}`,
-      });
     });
-    return { ok: true as const };
   },
 
   /** Builds a deterministic template plan. Never contacts a model. */
