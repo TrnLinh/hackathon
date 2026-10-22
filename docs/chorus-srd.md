@@ -144,6 +144,8 @@ Collection titles, contribution titles, people lists, and dates can reveal sensi
 
 ### Tide integration
 
+Implementation status (CH-02, 22 October 2026): the [policy integration decision](adr/0001-tide-policy-proof.md) records the candidate binding format, SDK workbench and deferred live checks. No Chorus contract or authoritative withdrawal-ordering mechanism has been deployed or proved. The requirements below remain release gates; local binding tests and workbench return values do not satisfy AT-03, AT-04, AT-06, AT-09 or AT-12.
+
 Use TideCloak for authentication and governed identity permissions. Implement or configure verified policies for source review, release to the named composition recipient, and official edition authorization. Source authorization must bind the resource and all required identities. The review audience must be bound to the permission so a server cannot substitute its own recipient.
 
 The exact cross-user encryption mode, resource isolation, approval evidence format, receipt signing operation, and policy lifecycle are design dependencies. Validate them using current Tide guidance and pin working server, SDK, and contract versions. Do not assume that the SDK self-encryption tutorial implements shared memories or arbitrary user consent.

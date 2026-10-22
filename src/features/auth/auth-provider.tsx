@@ -12,8 +12,20 @@ import {
 } from "react";
 import type { BrowserAuthConfig } from "./config";
 import { TideSession } from "./session";
+import type { ProofSdk } from "../policy-proof/tide";
 
 const SessionContext = createContext<TideSession | null>(null);
+const ProofSdkContext = createContext<ProofSdk | null>(null);
+
+export function useProofSdk() {
+  const sdk = useContext(ProofSdkContext);
+  const session = useContext(SessionContext);
+  return () => {
+    if (!sdk || session?.getSnapshot().phase !== "authenticated")
+      throw new Error("Sign in before running a Tide proof.");
+    return sdk;
+  };
+}
 
 function useTideAuth() {
   const session = useContext(SessionContext);
@@ -55,23 +67,30 @@ export default function AuthProvider({
 }) {
   // A component-scoped promise prevents double initialization under StrictMode.
   const [initialization] = useState(() => {
-    let session: Promise<TideSession> | undefined;
+    let session: Promise<{ session: TideSession; sdk: ProofSdk }> | undefined;
     return () =>
       (session ??= import("@tidecloak/js").then(({ TideCloak }) => {
         const sdk = new TideCloak({ ...config, setupRequestEnclave: false });
-        return new TideSession(sdk, {
-          ...config,
-          origin: window.location.origin,
-        });
+        return {
+          sdk,
+          session: new TideSession(sdk, {
+            ...config,
+            origin: window.location.origin,
+          }),
+        };
       }));
   });
   const [session, setSession] = useState<TideSession | null>(null);
+  const [sdk, setSdk] = useState<ProofSdk | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
     initialization()
-      .then(async (session) => {
-        if (active) setSession(session);
+      .then(async ({ session, sdk }) => {
+        if (active) {
+          setSession(session);
+          setSdk(sdk);
+        }
         await session.initialize();
       })
       .catch(() => {
@@ -92,9 +111,11 @@ export default function AuthProvider({
     );
   return (
     <SessionContext.Provider value={session}>
-      <ConvexProviderWithAuth client={client} useAuth={useTideAuth}>
-        {children}
-      </ConvexProviderWithAuth>
+      <ProofSdkContext.Provider value={sdk}>
+        <ConvexProviderWithAuth client={client} useAuth={useTideAuth}>
+          {children}
+        </ConvexProviderWithAuth>
+      </ProofSdkContext.Provider>
     </SessionContext.Provider>
   );
 }

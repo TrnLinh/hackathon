@@ -15,6 +15,7 @@ import { OverviewPage } from "@/features/overview/overview-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { createWorkspaceHistory } from "@/router/history";
 import { RequireSignIn } from "@/features/auth/require-sign-in";
+import { PolicyProofPage } from "@/features/policy-proof/proof-page";
 
 function NotFoundPage() {
   return (
@@ -57,6 +58,11 @@ const routeTree = rootRoute.addChildren([
   overviewRoute,
   collectionsRoute,
   settingsRoute,
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/policy-proof",
+    component: PolicyProofPage,
+  }),
 ]);
 
 export function createAppRouter() {

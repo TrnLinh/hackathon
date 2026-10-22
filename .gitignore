@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local Convex deployment data and credentials
 /.convex/
+
+# Private Tide proof requests can contain session-bound approval credentials.
+/.policy-proof/
