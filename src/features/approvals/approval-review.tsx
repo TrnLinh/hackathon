@@ -165,7 +165,7 @@ function ExactVersion({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="exact-heading" className="text-base font-semibold">
-          The exact version you’re deciding on
+          What you’re approving
         </h2>
         <MemoryStatusBadge status={memoryStatus(memory)} />
       </div>
@@ -189,8 +189,7 @@ function ExactVersion({
       )}
       {memory.kind === "voice" && <FakePlayer memory={memory} />}
       <p className="text-xs text-muted-foreground">
-        Protected preview. Only the people asked to decide can open it before
-        everyone approves; no processor receives anything during this review.
+        Private preview. Nothing goes to AI.
       </p>
 
       <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
@@ -228,8 +227,7 @@ function ExactVersion({
         </div>
         <div className="sm:col-span-2">
           <dt className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Fingerprint className="size-3.5" aria-hidden="true" /> Content
-            commitment (synthetic)
+            <Fingerprint className="size-3.5" aria-hidden="true" /> Fingerprint
           </dt>
           <dd className="font-mono text-xs break-all">
             sha256:{commitment(memory)}
@@ -257,9 +255,7 @@ function ExactVersion({
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">
-            People declared in this memory
-          </dt>
+          <dt className="text-xs text-muted-foreground">People in it</dt>
           <dd>
             <ul className="mt-1 space-y-1">
               {people.map((p) => (
@@ -280,10 +276,6 @@ function ExactVersion({
           </dd>
         </div>
       </dl>
-      <p className="text-xs text-muted-foreground">
-        People and speakers are declared by the uploader. Chorus doesn’t use
-        face or speaker recognition.
-      </p>
     </section>
   );
 }
@@ -307,30 +299,27 @@ function Recipients({
       className="space-y-3 rounded-xl border bg-card p-4 sm:p-5"
     >
       <h2 id="recipients-heading" className="text-base font-semibold">
-        Who would receive it
+        Who sees it
       </h2>
       <dl className="space-y-3 text-sm">
         <div>
-          <dt className="text-xs text-muted-foreground">Named editor</dt>
+          <dt className="text-xs text-muted-foreground">Editor</dt>
           <dd className="mt-1 flex items-center gap-2">
             {editor && <PersonAvatar person={editor} size="sm" />}
             {editor?.name ?? "Unknown"}{" "}
-            <span className="text-muted-foreground">(collection creator)</span>
+            <span className="text-muted-foreground">(creator)</span>
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">
-            Private review audience
-          </dt>
+          <dt className="text-xs text-muted-foreground">Reviewers</dt>
           <dd className="mt-1 text-muted-foreground">
             {approverIds(memory)
               .map((id) => personById(state, id).name)
               .join(", ")}
-            . Other collection members only see whether it is available.
           </dd>
         </div>
       </dl>
-      <h3 className="pt-2 text-sm font-medium">Everyone’s decisions so far</h3>
+      <h3 className="pt-2 text-sm font-medium">Decisions so far</h3>
       <ul className="space-y-2">
         {approverIds(memory).map((id) => {
           const d = memory.decisions[id];
@@ -353,9 +342,6 @@ function Recipients({
           );
         })}
       </ul>
-      <p className="text-xs text-muted-foreground">
-        Nobody sees a reason for a decline, because none is asked for.
-      </p>
     </section>
   );
 }
@@ -456,31 +442,12 @@ function ProcessorCard({
         </div>
         {(!value || value === "later") && <DecisionBadge decision="pending" />}
       </div>
-      <dl className="grid gap-2 text-xs sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <dt className="text-muted-foreground">Would receive only</dt>
-          <dd>
-            <ul className="list-disc pl-4">
-              {processor.receives.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Model and runtime</dt>
-          <dd>
-            {processor.model}; {processor.runtime}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Retention</dt>
-          <dd>{processor.retention}</dd>
-        </div>
-      </dl>
+      <p className="text-xs">
+        <span className="text-muted-foreground">Gets: </span>
+        {processor.receives.join(" · ")}
+      </p>
       <p className="text-xs text-muted-foreground">
-        Hosted by the team, but the model and privileged cloud operators can
-        still see what it receives. Once sent, content cannot be recalled.
+        Team-hosted · deleted after use · can’t be recalled once sent
       </p>
       <ChoiceGroup
         name={`proc-${processor.id}`}
@@ -515,14 +482,11 @@ function RequestEditDialog({
         <DialogHeader>
           <DialogTitle>Request an edit</DialogTitle>
           <DialogDescription>
-            {uploaderName} can publish a new version. Any change needs fresh
-            approval from everyone; this version stays undecided for you.
+            {uploaderName} can post a new version. Everyone approves it again.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="edit-note">
-            Private note to {uploaderName} (optional)
-          </Label>
+          <Label htmlFor="edit-note">Note to {uploaderName} (optional)</Label>
           <Textarea
             id="edit-note"
             value={note}
@@ -531,8 +495,7 @@ function RequestEditDialog({
             placeholder="e.g. Could you crop me out, or remove the last sentence?"
           />
           <p className="text-xs text-muted-foreground">
-            Only {uploaderName} sees this. Prototype: the note itself isn’t
-            saved.
+            Only {uploaderName} sees this.
           </p>
         </div>
         <DialogFooter>
@@ -601,9 +564,7 @@ function DecisionForm({
     manualDeclined ? "declined" : (procs[id] ?? "later");
 
   // Only manual use is required. AI decisions can be left for later.
-  const missing = manual ? [] : ["Manual composition and private review"];
-  const aiDeclined = processors.some((p) => effective(p.id) === "declined");
-  const aiUndecided = processors.some((p) => effective(p.id) === "later");
+  const missing = manual ? [] : ["Use in the zine"];
 
   function submit() {
     if (inFlight.current) return;
@@ -636,7 +597,7 @@ function DecisionForm({
       <div role="status" className="space-y-4 rounded-xl border bg-card p-5">
         <p className="inline-flex items-center gap-2 font-medium text-[var(--status-available)]">
           <CheckCircle2 className="size-5" aria-hidden="true" />
-          Decision recorded for version {memory.version}
+          Saved for version {memory.version}
         </p>
         <DecisionSummary
           memory={memory}
@@ -644,9 +605,9 @@ function DecisionForm({
           processors={state.processors}
         />
         <p className="text-sm text-muted-foreground">
-          The memory is now{" "}
-          <strong className="font-medium">{memoryStatusLabel(memory)}</strong>{" "}
-          for the collection. You can change or withdraw this decision later.
+          Now{" "}
+          <strong className="font-medium">{memoryStatusLabel(memory)}</strong>.
+          You can change this anytime.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
@@ -685,22 +646,16 @@ function DecisionForm({
         disabled={submitting}
         className="space-y-3 rounded-xl border bg-card p-4 sm:p-5"
       >
-        <legend className="sr-only">
-          Manual composition and private review
-        </legend>
+        <legend className="sr-only">Use in the zine</legend>
         <div>
-          <h2 className="text-base font-semibold">
-            1. Manual composition and private review
-          </h2>
+          <h2 className="text-base font-semibold">1. Use in the zine</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            May the named editor place this exact version in the draft
-            photozine, and may the review audience see it? This does not allow
-            any AI processing and is not approval of a final edition.
+            Let the editor place this version in drafts.
           </p>
         </div>
         <ChoiceGroup
           name="manual"
-          label="Manual composition and private review"
+          label="Use in the zine"
           value={manual}
           onChange={setManual}
         />
@@ -713,13 +668,9 @@ function DecisionForm({
         >
           <legend className="sr-only">AI processing</legend>
           <div>
-            <h2 className="text-base font-semibold">
-              2. AI processing (optional)
-            </h2>
+            <h2 className="text-base font-semibold">2. AI (optional)</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Each processor needs its own permission, and you don’t have to
-              decide now. If AI isn’t approved, the memory can still be used in
-              templates, but it’s never sent to a model.
+              Skip it and the memory still works in templates.
             </p>
           </div>
           {!state.aiConfig.enabled && (
@@ -728,9 +679,7 @@ function DecisionForm({
                 className="mt-0.5 size-3.5 shrink-0"
                 aria-hidden="true"
               />
-              AI is currently turned off for this workspace. Your choice is
-              recorded for if it’s turned on later; turning AI on never grants
-              permission by itself.
+              AI is off. Your choice applies if it’s turned on.
             </p>
           )}
           {manualDeclined && (
@@ -739,8 +688,7 @@ function DecisionForm({
                 className="mt-0.5 size-3.5 shrink-0"
                 aria-hidden="true"
               />
-              Declining manual use also declines every processor. Nothing from
-              this memory will be used.
+              Declining also blocks all AI.
             </p>
           )}
           {processors.map((p) => (
@@ -752,16 +700,6 @@ function DecisionForm({
               onChange={(v) => setProcs((prev) => ({ ...prev, [p.id]: v }))}
             />
           ))}
-          {manual === "approved" && (aiDeclined || aiUndecided) && (
-            <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-              Unless every processor is approved by everyone, this memory is{" "}
-              <strong className="font-medium">available · no AI</strong>. The
-              editor can place it in a template by hand, but it won’t be sent to
-              AI or influence an AI-generated style.
-              {aiUndecided &&
-                " You can come back and decide on AI later from your approvals."}
-            </p>
-          )}
         </fieldset>
       )}
 
@@ -770,7 +708,7 @@ function DecisionForm({
           role="alert"
           className="rounded-lg border border-[var(--status-awaiting)]/40 p-3 text-sm"
         >
-          <p className="font-medium">Decide this before submitting:</p>
+          <p className="font-medium">Decide first:</p>
           <ul className="mt-1 list-disc pl-5 text-muted-foreground">
             {missing.map((m) => (
               <li key={m}>{m}</li>
@@ -783,7 +721,7 @@ function DecisionForm({
         <Button type="submit" disabled={submitting}>
           {submitting ? (
             <>
-              <Loader2 className="animate-spin" aria-hidden="true" /> Recording…
+              <Loader2 className="animate-spin" aria-hidden="true" /> Saving…
             </>
           ) : (
             "Submit decision"
@@ -807,12 +745,8 @@ function DecisionForm({
             uploaderName={uploader.name.split(" ")[0]}
           />
         )}
-        <span role="status" className="text-xs text-muted-foreground">
-          {submitting
-            ? "Recording your decision. Don’t close this page."
-            : missing.length
-              ? "Manual use isn’t decided yet"
-              : "Ready to submit"}
+        <span role="status" className="sr-only">
+          {submitting ? "Saving your decision" : ""}
         </span>
       </div>
     </form>
@@ -849,8 +783,7 @@ export function ApprovalReview({ memoryId }: { memoryId: string }) {
           icon={<ShieldAlert className="size-5" aria-hidden="true" />}
           title="This request isn’t available"
         >
-          It may have been replaced by a newer version, or it hasn’t been
-          submitted for approval.
+          It was replaced or isn’t submitted yet.
         </EmptyState>
       </div>
     );
@@ -861,10 +794,9 @@ export function ApprovalReview({ memoryId }: { memoryId: string }) {
         {back}
         <EmptyState
           icon={<ShieldAlert className="size-5" aria-hidden="true" />}
-          title="You are not asked to decide on this memory"
+          title="Not yours to decide"
         >
-          Only the uploader and the people declared in a memory can review it
-          before everyone approves.
+          Only people in this memory can review it.
         </EmptyState>
       </div>
     );
@@ -887,7 +819,7 @@ export function ApprovalReview({ memoryId }: { memoryId: string }) {
       <PageHeader
         eyebrow={collection?.title}
         title={memory.title}
-        description="Review the exact material, who would receive it, and each proposed use. You can decline without giving a reason."
+        description="Check it, then decide. No reason needed to decline."
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -917,10 +849,6 @@ export function ApprovalReview({ memoryId }: { memoryId: string }) {
                   Recorded {formatWhen(existing.decidedAt)}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                Changing it below records a new decision; earlier history is
-                kept.
-              </p>
             </section>
           )}
           <DecisionForm
@@ -929,10 +857,8 @@ export function ApprovalReview({ memoryId }: { memoryId: string }) {
             memory={memory}
           />
           <TrustNote>
-            This decision covers composing and privately reviewing this version.
-            Approving a final, downloadable edition is a separate step later.
-            Prototype: decisions are stored in this browser and do not yet
-            perform Tide-protected release.
+            Final edition approval comes later. Prototype: no real protection
+            yet.
           </TrustNote>
         </div>
       </div>
