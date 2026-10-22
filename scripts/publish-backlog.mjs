@@ -146,7 +146,7 @@ export function renderIssue(issue, backlog, byId) {
 function renderTracker(backlog, byId) {
   const lines = [
     markerFor(backlog.tracking.id),
-    "Deliver an AI-designed six-page photozine from shared images, voice notes, videos, and stories, with contributor-controlled source/processor release, final edition approval, and offline PDF download.",
+    "Deliver template and optional-at-runtime AI creation of a six-page photozine through one DesignPlan/editor/PDF engine, with contributor-controlled source/processor release, final edition approval, and offline download.",
     "The Next.js, Convex, shadcn/ui, and TanStack Router starter is already on main. The issues below cover the remaining implementation.",
     "## Priorities and completion",
     "P0 identifies consent and integration gates. P1 completes the required product and demonstration. Follow dependencies rather than sorting only by priority. P2 is optional stretch work.",
@@ -168,7 +168,7 @@ function renderTracker(backlog, byId) {
   }
   lines.push(
     "## Delivery guidance",
-    "CH-01 is underway and its authentication scope is unchanged. CH-20 design contracts and CH-21 self-hosted cloud inference can start in parallel using synthetic fixtures. Prove CH-02 before protected product flows. CH-18 is required AI design; CH-19 supplies consented derivatives. Both integrate CH-21's authenticated inference endpoints. CH-09 and CH-18 can proceed in parallel once their own dependencies are met. CH-10 integrates both before final approval. Keep a complete manual recovery path; manual-only does not satisfy the AI requirement.",
+    "CH-01 scope is unchanged. CH-20 defines the shared contract; CH-22 implements server AI availability after CH-03. The template path CH-09 → CH-10 → CH-11 → CH-12 → CH-13 has no dependency on AI generation, transcription, or inference deployment. CH-21 and CH-19 prepare the parallel AI lane; CH-18 integrates live AI after the shared renderer is ready. Core template verification/demo can complete with AI off. Full dual-mode signoff also requires enabled-AI evidence. Disabling AI preserves accepted drafts and valid PDFs while denying new model work and invalidating pending jobs.",
   );
   return lines.join("\n\n");
 }

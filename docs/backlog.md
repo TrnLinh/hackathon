@@ -1,23 +1,23 @@
 # Chorus Implementation Backlog
 
-This backlog breaks the multimedia, AI-designed photozine MVP into 21 implementation issues and one tracking issue. The Next.js, Convex, shadcn/ui, and TanStack Router starter is already complete; it is not counted as new work. Product/SRD version 0.2.1 keeps multimedia AI design core and sets self-hosted team-cloud inference as the demo target.
+This backlog defines 22 implementation tickets and one tracker for template and optional-at-runtime AI photozine creation. Product/SRD version 0.3 gives both paths a shared DesignPlan/editor/renderer and adds a backend AI switch. Existing tickets keep their IDs; CH-01 scope is unchanged.
 
 The [product specification](chorus-product-spec.md) defines the experience and the [SRD](chorus-srd.md) defines the requirements. The issue definitions in [backlog/issues.json](backlog/issues.json) are the publication source.
 
 ## Delivery order
 
-CH-01 is underway and its authentication scope is unchanged. Continue with CH-02 to prove real identity, scoped sharing (including processors), revocation, and signing feasibility. CH-20 design contracts and CH-21 self-hosted inference can start now using synthetic fixtures without depending on authentication. Frontend drafts may use agreed interfaces, but simulated policies do not complete the security gates.
+Complete remaining CH-01 live identity evidence and CH-02 protected sharing/revocation/signing gates. CH-20 contract work and CH-21 optional inference can use synthetic fixtures independently. After CH-03, CH-22 runtime availability can proceed beside collection/upload work. No core template/export ticket depends on CH-18, CH-19, or CH-21. Simulated source policies do not complete the security gates.
 
 P0 identifies consent and integration gates. P1 completes the required product. P2 is optional. Follow the dependency graph; a P0 ticket can depend on a P1 product capability. No owner or deadline has been assumed.
 
 ## Parallel work groups
 
-1. Now: continue CH-01 authentication while CH-20 defines the design contract and CH-21 establishes self-hosted inference using synthetic fixtures. Neither edits authentication.
-2. Protected foundation: CH-02 → CH-03 → CH-04 → CH-05 → CH-06 → CH-07, respecting all listed dependencies.
-3. After CH-07: CH-08 withdrawals and CH-09 composer can run in parallel if CH-20 is ready.
-4. After CH-08: CH-19 media derivatives → CH-18 real AI art direction, each integrating CH-21 endpoints once ready. This chain can overlap CH-09; CH-18 does not depend on the composer. Agree processor adapters early.
-5. Once CH-09 and CH-18 are ready: CH-10 integrated PDF freeze → CH-11 final review → CH-12 receipt → CH-13 download.
-6. After CH-13: CH-14 history/recovery and CH-15 polish run in parallel → CH-16 verification → CH-17 demonstration.
+1. Independently: CH-20 shared plan contract and CH-21 optional inference setup use synthetic fixtures alongside remaining CH-01 live verification.
+2. After CH-02 → CH-03: CH-04 collections and CH-22 runtime AI switch can run in parallel; continue CH-05 local multimedia preparation → CH-06 source permissions → CH-07 inbox.
+3. After CH-07: CH-08 withdrawals and CH-09 Template mode run in parallel once CH-20/CH-22 are ready.
+4. Core delivery: CH-09 → CH-10 shared PDF freeze → CH-11 final review → CH-12 receipts → CH-13 download; CH-11 also requires CH-08. No model is required.
+5. AI lane: CH-19 consented processing starts after CH-08/CH-21/CH-22; CH-18 adds live generation/refinement after CH-19 and CH-10, and can overlap final-consent/download work.
+6. After CH-13: CH-14 history/recovery and CH-15 polish run in parallel → CH-16 core verification → CH-17 template/off-state demo. Enabled-AI evidence from CH-18/CH-19/CH-21 is required separately for full dual-mode signoff.
 
 ## Issue index
 
@@ -41,9 +41,9 @@ P0 identifies consent and integration gates. P1 completes the required product. 
 
 | [CH-08](#ch-08) | P0 | M2 Collect approved memories | Enforce withdrawals and order concurrent consent operations | CH-06, CH-07 |
 
-| [CH-09](#ch-09) | P1 | M3 Create approved photozines | Build an editable six-page composer for validated AI and manual designs | CH-04, CH-07, CH-20 |
+| [CH-09](#ch-09) | P1 | M3 Create approved photozines | Build Template mode and a shared editor for template and AI plans | CH-04, CH-07, CH-20, CH-22 |
 
-| [CH-10](#ch-10) | P1 | M3 Create approved photozines | Render and freeze exact PDF candidates with content manifests | CH-09, CH-18 |
+| [CH-10](#ch-10) | P1 | M3 Create approved photozines | Render and freeze exact PDF candidates with content manifests | CH-09 |
 
 | [CH-11](#ch-11) | P0 | M3 Create approved photozines | Collect final approvals for an immutable downloadable edition | CH-08, CH-10 |
 
@@ -55,29 +55,31 @@ P0 identifies consent and integration gates. P1 completes the required product. 
 
 | [CH-15](#ch-15) | P1 | M4 Demo readiness | Polish mobile layouts, keyboard access, and PDF performance | CH-09, CH-13 |
 
-| [CH-16](#ch-16) | P1 | M4 Demo readiness | Verify the complete consent and photozine flow against the SRD | CH-08, CH-13, CH-14, CH-15 |
+| [CH-16](#ch-16) | P1 | M4 Demo readiness | Verify the independent template flow and collect dual-mode release evidence | CH-08, CH-13, CH-14, CH-15, CH-22 |
 
 | [CH-17](#ch-17) | P1 | M4 Demo readiness | Prepare the hackathon demonstration and submission documentation | CH-16 |
 
-| [CH-18](#ch-18) | P1 | M3 Create approved photozines | Infer photozine style from approved multimedia and support text refinement | CH-08, CH-19, CH-20, CH-21 |
+| [CH-18](#ch-18) | P1 | M3 Create approved photozines | Add optional-at-runtime AI generation and refinement to the shared composer | CH-08, CH-19, CH-20, CH-21, CH-22, CH-10 |
 
-| [CH-19](#ch-19) | P1 | M3 Create approved photozines | Prepare consented transcripts, video stills, and visual derivatives | CH-05, CH-06, CH-08, CH-21 |
+| [CH-19](#ch-19) | P1 | M3 Create approved photozines | Add consented AI transcription and analysis for enabled AI mode | CH-05, CH-06, CH-08, CH-21, CH-22 |
 
-| [CH-20](#ch-20) | P1 | M3 Create approved photozines | Define the safe design-plan schema and renderer component contract | None |
+| [CH-20](#ch-20) | P1 | M3 Create approved photozines | Define one DesignPlan contract for templates, manual edits, and AI output | None |
 
-| [CH-21](#ch-21) | P1 | M3 Create approved photozines | Establish authenticated self-hosted inference in the team cloud | None |
+| [CH-21](#ch-21) | P1 | M3 Create approved photozines | Provide optional self-hosted inference for AI-enabled creation | None |
+
+| [CH-22](#ch-22) | P0 | M2 Collect approved memories | Add a server-controlled AI switch and safe job invalidation | CH-01, CH-03 |
 
 ## Publication
 
 The Publish Chorus backlog workflow creates missing GitHub issues, labels, milestones, an MVP checklist, and links between dependencies. It runs when the manifest is pushed to main and can also be started manually in Actions. It uses GitHub's repository-scoped workflow token with contents read and issues write permissions; no personal token is required.
 
-Publication is idempotent: stable markers identify issues across retries, including a response lost after creation or update. Existing issues are revised only when named by an explicit manifest revision. The current scope is placed first; the complete prior description and implementation notes remain in a historical details block as quoted Markdown, so old checklists are not active tasks. Exact unchanged checked criteria are carried forward. Comments, state, assignments, and custom labels are retained. CH-01 is excluded from scope revision targets; the self-hosted-demo-v1 revision changes only the tracker and CH-16, CH-17, CH-18, and CH-19. Duplicate markers stop publication for reconciliation. The workflow summary/artifact lists created and revised tickets and their URLs.
+Publication is idempotent: stable markers identify issues across retries, including a response lost after creation or update. Existing issues are revised only when named by an explicit manifest revision. The current scope is first; the complete prior description/notes remain historical quoted Markdown, with unchanged checked criteria carried forward. Comments, state, assignments, and custom labels are retained. CH-01 is excluded from dual-creation-modes-v1 targets. Duplicate markers stop publication for reconciliation. The workflow summary/artifact lists created/revised tickets and URLs.
 
 Update the JSON source and run npm run backlog:docs to regenerate this file. To revise already published scope, add a new unique revision ID and an explicit target list; a revision runs once per issue. Re-running the same revision preserves later human edits and does not append duplicates. Do not reuse a published revision ID for a further scope change.
 
 ## Completion criteria
 
-The MVP is complete when every MUST requirement is implemented and AT-01 through AT-22 have applicable evidence. CH-18 is required AI-inferred design, CH-19 handles authorized multimedia derivatives, CH-20 supplies the safe plan contract, and CH-21 proves authenticated self-hosted cloud inference. A complete manual path remains required for decline/outage recovery; manual-only does not complete the AI requirement. Style-only influencing sources retain consent dependencies. Authorized processors/reviewers/downloaders can copy plaintext already received; the product cannot promise recall or DRM.
+The template milestone completes the full consent-to-approved-PDF flow with AI off and no model credentials/service. The full dual-mode release additionally verifies implemented enabled-AI generation/transcription/refinement and all applicable AT-01 through AT-26 evidence. AI is optional per zine and in runtime configuration; disabling an implemented feature does not make its earlier evidence disappear. CH-22 covers all AI dispatch, queues, and retries. Switching modes preserves source/AI lineage and does not change existing frozen bytes. Authorized recipients can copy plaintext already released; no recall or DRM is promised.
 
 ## CH-01
 
@@ -148,6 +150,7 @@ Replace the starter schema with the immutable records and references needed by t
 - Add indexes and validators; separate mutable workflow projections from authoritative signed evidence.
 - Define canonical manifest serialization and immutable resource/version identifiers shared by frontend and backend.
 - Model MediaAsset, ProcessingJob, DerivedArtifact, and DesignPlan records with media type/codec, source and timestamp lineage, processor/model provenance, explicit grant scopes, immutable plan revisions, and full style-influence closure.
+- Model server AIConfiguration with enabled/default-off state, monotonic revision, operator audit, and processor configuration reference. Store plan template/origin/parent provenance separately from transient editing mode; jobs capture config revision and invalidation state.
 
 ### Acceptance criteria
 
@@ -157,8 +160,9 @@ Replace the starter schema with the immutable records and references needed by t
 - [ ] Decision and candidate records retain exact commitments and authoritative revision references.
 - [ ] Retry keys produce one logical mutation, and validation rejects cross-collection references.
 - [ ] Visible and style-only input dependencies and separate editor/reviewer versus processor permissions survive refresh and cannot be silently widened or removed.
+- [ ] Template-built and AI-origin plans share one immutable schema. Operational enable/disable does not rewrite accepted plan provenance, candidate commitments, consent, or final approval evidence.
 
-Requirements: FR-05, FR-09, FR-12, FR-13, FR-19, FR-26, NFR-06, FR-28, FR-30, FR-31. Acceptance tests: AT-05, AT-15, AT-16, AT-21.
+Requirements: FR-05, FR-09, FR-12, FR-13, FR-19, FR-26, NFR-06, FR-28, FR-30, FR-31, FR-32, FR-33, FR-34, FR-35. Acceptance tests: AT-05, AT-15, AT-16, AT-21, AT-25, AT-26.
 
 A schema field named encryptedPayload does not provide encryption. Backend approval projections must not become the authority for protected release.
 
@@ -202,6 +206,7 @@ Let contributors submit bounded multimedia memories and declared people without 
 - Enforce SRD signatures, codecs, sizes, duration/dimensions, text limits, twelve active memories, and the collection byte budget. Do not trust extensions or supplied metadata.
 - Normalize images and remove EXIF/GPS and ancillary location metadata from retained media before encryption; persist no unsanitized original. Explain unsupported codecs or unavailable safe local processing.
 - Protect source thumbnails and playback, revoke temporary object URLs, and recover interrupted encrypted uploads. In-app recording is outside scope.
+- Provide protected local video-still selection and manually typed, attributed audio/video excerpts with source time ranges. This deterministic preparation works without transcription, an inference service, or AI credentials.
 
 ### Acceptance criteria
 
@@ -210,8 +215,9 @@ Let contributors submit bounded multimedia memories and declared people without 
 - [ ] Retained media have correct orientation where applicable and no ancillary location metadata; remote storage/logs contain no media or private text plaintext.
 - [ ] An unresolved required identity prevents approval submission; unrelated members receive no usable source URL, thumbnail, or playback.
 - [ ] Capability and retry failures preserve recoverable work without claiming a successful upload.
+- [ ] With AI off, an authorized contributor can select a local still and confirm a typed quote without any model dispatch; full source/version attribution is retained.
 
-Requirements: FR-05, FR-06, FR-07, NFR-01, NFR-09, NFR-10. Acceptance tests: AT-02, AT-14, AT-16, AT-18.
+Requirements: FR-05, FR-06, FR-07, NFR-01, NFR-09, NFR-10, FR-27, FR-35, NFR-11. Acceptance tests: AT-02, AT-14, AT-16, AT-18, AT-23.
 
 Use the verified SDK or reviewed envelope design from CH-02; do not introduce an application-held master decryption key.
 
@@ -258,6 +264,7 @@ Give contributors a clear decision about the exact material, private review audi
 - Support approve, decline, and request-edit actions, with no mandatory explanation for declining.
 - Show private, awaiting permission, available, and excluded states to permitted users.
 - Add protected audio/video playback and exact declared speaker review; show separate manual-use and per-processor decisions with derivative/retention disclosure.
+- Keep manual-use approval independent of AI consent and availability. Do not make an AI-processing decision mandatory to continue in Template mode.
 
 ### Acceptance criteria
 
@@ -267,8 +274,9 @@ Give contributors a clear decision about the exact material, private review audi
 - [ ] Other members see permission status without private rejection explanations.
 - [ ] Expired sessions, policy denial, duplicate submissions, and refreshes do not falsely show success.
 - [ ] Declining AI processing can leave manual composition available; no processor receives content during limited pre-consent review.
+- [ ] Template creation and source review remain usable when AI is disabled or unconfigured; neither triggers transcription, analysis, or processor setup.
 
-Requirements: FR-09, FR-11, FR-12, NFR-09, FR-28. Acceptance tests: AT-03, AT-05, AT-16.
+Requirements: FR-09, FR-11, FR-12, NFR-09, FR-28, FR-18, FR-32, FR-35, NFR-11. Acceptance tests: AT-03, AT-05, AT-16, AT-23.
 
 Approval to compose and privately review is distinct from later approval of a downloadable edition.
 
@@ -303,45 +311,46 @@ An editable Convex status flag alone does not establish the required ordering ag
 
 ## CH-09
 
-**Build an editable six-page composer for validated AI and manual designs**
+**Build Template mode and a shared editor for template and AI plans**
 
-Priority P1 · M3 Create approved photozines · Dependencies: CH-04, CH-07, CH-20.
+Priority P1 · M3 Create approved photozines · Dependencies: CH-04, CH-07, CH-20, CH-22.
 
-Let the creator inspect and edit a validated design plan while preserving a complete manual create-review-export path.
+Make template creation a complete default path while allowing accepted AI plans to be edited through the same interface.
 
 ### Scope
 
-- Build a six-page A5 preview using the shared design-plan contract, supporting cover, opening, photos, attributed perspectives, collage, and closing content.
-- Allow eligible photo/still selection, ordering, caption/quote edits, palette/font controls, and a simple manual fallback layout; integrate the AI action/refinement against CH-18 when ready.
-- Display the style inspiration, immutable plan revision, transcript/frame provenance, reviewable attribution, job states, and actionable recovery. Recover draft work after refresh.
-- Permit manually authorized AI-denied memories only through manual editing; preserve the full input influence closure and reflow on removal.
+- Build Use a template with at least one complete six-page A5 preset, manual source/still placement and ordering, caption/quote entry, palette/font/layout controls, and recoverable draft state.
+- Use one DesignPlan validator and preview/editor for template-built, AI-generated, and manually edited plans; consume sanitized backend AI capabilities rather than a client-only toggle.
+- Keep local still selection and typed attributed source-time-range excerpts available without AI. Require no model key, inference process, or AI consent to create a template draft.
+- Expose Create with AI/refinement only when server capability and source-processing permission allow it. Show job state and Retry/Continue manually when applicable.
+- Continue manually preserves the last accepted plan, assets, accepted text, and complete AI/style-source lineage. Do not apply partial/stale results or silently reset to another layout.
 
 ### Acceptance criteria
 
-- [ ] The creator can compose all six pages without any AI service.
-- [ ] Pending, declined, or withdrawn sources are excluded before layout and rendering.
-- [ ] Each source is approved for the named editor and review audience.
-- [ ] Text changes retain attribution and are marked for final review; meaning or scope changes require revised source permission.
-- [ ] Refreshing or retrying preserves recoverable draft work without turning it into an approved edition.
-- [ ] Validated fixture plans show at least two distinct compositions; users can inspect inspiration and change style controls without arbitrary generated code or external assets.
-- [ ] An accepted AI design or text refinement creates a new draft plan revision; quotes can be corrected with attribution and source permission renewed when meaning changes.
+- [ ] From an empty draft, create all six template pages with AI disabled and no inference credentials/service; there are zero model calls.
+- [ ] Pending, declined, or withdrawn sources remain excluded; included material has valid editor/reviewer permission and attribution.
+- [ ] Template controls and accepted AI fixture plans use one editor/validator and remain recoverable after refresh; both respect page and resource constraints.
+- [ ] Changing editing mode or disabling AI alone does not mutate accepted plan provenance, frozen PDF bytes, or final approval evidence.
+- [ ] Actual content/layout edits create the required new plan/candidate; changed source meaning requires new source permission.
+- [ ] AI controls reflect server state; a forged/stale client capability never authorizes a backend model call.
+- [ ] Local video stills and confirmed typed quotes work with no automatic transcription or hidden model startup.
 
-Requirements: FR-14, FR-15, FR-16, FR-18, NFR-03, NFR-06, FR-29, FR-30, FR-31. Acceptance tests: AT-07, AT-08, AT-17, AT-19, AT-20, AT-21.
+Requirements: FR-14, FR-15, FR-16, FR-18, NFR-03, NFR-06, FR-29, FR-30, FR-31, FR-27, FR-32, FR-33, FR-35, NFR-11. Acceptance tests: AT-07, AT-08, AT-17, AT-19, AT-20, AT-21, AT-23, AT-25, AT-26.
 
-Start against CH-20 synthetic plans while CH-18 is built. CH-09 alone does not complete the required live AI generation. All influencing sources, including style-only ones, retain final-approval dependencies.
+Template delivery does not depend on CH-18, CH-19, or CH-21. Use CH-20 fixture plans to prepare the shared editor. CH-18 later supplies live generation/refinement; preserve all influencing source approvers when editing AI-origin drafts manually.
 
 ## CH-10
 
 **Render and freeze exact PDF candidates with content manifests**
 
-Priority P1 · M3 Create approved photozines · Dependencies: CH-09, CH-18.
+Priority P1 · M3 Create approved photozines · Dependencies: CH-09.
 
 Produce an immutable candidate that reviewers and eventual downloaders see as the same exact file.
 
 ### Scope
 
 - Choose and validate a browser PDF renderer, then embed normalized images and required fonts.
-- Render the accepted validated plan once; commit exact PDF bytes and a canonical manifest with visible/style-influencing sources, derivative versions, full lineage, plan digest/version, renderer/component/font versions, accepted text, approvers, audience, and download scope.
+- Render a validated template/manual/AI DesignPlan through one engine; freeze exact PDF bytes and canonical manifest with template/origin/schema/renderer/font versions, accepted content, all visible/style-influence dependencies, approvers, audience, and scope.
 - Encrypt the frozen candidate for its authorized review audience; retain its exact byte sequence.
 
 ### Acceptance criteria
@@ -351,11 +360,11 @@ Produce an immutable candidate that reviewers and eventual downloaders see as th
 - [ ] A byte change, source change, or scope change produces a new candidate identity.
 - [ ] Partial or failed rendering cannot create an approvable candidate.
 - [ ] A reference render is measured against the provisional thirty-second target, with the device recorded.
-- [ ] Real AI-generated and manual plans both render through the same constrained engine; invalid or stale plans cannot be frozen, and full influence closure determines approvers.
+- [ ] Template and synthetic AI-shaped plans render through the same engine with no live inference dependency. Invalid/stale plans cannot freeze; full provenance determines approvers. Live AI integration is verified by CH-18.
 
-Requirements: FR-19, FR-25, NFR-03, NFR-04, FR-29, FR-31. Acceptance tests: AT-07, AT-10, AT-11, AT-17, AT-20, AT-21.
+Requirements: FR-19, FR-25, NFR-03, NFR-04, FR-29, FR-31, FR-33, FR-35, NFR-11. Acceptance tests: AT-07, AT-10, AT-11, AT-17, AT-20, AT-21, AT-23, AT-25.
 
-Do not rerender after approval. Put the edition identifier in the PDF before freezing; approval signatures belong in a detached receipt to avoid a circular digest.
+No dependency on CH-18 or any inference service: template freeze/approval/download must ship independently. Retain exact frozen bytes; disabling AI alone never rerenders an edition or changes its commitments.
 
 ## CH-11
 
@@ -450,6 +459,7 @@ Make consent decisions and official issuance understandable and robust during re
 - Use idempotent decision/issuance mutations and recover committed results after a dropped connection.
 - Add actionable errors and redact source contents, credentials, and tokens from telemetry.
 - Include authorized processing-job dispatch/outcome, derivative invalidation, and design revision history; idempotent retries recover a job while explicit regeneration creates a new revision.
+- Expose operator AI configuration revisions and job invalidation/cancellation in authorized history, without recording prompts or source payloads. Explain AI-off separately from source withdrawal.
 
 ### Acceptance criteria
 
@@ -459,8 +469,9 @@ Make consent decisions and official issuance understandable and robust during re
 - [ ] A declined decision does not disclose a private explanation to others or in exports.
 - [ ] Logs and error traces contain no source plaintext, decrypted previews, secrets, or full tokens.
 - [ ] Media/transcript/style prompts stay out of telemetry; job errors and invalidation explain recovery without exposing private content.
+- [ ] Disabling/re-enabling AI and invalidating jobs are audited; retry cannot resume an invalidated job or overwrite a newer accepted draft.
 
-Requirements: FR-26, NFR-01, NFR-06, NFR-09, FR-28, FR-30, FR-31. Acceptance tests: AT-14, AT-15, AT-16, AT-21.
+Requirements: FR-26, NFR-01, NFR-06, NFR-09, FR-28, FR-30, FR-31, FR-32, FR-34. Acceptance tests: AT-14, AT-15, AT-16, AT-21, AT-24, AT-26.
 
 Implement idempotency in the earlier endpoint tickets as they land; this ticket completes the cross-flow history and recovery experience.
 
@@ -478,6 +489,7 @@ Make the complete creation and approval journey usable at the reference widths a
 - Add keyboard reachability, visible focus, labels, contrast, textual state descriptions, and pending/error feedback.
 - Measure rendering and inspect the exported pages; fix clipping and excessive asset size.
 - Check audio/video review, transcript correction, AI processing disclosures, style controls, refinement, budgets, and job recovery. Record processing/AI latency separately from PDF rendering.
+- Verify default Template mode, AI-off controls, Continue manually, local media quote/still controls, and accepted-AI draft editing without a model service. Enabled-only polish is an additional pass.
 
 ### Acceptance criteria
 
@@ -487,36 +499,36 @@ Make the complete creation and approval journey usable at the reference widths a
 - [ ] The six-page reference PDF has embedded resources and no clipped captions.
 - [ ] Render timings are recorded against the provisional target, with any remaining deviation documented.
 
-Requirements: NFR-03, NFR-04, NFR-05, NFR-09, NFR-10. Acceptance tests: AT-17, AT-18, AT-19.
+Requirements: NFR-03, NFR-04, NFR-05, NFR-09, NFR-10, FR-33, FR-35, NFR-11. Acceptance tests: AT-17, AT-18, AT-19, AT-23, AT-25.
 
 Retain the existing Next.js/TanStack history adapter and verify direct refresh and back/forward after adding workspace routes.
 
 ## CH-16
 
-**Verify the complete consent and photozine flow against the SRD**
+**Verify the independent template flow and collect dual-mode release evidence**
 
-Priority P1 · M4 Demo readiness · Dependencies: CH-08, CH-13, CH-14, CH-15.
+Priority P1 · M4 Demo readiness · Dependencies: CH-08, CH-13, CH-14, CH-15, CH-22.
 
-Demonstrate that the integrated MVP satisfies the documented acceptance tests, including direct attempts to bypass consent.
+Verify the complete template/consent/export path with AI off, then collect separately recorded AI-enabled and cross-mode evidence for full dual-mode signoff.
 
 ### Scope
 
-- Prepare authorized synthetic image, voice, video, and text fixtures for three contributors, a blocked memory, a manual-only memory, contrasting style collections, and multiple governance administrators.
-- Automate meaningful policy/API checks and the primary browser journey; document checks that require manual review.
-- Inspect processor dispatches, derivative/style lineage, previews, exact PDF bytes, encrypted persistence, and offline verification. Test malformed plans and media/job budgets.
-- Verify self-hosted inference endpoint authentication, model/runtime provenance, synthetic capability/latency evidence, absence of payload logging and frontend credentials, and manual recovery when inference stops.
+- Complete the template journey from an empty draft using approved synthetic photos, locally selected stills, and typed attributed excerpts with no AI credentials/service. Inspect network/dispatch evidence for zero model calls.
+- Run real Tide bypass, withdrawal, governance, exact-byte final-review, receipt, and offline-download checks independently of AI integration.
+- Verify direct/stale API, background/startup requests, runtime operator authorization, config failure, and disable/re-enable races; test job invalidation with controlled worker fixtures.
+- Collect real AI-enabled generation/refinement/transcription and cross-mode evidence from CH-18/CH-19/CH-21 after integration. Core template evidence is independently completable; do not label unimplemented AI as tested.
 
 ### Acceptance criteria
 
-- [ ] AT-01 through AT-22 each have evidence or an explicit unmet requirement; a complete MVP has no unmet MUST requirement.
-- [ ] The real Tide tests cover missing approvals, role-change governance, database flag tampering, replay, recipient substitution, withdrawal races, and final receipt issuance.
-- [ ] Demonstrate real AI generation from multimedia inputs without a required style prompt, visibly distinct directions, and refinement. Also complete the manual journey with processors unavailable or permission declined; manual-only is not a complete MVP.
-- [ ] A clean setup can reproduce the contributor-to-approved-PDF journey.
-- [ ] No simulated protection is described as verified cryptographic enforcement.
+- [ ] AT-01 through AT-26 have separately identified template/off-state and enabled-AI evidence or explicit unmet items. Core template signoff does not depend on inference deployment; complete dual-mode signoff includes all applicable MUST evidence.
+- [ ] Real Tide tests cover missing approvals, policy governance, database tampering, replay, recipient substitution, withdrawal ordering, and final receipt issuance.
+- [ ] AI-off cold start, local media/manual quotes, full template export, and blocked direct/background model requests are demonstrated with no model key or running inference process.
+- [ ] Before full dual-mode signoff, real enabled AI produces distinct valid designs and refinement, and existing accepted plans/PDFs survive disable while stale results are rejected.
+- [ ] A clean setup reproduces template-to-approved-PDF operation. No simulated consent or fixture-only model result is described as implemented real protection/AI.
 
-Requirements: NFR-01, NFR-02, NFR-03, NFR-06, NFR-07, FR-27, FR-28, FR-29, FR-30, FR-31, NFR-10. Acceptance tests: AT-01, AT-02, AT-03, AT-04, AT-05, AT-06, AT-07, AT-08, AT-09, AT-10, AT-11, AT-12, AT-13, AT-14, AT-15, AT-16, AT-17, AT-18, AT-19, AT-20, AT-21, AT-22.
+Requirements: NFR-01, NFR-02, NFR-03, NFR-06, NFR-07, FR-27, FR-28, FR-29, FR-30, FR-31, NFR-10, FR-32, FR-33, FR-34, FR-35, NFR-11. Acceptance tests: AT-01, AT-02, AT-03, AT-04, AT-05, AT-06, AT-07, AT-08, AT-09, AT-10, AT-11, AT-12, AT-13, AT-14, AT-15, AT-16, AT-17, AT-18, AT-19, AT-20, AT-21, AT-22, AT-23, AT-24, AT-25, AT-26.
 
-Use actual Tide-protected requests for AT-03, AT-04, AT-06, AT-09, and AT-12. Keep public fixtures free of real personal material.
+Template validation can complete while AI integrations are under development. Preserve enabled-only checks as pending evidence, supplied by the corresponding feature tickets; full dual-mode signoff cannot mark those checks passed merely because AI was disabled.
 
 ## CH-17
 
@@ -529,9 +541,9 @@ Show the new possibility clearly: a group creates a keepsake without one adminis
 ### Scope
 
 - Prepare setup/enrollment instructions and a short project overview covering the product, trust constraint, value, TideCloak contribution, and demonstrated behavior.
-- Record protected denial, denied unilateral permission change, consented image/voice/video processing, automatically inferred design, a style refinement, final consent, and offline PDF.
+- Record a complete AI-off template creation, blocked source, denied unilateral permission change, final consent, and offline PDF. Add separately verified AI generation/refinement and Continue manually evidence when enabled-mode integration is ready.
 - Identify mocked external services, implemented protections, known limits, and deferred stretch work.
-- Describe the team-cloud inference deployment and verified capabilities, disclose GPU-process/operator plaintext exposure, and provide reproducible startup/teardown instructions without credentials.
+- Document both runtime configurations and the operator AI switch, local manual audio/video preparation, optional inference startup/teardown, and the plaintext exposure of any enabled processor.
 
 ### Acceptance criteria
 
@@ -540,17 +552,17 @@ Show the new possibility clearly: a group creates a keepsake without one adminis
 - [ ] The overview explains the difference between protected source release and copies already received by reviewers or downloaders.
 - [ ] The submission materials match the actual implemented state and the organizer's current instructions.
 - [ ] Product and SRD links, verification steps, and any unmet requirements are easy to find.
-- [ ] The demonstration includes real disclosed AI processing and explains its plaintext exposure; the manual fallback is shown as recovery, not a substitute for implemented AI design.
+- [ ] An AI-off demo is a supported presentation of the core product; full dual-mode claims include enabled-AI evidence from CH-18/CH-19/CH-21 and cross-mode tests. Explain any unimplemented capability explicitly.
 
-Requirements: NFR-08. Acceptance tests: AT-22.
+Requirements: NFR-08, FR-18, FR-35, NFR-11. Acceptance tests: AT-22, AT-23, AT-25.
 
-Keep the downloadable photozine as the primary artifact. AI design is now core. Accurately disclose mocks, unsupported formats, processor/model choices, and any unmet SRD requirement.
+Keep the downloadable photozine primary. The template demo does not require inference. Full dual-mode claims require both paths to be verified; distinguish disabling an implemented feature from omitting its implementation.
 
 ## CH-18
 
-**Infer photozine style from approved multimedia and support text refinement**
+**Add optional-at-runtime AI generation and refinement to the shared composer**
 
-Priority P1 · M3 Create approved photozines · Dependencies: CH-08, CH-19, CH-20, CH-21.
+Priority P1 · M3 Create approved photozines · Dependencies: CH-08, CH-19, CH-20, CH-21, CH-22, CH-10.
 
 Use the authorized memories themselves to create an editable, validated six-page design without requiring a style prompt.
 
@@ -561,6 +573,7 @@ Use the authorized memories themselves to create an editable, validated six-page
 - Support an optional style prompt and text refinement; preserve attribution, review quotes, and create immutable plan revisions. Never fabricate memories, alter source photos, or execute model code.
 - Validate through CH-20 before preview; enforce scopes/current revisions at dispatch and result acceptance. Reject stale/malformed output and expose retry/manual recovery without silent provider fallback.
 - Integrate the real generation and refinement actions with CH-09; use only bounded resized images, sampled frames, transcripts, and authorized stories, never full raw videos.
+- Gate every admission/dispatch/refinement/retry on current server AI state/config revision plus exact processor consent; supply the shared editor with immutable accepted plans and preserve Continue manually after disable.
 
 ### Acceptance criteria
 
@@ -571,22 +584,25 @@ Use the authorized memories themselves to create an editable, validated six-page
 - [ ] Provider failure, processing decline, quota/budget errors, or invalidation preserve manual editing and do not submit content to another provider.
 - [ ] All style-influencing source approvers remain part of final consent; a withdrawal discards dependent late results and requires regeneration without that source.
 - [ ] Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent.
+- [ ] With AI disabled, direct, stale, background, and retry entry points make no model request; missing service credentials do not break Template mode.
+- [ ] Disable invalidates queued/in-flight jobs, late results cannot replace accepted work after re-enable, and fresh jobs require explicit user action and current authorization.
+- [ ] Live AI plans render through CH-10 and remain manually editable when AI is off, retaining all style-only dependencies. Operational toggles alone preserve existing candidate approvals/downloads.
 
-Requirements: FR-14, FR-15, FR-16, FR-17, FR-18, FR-28, FR-29, FR-30, FR-31, NFR-01, NFR-09, NFR-10. Acceptance tests: AT-07, AT-08, AT-18, AT-19, AT-20, AT-21, AT-22.
+Requirements: FR-14, FR-15, FR-16, FR-17, FR-18, FR-28, FR-29, FR-30, FR-31, NFR-01, NFR-09, NFR-10, FR-32, FR-33, FR-34, FR-35, NFR-11. Acceptance tests: AT-07, AT-08, AT-18, AT-19, AT-20, AT-21, AT-22, AT-23, AT-24, AT-25, AT-26.
 
-Required MVP work. Integrate the self-hosted service proved in CH-21; CH-19 supplies consented derivatives. Can overlap CH-09 after its own prerequisites. CH-10 integrates both. Manual recovery does not waive real AI generation.
+A required implemented capability for the full dual-mode release, optional for each zine and at runtime. No core template/export ticket depends on this issue. CH-21 remains the planned self-hosted inference option; no specific model or external API is selected by this change.
 
 ## CH-19
 
-**Prepare consented transcripts, video stills, and visual derivatives**
+**Add consented AI transcription and analysis for enabled AI mode**
 
-Priority P1 · M3 Create approved photozines · Dependencies: CH-05, CH-06, CH-08, CH-21.
+Priority P1 · M3 Create approved photozines · Dependencies: CH-05, CH-06, CH-08, CH-21, CH-22.
 
 Convert protected multimedia into bounded, reviewable AI inputs without bypassing source or processing consent.
 
 ### Scope
 
-- Integrate the CH-21 self-hosted transcription endpoint under exact valid permission. Prepare resized images, at most six timestamped frames per clip, and sanitized audio tracks locally; record model/runtime, retention, deadline, and scoped recipient.
+- When AI is enabled, integrate the CH-21 transcription endpoint under exact current processor consent and config revision. Consume bounded local image/frame/audio preparation from CH-05; record model/runtime, retention, deadline, and recipient.
 - Enforce 1280 px visual long edge, twenty-four visuals, twelve memories, 2,000 transcript code points per recording, 12,000 total source-text code points, and the SRD file/duration/collection budgets. Offer explicit selection/reduction instead of silent truncation.
 - Encrypt immutable derivatives with source/transform versions, timestamp ranges, content commitments, processor provenance, and permission lineage; protect previews and remove temporary buffers.
 - Provide review/correction of excerpts and declared-speaker attribution. Changed meaning follows source-version consent; no automatic speaker identification.
@@ -601,14 +617,15 @@ Convert protected multimedia into bounded, reviewable AI inputs without bypassin
 - [ ] Withdrawal blocks queued dispatch, invalidates cached/in-flight dependent artifacts, and discards late results without claiming to recall already sent content.
 - [ ] Transcript/still selection, source version, and speaker attribution are inspectable before inclusion in the final edition.
 - [ ] Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent.
+- [ ] AI-off blocks automatic transcription/analysis and their queued/retry paths. Users can still listen/watch locally, select stills, type attributed excerpts, and complete a template without this integration.
 
-Requirements: FR-06, FR-07, FR-27, FR-28, FR-31, NFR-01, NFR-06, NFR-09, NFR-10. Acceptance tests: AT-02, AT-07, AT-14, AT-18, AT-21, AT-22.
+Requirements: FR-06, FR-07, FR-27, FR-28, FR-31, NFR-01, NFR-06, NFR-09, NFR-10, FR-32, FR-34, FR-35, NFR-11. Acceptance tests: AT-02, AT-07, AT-14, AT-18, AT-21, AT-22, AT-23, AT-24.
 
-CH-21 owns the hosted model/runtime and deployment decision. CH-19 integrates its transcriber and can complete without CH-18; CH-18 integrates visual/design processing. Synthetic adapters unblock UI work but do not complete real processing acceptance. No full raw video is sent to AI.
+CH-05/CH-09 own non-AI still selection and manually confirmed quotes, so they do not depend on CH-19. CH-21 supplies the planned self-hosted transcriber. All model calls honor CH-22; raw full video remains outside AI requests.
 
 ## CH-20
 
-**Define the safe design-plan schema and renderer component contract**
+**Define one DesignPlan contract for templates, manual edits, and AI output**
 
 Priority P1 · M3 Create approved photozines · Dependencies: none.
 
@@ -616,7 +633,7 @@ Give the composer, AI integration, and PDF renderer one safe versioned design co
 
 ### Scope
 
-- Define a versioned six-page A5 DesignPlan schema: component trees, authorized source/derivative references, palette/font tokens, bounded geometry, attributed text, inspiration, and complete influence closure.
+- Define one versioned six-page A5 DesignPlan schema for deterministic templates, manual edits, and AI output, with template/origin/schema versions, authorized asset references, bounded composition, attributed text, optional inspiration, and full influence closure.
 - Allowlist local cover/image/grid/collage/quote/heading/caption/note components and fonts. Specify renderer input/output, validation errors, immutable revisions, and manifest commitments.
 - Build synthetic warm scrapbook and bold editorial fixtures plus adversarial plans; validate structural limits, cross-reference membership, geometry, contrast, and text bounds.
 - Document shared interfaces for CH-09 preview/editing, CH-18 structured output, and CH-10 exact-byte freezing. This is a contract and validation slice, not the full composer or PDF implementation.
@@ -627,14 +644,15 @@ Give the composer, AI integration, and PDF renderer one safe versioned design co
 - [ ] Unknown assets/components/fonts, arbitrary HTML/code, network URLs, malformed bounds, wrong page counts, overflow, insufficient contrast, and missing influence references are rejected.
 - [ ] Plan revisions, input lineage, schema/component versions, and commitment rules are documented and usable by all three consumers.
 - [ ] Work runs on synthetic fixtures without credentials or private collection APIs; fixture validation cannot grant real source access.
+- [ ] A complete template plan validates without processor metadata or AI services; AI-origin plans retain immutable processor/source provenance through manual edits. Operational flag changes do not alter canonical plan/PDF commitments.
 
-Requirements: FR-15, FR-19, FR-29, FR-30, FR-31, NFR-03. Acceptance tests: AT-10, AT-19, AT-20.
+Requirements: FR-15, FR-19, FR-29, FR-30, FR-31, NFR-03, FR-33, FR-35, NFR-11. Acceptance tests: AT-10, AT-19, AT-20, AT-23, AT-25.
 
-Can start now in parallel with CH-01. No edits to authentication or existing in-progress implementation are required. Runtime source authorization remains the responsibility of the protected integration.
+Independent contract work on synthetic fixtures. Both creation paths consume the same validator/editor/renderer contract; no duplicate PDF engine or authentication edits are required.
 
 ## CH-21
 
-**Establish authenticated self-hosted inference in the team cloud**
+**Provide optional self-hosted inference for AI-enabled creation**
 
 Priority P1 · M3 Create approved photozines · Dependencies: none.
 
@@ -642,7 +660,7 @@ Provide a reproducible team-controlled cloud inference stack for transcription, 
 
 ### Scope
 
-- Select cloud/GPU capacity, model weights, and pinned serving runtimes after verifying capabilities, intended-use licenses, VRAM fit, cost, startup time, and demo budgets. A separate speech-to-text model is allowed; do not assume one model covers every modality.
+- Using the available eight H200 GPUs and English-only demo scope, select and pin models/runtime after checking capability, licensing, VRAM, cost, startup, and budgets. Cloud provider/model/runtime remain open; use separate speech-to-text if needed.
 - Provide endpoint/adapter contracts for CH-19 transcription and CH-18 visual/structured-design processing, with request limits, model/version provenance, timeouts, health checks, one-job concurrency, and explicit errors.
 - Use TLS and authenticated endpoints, restricted network access or an authenticated gateway, and server-side service credentials. Endpoint authentication is separate from protected source/processor consent.
 - Disable prompt/media logging, request-based training, and unintended plaintext persistence in the inference/proxy stack; document temporary-data cleanup and retention. Accepted outputs use encrypted artifact storage.
@@ -657,7 +675,37 @@ Provide a reproducible team-controlled cloud inference stack for transcription, 
 - [ ] Logs/traces and persistent temporary storage contain no request/media/transcript plaintext or service secrets; retention and failure cleanup are demonstrated.
 - [ ] Deadlines, concurrency, and media/request budgets are enforced; service failure supports explicit retry/manual recovery and sends no content to a managed fallback.
 - [ ] Documentation acknowledges that the inference process and privileged cloud operators can see authorized plaintext; self-hosting is not claimed to eliminate this trust boundary.
+- [ ] The application builds/starts and completes template creation without provisioning or starting this stack. Runtime AI-off produces no app-originated model requests or inference probes.
 
-Requirements: FR-07, FR-17, FR-18, FR-28, NFR-01, NFR-07, NFR-08, NFR-10. Acceptance tests: AT-08, AT-14, AT-18, AT-19, AT-22.
+Requirements: FR-07, FR-17, FR-18, FR-28, NFR-01, NFR-07, NFR-08, NFR-10, FR-32, FR-35, NFR-11. Acceptance tests: AT-08, AT-14, AT-18, AT-19, AT-22, AT-23.
 
-Can start alongside CH-01 and CH-20 with synthetic fixtures. Cloud provisioning is implementation work in this ticket, not an action performed by the specification update. Agree endpoint contracts early; hardware and model choices remain open.
+Can be developed independently with synthetic fixtures. Inference remains outside the core template dependency graph; live application dispatch integrates CH-22 availability and contributor consent in CH-18/CH-19. Prior model research is a recommendation, not a selected deployment.
+
+## CH-22
+
+**Add a server-controlled AI switch and safe job invalidation**
+
+Priority P0 · M2 Collect approved memories · Dependencies: CH-01, CH-03.
+
+Let an authorized operator turn all AI processing off while keeping template creation, accepted designs, approvals, and downloads available.
+
+### Scope
+
+- Add an operator-authorized audited runtime AIConfiguration with enabled flag, monotonic revision, processor-config reference, and sanitized public capabilities. Missing/invalid/unreadable config defaults AI to off.
+- Guard all model entry points: generation, refinement, ASR, visual analysis, startup probes, background jobs, and retries. Recheck current config and exact processor consent at admission and immediately before protected dispatch.
+- Define ordering for disable versus dispatch; cancel queued work, invalidate in-flight jobs, discard late results even after re-enable, and require a new explicit authorized job rather than automatic resume.
+- Keep model SDK initialization, credentials, inference health checks, and readiness outside template startup/render/approval/download. Persist accepted plans and frozen candidates independently of transient jobs.
+- Expose concise disabled/unavailable status and Retry/Continue manually contracts to the composer. Toggle authority cannot change source policy, grant processing consent, or invalidate a valid approved edition by itself.
+
+### Acceptance criteria
+
+- [ ] AI-off cold start with no model keys/service supports complete template-to-approved-PDF operation and no app-originated model calls or startup probes.
+- [ ] Direct/stale/forged client requests and automatic retry/background paths cannot dispatch any model work while disabled.
+- [ ] Only authorized operators can change availability; revisions/actions are audited without source plaintext. Read/config failure blocks AI without disabling core template operations.
+- [ ] If disable commits before dispatch, no content is released. Queued and invalidated in-flight results cannot overwrite accepted work, including after re-enable; already dispatched exposure is not claimed to be recalled.
+- [ ] Re-enable requires configured processor roles and fresh user-requested jobs under current contributor consent; it never auto-processes manual drafts.
+- [ ] Existing accepted AI plans remain manually editable, and current candidate approvals/receipts/downloads remain valid subject to ordinary source/access rules.
+
+Requirements: FR-18, FR-26, FR-28, FR-32, FR-34, FR-35, NFR-01, NFR-02, NFR-06, NFR-09, NFR-11. Acceptance tests: AT-08, AT-23, AT-24, AT-26.
+
+Can proceed after CH-03 in parallel with collection/upload work; no AI model deployment is required. Shared dispatch hooks are consumed by CH-18/CH-19. Test races with controlled workers before live inference integration.

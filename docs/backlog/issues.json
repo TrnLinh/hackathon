@@ -3,7 +3,7 @@
   "repository": "TrnLinh/hackathon",
   "tracking": {
     "id": "CH-00",
-    "title": "Deliver the Chorus multimedia AI-designed photozine MVP"
+    "title": "Deliver template and optional AI photozine creation with shared consent and export"
   },
   "issues": [
     {
@@ -87,15 +87,20 @@
         "NFR-06",
         "FR-28",
         "FR-30",
-        "FR-31"
+        "FR-31",
+        "FR-32",
+        "FR-33",
+        "FR-34",
+        "FR-35"
       ],
-      "tests": ["AT-05", "AT-15", "AT-16", "AT-21"],
+      "tests": ["AT-05", "AT-15", "AT-16", "AT-21", "AT-25", "AT-26"],
       "goal": "Replace the starter schema with the immutable records and references needed by the approved consent design.",
       "scope": [
         "Model collection membership, memory versions, composition scopes, actor decisions, permission revision references, candidates, editions, and audit events.",
         "Add indexes and validators; separate mutable workflow projections from authoritative signed evidence.",
         "Define canonical manifest serialization and immutable resource/version identifiers shared by frontend and backend.",
-        "Model MediaAsset, ProcessingJob, DerivedArtifact, and DesignPlan records with media type/codec, source and timestamp lineage, processor/model provenance, explicit grant scopes, immutable plan revisions, and full style-influence closure."
+        "Model MediaAsset, ProcessingJob, DerivedArtifact, and DesignPlan records with media type/codec, source and timestamp lineage, processor/model provenance, explicit grant scopes, immutable plan revisions, and full style-influence closure.",
+        "Model server AIConfiguration with enabled/default-off state, monotonic revision, operator audit, and processor configuration reference. Store plan template/origin/parent provenance separately from transient editing mode; jobs capture config revision and invalidation state."
       ],
       "acceptance": [
         "Content revisions create new records rather than mutating approved source versions.",
@@ -103,7 +108,8 @@
         "Ciphertext and sensitive references are distinct from any intentionally visible routing metadata.",
         "Decision and candidate records retain exact commitments and authoritative revision references.",
         "Retry keys produce one logical mutation, and validation rejects cross-collection references.",
-        "Visible and style-only input dependencies and separate editor/reviewer versus processor permissions survive refresh and cannot be silently widened or removed."
+        "Visible and style-only input dependencies and separate editor/reviewer versus processor permissions survive refresh and cannot be silently widened or removed.",
+        "Template-built and AI-origin plans share one immutable schema. Operational enable/disable does not rewrite accepted plan provenance, candidate commitments, consent, or final approval evidence."
       ],
       "notes": "A schema field named encryptedPayload does not provide encryption. Backend approval projections must not become the authority for protected release."
     },
@@ -140,21 +146,33 @@
       "type": "feature",
       "milestone": "M2 Collect approved memories",
       "dependsOn": ["CH-02", "CH-03", "CH-04"],
-      "requirements": ["FR-05", "FR-06", "FR-07", "NFR-01", "NFR-09", "NFR-10"],
-      "tests": ["AT-02", "AT-14", "AT-16", "AT-18"],
+      "requirements": [
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "NFR-01",
+        "NFR-09",
+        "NFR-10",
+        "FR-27",
+        "FR-35",
+        "NFR-11"
+      ],
+      "tests": ["AT-02", "AT-14", "AT-16", "AT-18", "AT-23"],
       "goal": "Let contributors submit bounded multimedia memories and declared people without persisting source plaintext remotely.",
       "scope": [
         "Build an image/audio/video/text memory editor with local preview or playback, attribution, caption/story, and declared people including speakers; automatically include the uploader.",
         "Enforce SRD signatures, codecs, sizes, duration/dimensions, text limits, twelve active memories, and the collection byte budget. Do not trust extensions or supplied metadata.",
         "Normalize images and remove EXIF/GPS and ancillary location metadata from retained media before encryption; persist no unsanitized original. Explain unsupported codecs or unavailable safe local processing.",
-        "Protect source thumbnails and playback, revoke temporary object URLs, and recover interrupted encrypted uploads. In-app recording is outside scope."
+        "Protect source thumbnails and playback, revoke temporary object URLs, and recover interrupted encrypted uploads. In-app recording is outside scope.",
+        "Provide protected local video-still selection and manually typed, attributed audio/video excerpts with source time ranges. This deterministic preparation works without transcription, an inference service, or AI credentials."
       ],
       "acceptance": [
         "Valid supported JPEG/PNG, audio, video, and text-only inputs create private immutable versions with attribution and required people.",
         "Unsupported/renamed files, SVG, excessive bytes or decoded pixels, over-duration media, unsupported codecs, and over-limit text fail before remote persistence with useful errors.",
         "Retained media have correct orientation where applicable and no ancillary location metadata; remote storage/logs contain no media or private text plaintext.",
         "An unresolved required identity prevents approval submission; unrelated members receive no usable source URL, thumbnail, or playback.",
-        "Capability and retry failures preserve recoverable work without claiming a successful upload."
+        "Capability and retry failures preserve recoverable work without claiming a successful upload.",
+        "With AI off, an authorized contributor can select a local still and confirm a typed quote without any model dispatch; full source/version attribution is retained."
       ],
       "notes": "Use the verified SDK or reviewed envelope design from CH-02; do not introduce an application-held master decryption key."
     },
@@ -202,14 +220,25 @@
       "type": "feature",
       "milestone": "M2 Collect approved memories",
       "dependsOn": ["CH-06"],
-      "requirements": ["FR-09", "FR-11", "FR-12", "NFR-09", "FR-28"],
-      "tests": ["AT-03", "AT-05", "AT-16"],
+      "requirements": [
+        "FR-09",
+        "FR-11",
+        "FR-12",
+        "NFR-09",
+        "FR-28",
+        "FR-18",
+        "FR-32",
+        "FR-35",
+        "NFR-11"
+      ],
+      "tests": ["AT-03", "AT-05", "AT-16", "AT-23"],
       "goal": "Give contributors a clear decision about the exact material, private review audience, and proposed use.",
       "scope": [
         "Create the source approval inbox with protected previews, attribution, version, editor, audience, and processor disclosures.",
         "Support approve, decline, and request-edit actions, with no mandatory explanation for declining.",
         "Show private, awaiting permission, available, and excluded states to permitted users.",
-        "Add protected audio/video playback and exact declared speaker review; show separate manual-use and per-processor decisions with derivative/retention disclosure."
+        "Add protected audio/video playback and exact declared speaker review; show separate manual-use and per-processor decisions with derivative/retention disclosure.",
+        "Keep manual-use approval independent of AI consent and availability. Do not make an AI-processing decision mandatory to continue in Template mode."
       ],
       "acceptance": [
         "A contributor can inspect the exact image/audio/video/text version, attribution, intended derivatives, editor/audience, and named processor role they are approving.",
@@ -217,7 +246,8 @@
         "Requesting an edit produces a new version and the necessary new approval request.",
         "Other members see permission status without private rejection explanations.",
         "Expired sessions, policy denial, duplicate submissions, and refreshes do not falsely show success.",
-        "Declining AI processing can leave manual composition available; no processor receives content during limited pre-consent review."
+        "Declining AI processing can leave manual composition available; no processor receives content during limited pre-consent review.",
+        "Template creation and source review remain usable when AI is disabled or unconfigured; neither triggers transcription, analysis, or processor setup."
       ],
       "notes": "Approval to compose and privately review is distinct from later approval of a downloadable edition."
     },
@@ -251,12 +281,12 @@
     },
     {
       "id": "CH-09",
-      "title": "Build an editable six-page composer for validated AI and manual designs",
+      "title": "Build Template mode and a shared editor for template and AI plans",
       "priority": "P1",
       "area": "frontend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
-      "dependsOn": ["CH-04", "CH-07", "CH-20"],
+      "dependsOn": ["CH-04", "CH-07", "CH-20", "CH-22"],
       "requirements": [
         "FR-14",
         "FR-15",
@@ -266,26 +296,42 @@
         "NFR-06",
         "FR-29",
         "FR-30",
-        "FR-31"
+        "FR-31",
+        "FR-27",
+        "FR-32",
+        "FR-33",
+        "FR-35",
+        "NFR-11"
       ],
-      "tests": ["AT-07", "AT-08", "AT-17", "AT-19", "AT-20", "AT-21"],
-      "goal": "Let the creator inspect and edit a validated design plan while preserving a complete manual create-review-export path.",
+      "tests": [
+        "AT-07",
+        "AT-08",
+        "AT-17",
+        "AT-19",
+        "AT-20",
+        "AT-21",
+        "AT-23",
+        "AT-25",
+        "AT-26"
+      ],
+      "goal": "Make template creation a complete default path while allowing accepted AI plans to be edited through the same interface.",
       "scope": [
-        "Build a six-page A5 preview using the shared design-plan contract, supporting cover, opening, photos, attributed perspectives, collage, and closing content.",
-        "Allow eligible photo/still selection, ordering, caption/quote edits, palette/font controls, and a simple manual fallback layout; integrate the AI action/refinement against CH-18 when ready.",
-        "Display the style inspiration, immutable plan revision, transcript/frame provenance, reviewable attribution, job states, and actionable recovery. Recover draft work after refresh.",
-        "Permit manually authorized AI-denied memories only through manual editing; preserve the full input influence closure and reflow on removal."
+        "Build Use a template with at least one complete six-page A5 preset, manual source/still placement and ordering, caption/quote entry, palette/font/layout controls, and recoverable draft state.",
+        "Use one DesignPlan validator and preview/editor for template-built, AI-generated, and manually edited plans; consume sanitized backend AI capabilities rather than a client-only toggle.",
+        "Keep local still selection and typed attributed source-time-range excerpts available without AI. Require no model key, inference process, or AI consent to create a template draft.",
+        "Expose Create with AI/refinement only when server capability and source-processing permission allow it. Show job state and Retry/Continue manually when applicable.",
+        "Continue manually preserves the last accepted plan, assets, accepted text, and complete AI/style-source lineage. Do not apply partial/stale results or silently reset to another layout."
       ],
       "acceptance": [
-        "The creator can compose all six pages without any AI service.",
-        "Pending, declined, or withdrawn sources are excluded before layout and rendering.",
-        "Each source is approved for the named editor and review audience.",
-        "Text changes retain attribution and are marked for final review; meaning or scope changes require revised source permission.",
-        "Refreshing or retrying preserves recoverable draft work without turning it into an approved edition.",
-        "Validated fixture plans show at least two distinct compositions; users can inspect inspiration and change style controls without arbitrary generated code or external assets.",
-        "An accepted AI design or text refinement creates a new draft plan revision; quotes can be corrected with attribution and source permission renewed when meaning changes."
+        "From an empty draft, create all six template pages with AI disabled and no inference credentials/service; there are zero model calls.",
+        "Pending, declined, or withdrawn sources remain excluded; included material has valid editor/reviewer permission and attribution.",
+        "Template controls and accepted AI fixture plans use one editor/validator and remain recoverable after refresh; both respect page and resource constraints.",
+        "Changing editing mode or disabling AI alone does not mutate accepted plan provenance, frozen PDF bytes, or final approval evidence.",
+        "Actual content/layout edits create the required new plan/candidate; changed source meaning requires new source permission.",
+        "AI controls reflect server state; a forged/stale client capability never authorizes a backend model call.",
+        "Local video stills and confirmed typed quotes work with no automatic transcription or hidden model startup."
       ],
-      "notes": "Start against CH-20 synthetic plans while CH-18 is built. CH-09 alone does not complete the required live AI generation. All influencing sources, including style-only ones, retain final-approval dependencies."
+      "notes": "Template delivery does not depend on CH-18, CH-19, or CH-21. Use CH-20 fixture plans to prepare the shared editor. CH-18 later supplies live generation/refinement; preserve all influencing source approvers when editing AI-origin drafts manually."
     },
     {
       "id": "CH-10",
@@ -294,13 +340,32 @@
       "area": "frontend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
-      "dependsOn": ["CH-09", "CH-18"],
-      "requirements": ["FR-19", "FR-25", "NFR-03", "NFR-04", "FR-29", "FR-31"],
-      "tests": ["AT-07", "AT-10", "AT-11", "AT-17", "AT-20", "AT-21"],
+      "dependsOn": ["CH-09"],
+      "requirements": [
+        "FR-19",
+        "FR-25",
+        "NFR-03",
+        "NFR-04",
+        "FR-29",
+        "FR-31",
+        "FR-33",
+        "FR-35",
+        "NFR-11"
+      ],
+      "tests": [
+        "AT-07",
+        "AT-10",
+        "AT-11",
+        "AT-17",
+        "AT-20",
+        "AT-21",
+        "AT-23",
+        "AT-25"
+      ],
       "goal": "Produce an immutable candidate that reviewers and eventual downloaders see as the same exact file.",
       "scope": [
         "Choose and validate a browser PDF renderer, then embed normalized images and required fonts.",
-        "Render the accepted validated plan once; commit exact PDF bytes and a canonical manifest with visible/style-influencing sources, derivative versions, full lineage, plan digest/version, renderer/component/font versions, accepted text, approvers, audience, and download scope.",
+        "Render a validated template/manual/AI DesignPlan through one engine; freeze exact PDF bytes and canonical manifest with template/origin/schema/renderer/font versions, accepted content, all visible/style-influence dependencies, approvers, audience, and scope.",
         "Encrypt the frozen candidate for its authorized review audience; retain its exact byte sequence."
       ],
       "acceptance": [
@@ -309,9 +374,9 @@
         "A byte change, source change, or scope change produces a new candidate identity.",
         "Partial or failed rendering cannot create an approvable candidate.",
         "A reference render is measured against the provisional thirty-second target, with the device recorded.",
-        "Real AI-generated and manual plans both render through the same constrained engine; invalid or stale plans cannot be frozen, and full influence closure determines approvers."
+        "Template and synthetic AI-shaped plans render through the same engine with no live inference dependency. Invalid/stale plans cannot freeze; full provenance determines approvers. Live AI integration is verified by CH-18."
       ],
-      "notes": "Do not rerender after approval. Put the edition identifier in the PDF before freezing; approval signatures belong in a detached receipt to avoid a circular digest."
+      "notes": "No dependency on CH-18 or any inference service: template freeze/approval/download must ship independently. Retain exact frozen bytes; disabling AI alone never rerenders an edition or changes its commitments."
     },
     {
       "id": "CH-11",
@@ -404,15 +469,18 @@
         "NFR-09",
         "FR-28",
         "FR-30",
-        "FR-31"
+        "FR-31",
+        "FR-32",
+        "FR-34"
       ],
-      "tests": ["AT-14", "AT-15", "AT-16", "AT-21"],
+      "tests": ["AT-14", "AT-15", "AT-16", "AT-21", "AT-24", "AT-26"],
       "goal": "Make consent decisions and official issuance understandable and robust during refreshes and interrupted requests.",
       "scope": [
         "Expose an authenticated history for decisions, withdrawals, issuance, and download authorization events.",
         "Use idempotent decision/issuance mutations and recover committed results after a dropped connection.",
         "Add actionable errors and redact source contents, credentials, and tokens from telemetry.",
-        "Include authorized processing-job dispatch/outcome, derivative invalidation, and design revision history; idempotent retries recover a job while explicit regeneration creates a new revision."
+        "Include authorized processing-job dispatch/outcome, derivative invalidation, and design revision history; idempotent retries recover a job while explicit regeneration creates a new revision.",
+        "Expose operator AI configuration revisions and job invalidation/cancellation in authorized history, without recording prompts or source payloads. Explain AI-off separately from source withdrawal."
       ],
       "acceptance": [
         "History identifies relevant resources, actors, versions, outcomes, and event ordering only to authorized viewers.",
@@ -420,7 +488,8 @@
         "A lost response followed by retry recovers the committed result instead of falsely duplicating or claiming success.",
         "A declined decision does not disclose a private explanation to others or in exports.",
         "Logs and error traces contain no source plaintext, decrypted previews, secrets, or full tokens.",
-        "Media/transcript/style prompts stay out of telemetry; job errors and invalidation explain recovery without exposing private content."
+        "Media/transcript/style prompts stay out of telemetry; job errors and invalidation explain recovery without exposing private content.",
+        "Disabling/re-enabling AI and invalidating jobs are audited; retry cannot resume an invalidated job or overwrite a newer accepted draft."
       ],
       "notes": "Implement idempotency in the earlier endpoint tickets as they land; this ticket completes the cross-flow history and recovery experience."
     },
@@ -432,14 +501,24 @@
       "type": "task",
       "milestone": "M4 Demo readiness",
       "dependsOn": ["CH-09", "CH-13"],
-      "requirements": ["NFR-03", "NFR-04", "NFR-05", "NFR-09", "NFR-10"],
-      "tests": ["AT-17", "AT-18", "AT-19"],
+      "requirements": [
+        "NFR-03",
+        "NFR-04",
+        "NFR-05",
+        "NFR-09",
+        "NFR-10",
+        "FR-33",
+        "FR-35",
+        "NFR-11"
+      ],
+      "tests": ["AT-17", "AT-18", "AT-19", "AT-23", "AT-25"],
       "goal": "Make the complete creation and approval journey usable at the reference widths and on the demo device.",
       "scope": [
         "Review collection, upload, approval, composer, final review, and download screens at 360 px and 1280 px.",
         "Add keyboard reachability, visible focus, labels, contrast, textual state descriptions, and pending/error feedback.",
         "Measure rendering and inspect the exported pages; fix clipping and excessive asset size.",
-        "Check audio/video review, transcript correction, AI processing disclosures, style controls, refinement, budgets, and job recovery. Record processing/AI latency separately from PDF rendering."
+        "Check audio/video review, transcript correction, AI processing disclosures, style controls, refinement, budgets, and job recovery. Record processing/AI latency separately from PDF rendering.",
+        "Verify default Template mode, AI-off controls, Continue manually, local media quote/still controls, and accepted-AI draft editing without a model service. Enabled-only polish is an additional pass."
       ],
       "acceptance": [
         "All core actions are usable by keyboard with clear focus and labeled controls.",
@@ -452,12 +531,12 @@
     },
     {
       "id": "CH-16",
-      "title": "Verify the complete consent and photozine flow against the SRD",
+      "title": "Verify the independent template flow and collect dual-mode release evidence",
       "priority": "P1",
       "area": "quality",
       "type": "task",
       "milestone": "M4 Demo readiness",
-      "dependsOn": ["CH-08", "CH-13", "CH-14", "CH-15"],
+      "dependsOn": ["CH-08", "CH-13", "CH-14", "CH-15", "CH-22"],
       "requirements": [
         "NFR-01",
         "NFR-02",
@@ -469,7 +548,12 @@
         "FR-29",
         "FR-30",
         "FR-31",
-        "NFR-10"
+        "NFR-10",
+        "FR-32",
+        "FR-33",
+        "FR-34",
+        "FR-35",
+        "NFR-11"
       ],
       "tests": [
         "AT-01",
@@ -493,23 +577,27 @@
         "AT-19",
         "AT-20",
         "AT-21",
-        "AT-22"
+        "AT-22",
+        "AT-23",
+        "AT-24",
+        "AT-25",
+        "AT-26"
       ],
-      "goal": "Demonstrate that the integrated MVP satisfies the documented acceptance tests, including direct attempts to bypass consent.",
+      "goal": "Verify the complete template/consent/export path with AI off, then collect separately recorded AI-enabled and cross-mode evidence for full dual-mode signoff.",
       "scope": [
-        "Prepare authorized synthetic image, voice, video, and text fixtures for three contributors, a blocked memory, a manual-only memory, contrasting style collections, and multiple governance administrators.",
-        "Automate meaningful policy/API checks and the primary browser journey; document checks that require manual review.",
-        "Inspect processor dispatches, derivative/style lineage, previews, exact PDF bytes, encrypted persistence, and offline verification. Test malformed plans and media/job budgets.",
-        "Verify self-hosted inference endpoint authentication, model/runtime provenance, synthetic capability/latency evidence, absence of payload logging and frontend credentials, and manual recovery when inference stops."
+        "Complete the template journey from an empty draft using approved synthetic photos, locally selected stills, and typed attributed excerpts with no AI credentials/service. Inspect network/dispatch evidence for zero model calls.",
+        "Run real Tide bypass, withdrawal, governance, exact-byte final-review, receipt, and offline-download checks independently of AI integration.",
+        "Verify direct/stale API, background/startup requests, runtime operator authorization, config failure, and disable/re-enable races; test job invalidation with controlled worker fixtures.",
+        "Collect real AI-enabled generation/refinement/transcription and cross-mode evidence from CH-18/CH-19/CH-21 after integration. Core template evidence is independently completable; do not label unimplemented AI as tested."
       ],
       "acceptance": [
-        "AT-01 through AT-22 each have evidence or an explicit unmet requirement; a complete MVP has no unmet MUST requirement.",
-        "The real Tide tests cover missing approvals, role-change governance, database flag tampering, replay, recipient substitution, withdrawal races, and final receipt issuance.",
-        "Demonstrate real AI generation from multimedia inputs without a required style prompt, visibly distinct directions, and refinement. Also complete the manual journey with processors unavailable or permission declined; manual-only is not a complete MVP.",
-        "A clean setup can reproduce the contributor-to-approved-PDF journey.",
-        "No simulated protection is described as verified cryptographic enforcement."
+        "AT-01 through AT-26 have separately identified template/off-state and enabled-AI evidence or explicit unmet items. Core template signoff does not depend on inference deployment; complete dual-mode signoff includes all applicable MUST evidence.",
+        "Real Tide tests cover missing approvals, policy governance, database tampering, replay, recipient substitution, withdrawal ordering, and final receipt issuance.",
+        "AI-off cold start, local media/manual quotes, full template export, and blocked direct/background model requests are demonstrated with no model key or running inference process.",
+        "Before full dual-mode signoff, real enabled AI produces distinct valid designs and refinement, and existing accepted plans/PDFs survive disable while stale results are rejected.",
+        "A clean setup reproduces template-to-approved-PDF operation. No simulated consent or fixture-only model result is described as implemented real protection/AI."
       ],
-      "notes": "Use actual Tide-protected requests for AT-03, AT-04, AT-06, AT-09, and AT-12. Keep public fixtures free of real personal material."
+      "notes": "Template validation can complete while AI integrations are under development. Preserve enabled-only checks as pending evidence, supplied by the corresponding feature tickets; full dual-mode signoff cannot mark those checks passed merely because AI was disabled."
     },
     {
       "id": "CH-17",
@@ -519,14 +607,14 @@
       "type": "task",
       "milestone": "M4 Demo readiness",
       "dependsOn": ["CH-16"],
-      "requirements": ["NFR-08"],
-      "tests": ["AT-22"],
+      "requirements": ["NFR-08", "FR-18", "FR-35", "NFR-11"],
+      "tests": ["AT-22", "AT-23", "AT-25"],
       "goal": "Show the new possibility clearly: a group creates a keepsake without one administrator controlling every source memory.",
       "scope": [
         "Prepare setup/enrollment instructions and a short project overview covering the product, trust constraint, value, TideCloak contribution, and demonstrated behavior.",
-        "Record protected denial, denied unilateral permission change, consented image/voice/video processing, automatically inferred design, a style refinement, final consent, and offline PDF.",
+        "Record a complete AI-off template creation, blocked source, denied unilateral permission change, final consent, and offline PDF. Add separately verified AI generation/refinement and Continue manually evidence when enabled-mode integration is ready.",
         "Identify mocked external services, implemented protections, known limits, and deferred stretch work.",
-        "Describe the team-cloud inference deployment and verified capabilities, disclose GPU-process/operator plaintext exposure, and provide reproducible startup/teardown instructions without credentials."
+        "Document both runtime configurations and the operator AI switch, local manual audio/video preparation, optional inference startup/teardown, and the plaintext exposure of any enabled processor."
       ],
       "acceptance": [
         "A teammate can follow the setup and reproduce the demonstration without private credentials in the repository.",
@@ -534,18 +622,18 @@
         "The overview explains the difference between protected source release and copies already received by reviewers or downloaders.",
         "The submission materials match the actual implemented state and the organizer's current instructions.",
         "Product and SRD links, verification steps, and any unmet requirements are easy to find.",
-        "The demonstration includes real disclosed AI processing and explains its plaintext exposure; the manual fallback is shown as recovery, not a substitute for implemented AI design."
+        "An AI-off demo is a supported presentation of the core product; full dual-mode claims include enabled-AI evidence from CH-18/CH-19/CH-21 and cross-mode tests. Explain any unimplemented capability explicitly."
       ],
-      "notes": "Keep the downloadable photozine as the primary artifact. AI design is now core. Accurately disclose mocks, unsupported formats, processor/model choices, and any unmet SRD requirement."
+      "notes": "Keep the downloadable photozine primary. The template demo does not require inference. Full dual-mode claims require both paths to be verified; distinguish disabling an implemented feature from omitting its implementation."
     },
     {
       "id": "CH-18",
-      "title": "Infer photozine style from approved multimedia and support text refinement",
+      "title": "Add optional-at-runtime AI generation and refinement to the shared composer",
       "priority": "P1",
       "area": "backend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
-      "dependsOn": ["CH-08", "CH-19", "CH-20", "CH-21"],
+      "dependsOn": ["CH-08", "CH-19", "CH-20", "CH-21", "CH-22", "CH-10"],
       "requirements": [
         "FR-14",
         "FR-15",
@@ -558,16 +646,34 @@
         "FR-31",
         "NFR-01",
         "NFR-09",
-        "NFR-10"
+        "NFR-10",
+        "FR-32",
+        "FR-33",
+        "FR-34",
+        "FR-35",
+        "NFR-11"
       ],
-      "tests": ["AT-07", "AT-08", "AT-18", "AT-19", "AT-20", "AT-21", "AT-22"],
+      "tests": [
+        "AT-07",
+        "AT-08",
+        "AT-18",
+        "AT-19",
+        "AT-20",
+        "AT-21",
+        "AT-22",
+        "AT-23",
+        "AT-24",
+        "AT-25",
+        "AT-26"
+      ],
       "goal": "Use the authorized memories themselves to create an editable, validated six-page design without requiring a style prompt.",
       "scope": [
         "Integrate the CH-21 self-hosted visual/design endpoint; record the exact model/runtime, role, retention, budgets, and deadlines in processor disclosures and provenance. Honor the separate CH-19 transcription scope and keep inference credentials server-side.",
         "Use CH-19 authorized derivatives to infer palette, typography, layout, titles, and editable text. Return one structured six-page plan with short inspiration explanation and complete source/derivative influence closure.",
         "Support an optional style prompt and text refinement; preserve attribution, review quotes, and create immutable plan revisions. Never fabricate memories, alter source photos, or execute model code.",
         "Validate through CH-20 before preview; enforce scopes/current revisions at dispatch and result acceptance. Reject stale/malformed output and expose retry/manual recovery without silent provider fallback.",
-        "Integrate the real generation and refinement actions with CH-09; use only bounded resized images, sampled frames, transcripts, and authorized stories, never full raw videos."
+        "Integrate the real generation and refinement actions with CH-09; use only bounded resized images, sampled frames, transcripts, and authorized stories, never full raw videos.",
+        "Gate every admission/dispatch/refinement/retry on current server AI state/config revision plus exact processor consent; supply the shared editor with immutable accepted plans and preserve Continue manually after disable."
       ],
       "acceptance": [
         "Two contrasting authorized multimedia fixture sets generate visibly different coherent designs without a style prompt, using a real disclosed processor.",
@@ -576,18 +682,21 @@
         "Malformed plans, external URLs, executable markup, unauthorized asset references, missing lineage, overflow, and unreadable contrast fail validation before freezing.",
         "Provider failure, processing decline, quota/budget errors, or invalidation preserve manual editing and do not submit content to another provider.",
         "All style-influencing source approvers remain part of final consent; a withdrawal discards dependent late results and requires regeneration without that source.",
-        "Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent."
+        "Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent.",
+        "With AI disabled, direct, stale, background, and retry entry points make no model request; missing service credentials do not break Template mode.",
+        "Disable invalidates queued/in-flight jobs, late results cannot replace accepted work after re-enable, and fresh jobs require explicit user action and current authorization.",
+        "Live AI plans render through CH-10 and remain manually editable when AI is off, retaining all style-only dependencies. Operational toggles alone preserve existing candidate approvals/downloads."
       ],
-      "notes": "Required MVP work. Integrate the self-hosted service proved in CH-21; CH-19 supplies consented derivatives. Can overlap CH-09 after its own prerequisites. CH-10 integrates both. Manual recovery does not waive real AI generation."
+      "notes": "A required implemented capability for the full dual-mode release, optional for each zine and at runtime. No core template/export ticket depends on this issue. CH-21 remains the planned self-hosted inference option; no specific model or external API is selected by this change."
     },
     {
       "id": "CH-19",
-      "title": "Prepare consented transcripts, video stills, and visual derivatives",
+      "title": "Add consented AI transcription and analysis for enabled AI mode",
       "priority": "P1",
       "area": "backend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
-      "dependsOn": ["CH-05", "CH-06", "CH-08", "CH-21"],
+      "dependsOn": ["CH-05", "CH-06", "CH-08", "CH-21", "CH-22"],
       "requirements": [
         "FR-06",
         "FR-07",
@@ -597,12 +706,25 @@
         "NFR-01",
         "NFR-06",
         "NFR-09",
-        "NFR-10"
+        "NFR-10",
+        "FR-32",
+        "FR-34",
+        "FR-35",
+        "NFR-11"
       ],
-      "tests": ["AT-02", "AT-07", "AT-14", "AT-18", "AT-21", "AT-22"],
+      "tests": [
+        "AT-02",
+        "AT-07",
+        "AT-14",
+        "AT-18",
+        "AT-21",
+        "AT-22",
+        "AT-23",
+        "AT-24"
+      ],
       "goal": "Convert protected multimedia into bounded, reviewable AI inputs without bypassing source or processing consent.",
       "scope": [
-        "Integrate the CH-21 self-hosted transcription endpoint under exact valid permission. Prepare resized images, at most six timestamped frames per clip, and sanitized audio tracks locally; record model/runtime, retention, deadline, and scoped recipient.",
+        "When AI is enabled, integrate the CH-21 transcription endpoint under exact current processor consent and config revision. Consume bounded local image/frame/audio preparation from CH-05; record model/runtime, retention, deadline, and recipient.",
         "Enforce 1280 px visual long edge, twenty-four visuals, twelve memories, 2,000 transcript code points per recording, 12,000 total source-text code points, and the SRD file/duration/collection budgets. Offer explicit selection/reduction instead of silent truncation.",
         "Encrypt immutable derivatives with source/transform versions, timestamp ranges, content commitments, processor provenance, and permission lineage; protect previews and remove temporary buffers.",
         "Provide review/correction of excerpts and declared-speaker attribution. Changed meaning follows source-version consent; no automatic speaker identification.",
@@ -615,23 +737,34 @@
         "Encrypted persistence and telemetry contain no plaintext source/derivative content outside the documented transient processor exposure.",
         "Withdrawal blocks queued dispatch, invalidates cached/in-flight dependent artifacts, and discards late results without claiming to recall already sent content.",
         "Transcript/still selection, source version, and speaker attribution are inspectable before inclusion in the final edition.",
-        "Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent."
+        "Demo processing uses the disclosed team-cloud inference endpoints with service authentication; no managed external AI API is used as an automatic fallback. Endpoint access does not replace contributor consent.",
+        "AI-off blocks automatic transcription/analysis and their queued/retry paths. Users can still listen/watch locally, select stills, type attributed excerpts, and complete a template without this integration."
       ],
-      "notes": "CH-21 owns the hosted model/runtime and deployment decision. CH-19 integrates its transcriber and can complete without CH-18; CH-18 integrates visual/design processing. Synthetic adapters unblock UI work but do not complete real processing acceptance. No full raw video is sent to AI."
+      "notes": "CH-05/CH-09 own non-AI still selection and manually confirmed quotes, so they do not depend on CH-19. CH-21 supplies the planned self-hosted transcriber. All model calls honor CH-22; raw full video remains outside AI requests."
     },
     {
       "id": "CH-20",
-      "title": "Define the safe design-plan schema and renderer component contract",
+      "title": "Define one DesignPlan contract for templates, manual edits, and AI output",
       "priority": "P1",
       "area": "frontend",
       "type": "feature",
       "milestone": "M3 Create approved photozines",
       "dependsOn": [],
-      "requirements": ["FR-15", "FR-19", "FR-29", "FR-30", "FR-31", "NFR-03"],
-      "tests": ["AT-10", "AT-19", "AT-20"],
+      "requirements": [
+        "FR-15",
+        "FR-19",
+        "FR-29",
+        "FR-30",
+        "FR-31",
+        "NFR-03",
+        "FR-33",
+        "FR-35",
+        "NFR-11"
+      ],
+      "tests": ["AT-10", "AT-19", "AT-20", "AT-23", "AT-25"],
       "goal": "Give the composer, AI integration, and PDF renderer one safe versioned design contract that can be developed independently of authentication.",
       "scope": [
-        "Define a versioned six-page A5 DesignPlan schema: component trees, authorized source/derivative references, palette/font tokens, bounded geometry, attributed text, inspiration, and complete influence closure.",
+        "Define one versioned six-page A5 DesignPlan schema for deterministic templates, manual edits, and AI output, with template/origin/schema versions, authorized asset references, bounded composition, attributed text, optional inspiration, and full influence closure.",
         "Allowlist local cover/image/grid/collage/quote/heading/caption/note components and fonts. Specify renderer input/output, validation errors, immutable revisions, and manifest commitments.",
         "Build synthetic warm scrapbook and bold editorial fixtures plus adversarial plans; validate structural limits, cross-reference membership, geometry, contrast, and text bounds.",
         "Document shared interfaces for CH-09 preview/editing, CH-18 structured output, and CH-10 exact-byte freezing. This is a contract and validation slice, not the full composer or PDF implementation."
@@ -640,13 +773,14 @@
         "Both distinct synthetic styles validate and demonstrate that composition can vary while remaining six portrait A5 pages.",
         "Unknown assets/components/fonts, arbitrary HTML/code, network URLs, malformed bounds, wrong page counts, overflow, insufficient contrast, and missing influence references are rejected.",
         "Plan revisions, input lineage, schema/component versions, and commitment rules are documented and usable by all three consumers.",
-        "Work runs on synthetic fixtures without credentials or private collection APIs; fixture validation cannot grant real source access."
+        "Work runs on synthetic fixtures without credentials or private collection APIs; fixture validation cannot grant real source access.",
+        "A complete template plan validates without processor metadata or AI services; AI-origin plans retain immutable processor/source provenance through manual edits. Operational flag changes do not alter canonical plan/PDF commitments."
       ],
-      "notes": "Can start now in parallel with CH-01. No edits to authentication or existing in-progress implementation are required. Runtime source authorization remains the responsibility of the protected integration."
+      "notes": "Independent contract work on synthetic fixtures. Both creation paths consume the same validator/editor/renderer contract; no duplicate PDF engine or authentication edits are required."
     },
     {
       "id": "CH-21",
-      "title": "Establish authenticated self-hosted inference in the team cloud",
+      "title": "Provide optional self-hosted inference for AI-enabled creation",
       "priority": "P1",
       "area": "backend",
       "type": "feature",
@@ -660,12 +794,15 @@
         "NFR-01",
         "NFR-07",
         "NFR-08",
-        "NFR-10"
+        "NFR-10",
+        "FR-32",
+        "FR-35",
+        "NFR-11"
       ],
-      "tests": ["AT-08", "AT-14", "AT-18", "AT-19", "AT-22"],
+      "tests": ["AT-08", "AT-14", "AT-18", "AT-19", "AT-22", "AT-23"],
       "goal": "Provide a reproducible team-controlled cloud inference stack for transcription, visual analysis, and structured design, verified first with synthetic inputs.",
       "scope": [
-        "Select cloud/GPU capacity, model weights, and pinned serving runtimes after verifying capabilities, intended-use licenses, VRAM fit, cost, startup time, and demo budgets. A separate speech-to-text model is allowed; do not assume one model covers every modality.",
+        "Using the available eight H200 GPUs and English-only demo scope, select and pin models/runtime after checking capability, licensing, VRAM, cost, startup, and budgets. Cloud provider/model/runtime remain open; use separate speech-to-text if needed.",
         "Provide endpoint/adapter contracts for CH-19 transcription and CH-18 visual/structured-design processing, with request limits, model/version provenance, timeouts, health checks, one-job concurrency, and explicit errors.",
         "Use TLS and authenticated endpoints, restricted network access or an authenticated gateway, and server-side service credentials. Endpoint authentication is separate from protected source/processor consent.",
         "Disable prompt/media logging, request-based training, and unintended plaintext persistence in the inference/proxy stack; document temporary-data cleanup and retention. Accepted outputs use encrypted artifact storage.",
@@ -678,15 +815,71 @@
         "Synthetic fixtures demonstrate transcription, visual interpretation, and parseable schema-shaped design output; actual plan authorization/validation remains required in CH-18/CH-20.",
         "Logs/traces and persistent temporary storage contain no request/media/transcript plaintext or service secrets; retention and failure cleanup are demonstrated.",
         "Deadlines, concurrency, and media/request budgets are enforced; service failure supports explicit retry/manual recovery and sends no content to a managed fallback.",
-        "Documentation acknowledges that the inference process and privileged cloud operators can see authorized plaintext; self-hosting is not claimed to eliminate this trust boundary."
+        "Documentation acknowledges that the inference process and privileged cloud operators can see authorized plaintext; self-hosting is not claimed to eliminate this trust boundary.",
+        "The application builds/starts and completes template creation without provisioning or starting this stack. Runtime AI-off produces no app-originated model requests or inference probes."
       ],
-      "notes": "Can start alongside CH-01 and CH-20 with synthetic fixtures. Cloud provisioning is implementation work in this ticket, not an action performed by the specification update. Agree endpoint contracts early; hardware and model choices remain open."
+      "notes": "Can be developed independently with synthetic fixtures. Inference remains outside the core template dependency graph; live application dispatch integrates CH-22 availability and contributor consent in CH-18/CH-19. Prior model research is a recommendation, not a selected deployment."
+    },
+    {
+      "id": "CH-22",
+      "title": "Add a server-controlled AI switch and safe job invalidation",
+      "priority": "P0",
+      "area": "backend",
+      "type": "feature",
+      "milestone": "M2 Collect approved memories",
+      "dependsOn": ["CH-01", "CH-03"],
+      "requirements": [
+        "FR-18",
+        "FR-26",
+        "FR-28",
+        "FR-32",
+        "FR-34",
+        "FR-35",
+        "NFR-01",
+        "NFR-02",
+        "NFR-06",
+        "NFR-09",
+        "NFR-11"
+      ],
+      "tests": ["AT-08", "AT-23", "AT-24", "AT-26"],
+      "goal": "Let an authorized operator turn all AI processing off while keeping template creation, accepted designs, approvals, and downloads available.",
+      "scope": [
+        "Add an operator-authorized audited runtime AIConfiguration with enabled flag, monotonic revision, processor-config reference, and sanitized public capabilities. Missing/invalid/unreadable config defaults AI to off.",
+        "Guard all model entry points: generation, refinement, ASR, visual analysis, startup probes, background jobs, and retries. Recheck current config and exact processor consent at admission and immediately before protected dispatch.",
+        "Define ordering for disable versus dispatch; cancel queued work, invalidate in-flight jobs, discard late results even after re-enable, and require a new explicit authorized job rather than automatic resume.",
+        "Keep model SDK initialization, credentials, inference health checks, and readiness outside template startup/render/approval/download. Persist accepted plans and frozen candidates independently of transient jobs.",
+        "Expose concise disabled/unavailable status and Retry/Continue manually contracts to the composer. Toggle authority cannot change source policy, grant processing consent, or invalidate a valid approved edition by itself."
+      ],
+      "acceptance": [
+        "AI-off cold start with no model keys/service supports complete template-to-approved-PDF operation and no app-originated model calls or startup probes.",
+        "Direct/stale/forged client requests and automatic retry/background paths cannot dispatch any model work while disabled.",
+        "Only authorized operators can change availability; revisions/actions are audited without source plaintext. Read/config failure blocks AI without disabling core template operations.",
+        "If disable commits before dispatch, no content is released. Queued and invalidated in-flight results cannot overwrite accepted work, including after re-enable; already dispatched exposure is not claimed to be recalled.",
+        "Re-enable requires configured processor roles and fresh user-requested jobs under current contributor consent; it never auto-processes manual drafts.",
+        "Existing accepted AI plans remain manually editable, and current candidate approvals/receipts/downloads remain valid subject to ordinary source/access rules."
+      ],
+      "notes": "Can proceed after CH-03 in parallel with collection/upload work; no AI model deployment is required. Shared dispatch hooks are consumed by CH-18/CH-19. Test races with controlled workers before live inference integration."
     }
   ],
   "revision": {
-    "id": "self-hosted-demo-v1",
-    "documentVersion": "0.2.1",
-    "summary": "The demo uses AI inference hosted in the team's cloud. CH-21 establishes and validates authenticated inference with synthetic fixtures; CH-19/CH-18 integrate its disclosed processor roles. No cloud, GPU, model, or runtime is selected yet. CH-01 remains unchanged.",
-    "issueIds": ["CH-00", "CH-18", "CH-19", "CH-16", "CH-17"]
+    "id": "dual-creation-modes-v1",
+    "documentVersion": "0.3",
+    "summary": "Template creation and AI-assisted creation coexist through one DesignPlan/editor/PDF engine. Template export has no AI-service dependency. CH-22 adds a server-authoritative runtime AI switch covering all model calls and job invalidation. Existing accepted AI drafts and valid PDFs survive AI-off. CH-01 scope is unchanged; no model/provider is selected by this revision.",
+    "issueIds": [
+      "CH-00",
+      "CH-03",
+      "CH-05",
+      "CH-07",
+      "CH-09",
+      "CH-10",
+      "CH-14",
+      "CH-15",
+      "CH-16",
+      "CH-17",
+      "CH-18",
+      "CH-19",
+      "CH-20",
+      "CH-21"
+    ]
   }
 }

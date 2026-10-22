@@ -233,6 +233,30 @@ test("rejects invalid revision targets before publication", () => {
   assert.throws(() => validateBacklog(invalid), /Invalid backlog revision/);
 });
 
+test("the complete template delivery graph stays independent of AI services", () => {
+  const byId = new Map(source.issues.map((issue) => [issue.id, issue]));
+  const dependencies = new Set();
+  function visit(id) {
+    if (dependencies.has(id)) return;
+    dependencies.add(id);
+    for (const dependency of byId.get(id).dependsOn) visit(dependency);
+  }
+  visit("CH-17");
+  for (const ai of ["CH-18", "CH-19", "CH-21"]) {
+    assert.ok(
+      !dependencies.has(ai),
+      `Template delivery must not depend on ${ai}`,
+    );
+  }
+  assert.ok(
+    dependencies.has("CH-22"),
+    "Core delivery includes server AI-off enforcement",
+  );
+  assert.ok(byId.get("CH-18").dependsOn.includes("CH-22"));
+  assert.ok(byId.get("CH-19").dependsOn.includes("CH-22"));
+  assert.ok(!source.revision.issueIds.includes("CH-01"));
+});
+
 test("a later revision uses its document version and does not restore historical completion marks", async () => {
   const { state, options } = fixture();
   await publishBacklog(options);

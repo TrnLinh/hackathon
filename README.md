@@ -1,6 +1,8 @@
 # Chorus
 
-Chorus turns shared photos, voice notes, videos, and stories into an AI-designed, downloadable photozine. The memories inspire its style, with everyone involved having a say in their use and the final edition.
+Chorus turns shared photos, voice notes, videos, and stories into a downloadable photozine using templates or optional AI-assisted design, with everyone involved having a say in their use and the final edition.
+
+The planned product has two creation modes sharing one DesignPlan/editor/PDF engine. Template creation works with AI disabled and no inference credentials/service; a backend runtime switch gates all AI calls. Accepted AI drafts remain manually editable and valid approved PDFs stay downloadable when AI is off. See product/SRD v0.3 and CH-22 for the requirements; this documentation does not implement those features or select an AI model/provider.
 
 This repository contains the project foundation and a TideCloak authentication integration with a protected Convex identity query. Live Tide realm enrollment and governance verification remain required before CH-01 can close. Collection creation, photo uploads, encryption, contributor approvals, and PDF export are not implemented yet.
 
