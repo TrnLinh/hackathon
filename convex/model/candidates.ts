@@ -7,7 +7,7 @@ import {
   commitment,
   manifestDigest,
   parseManifest,
-  sha256Hex,
+  parseSha256Hex,
   stringSet,
 } from "../../src/lib/consent/manifest";
 import {
@@ -20,6 +20,8 @@ import {
   sameCollection,
   user,
 } from "./common";
+
+import { inputPermissionIds } from "./lineage";
 
 const manifestArgs = {
   collectionId: v.id("collections"),
@@ -72,10 +74,10 @@ async function buildManifest(
     plan.processingJobIds.map(async (jobId) => {
       const job = await sameCollection(ctx, jobId, args.collectionId);
       const inputCommitments = await Promise.all(
-        job.inputs.map(async (input) => {
+        job.inputs.flatMap(inputPermissionIds).map(async (permissionId) => {
           const permission = await sameCollection(
             ctx,
-            input.permissionId,
+            permissionId,
             args.collectionId,
           );
           if (permission.scope.kind !== "processor")
@@ -190,8 +192,8 @@ export const appendCandidate = internalMutation({
     recordMutation(ctx, "candidate", args, async () => {
       await sameCollection(ctx, args.pdfPayloadId, args.collectionId);
       await sameCollection(ctx, args.manifestPayloadId, args.collectionId);
-      sha256Hex(args.pdfDigest);
-      sha256Hex(args.manifestDigest);
+      parseSha256Hex(args.pdfDigest);
+      parseSha256Hex(args.manifestDigest);
       const prepared = await buildManifest(ctx, args);
       if (prepared.digest !== args.manifestDigest)
         return fail("MANIFEST_DIGEST_MISMATCH");

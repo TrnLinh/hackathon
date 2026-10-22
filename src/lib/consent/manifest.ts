@@ -85,7 +85,7 @@ export function boundedText(value: unknown): string {
     throw new Error("Expected a nonempty bounded identifier.");
   return value;
 }
-export function sha256Hex(value: unknown): string {
+export function parseSha256Hex(value: unknown): string {
   const result = boundedText(value);
   if (!/^[a-f0-9]{64}$/.test(result))
     throw new Error("Expected a lowercase SHA-256 digest.");
@@ -139,7 +139,7 @@ export function parseAcceptedText(value: unknown): AcceptedText {
   ]);
   const result: AcceptedText = {
     payloadId: boundedText(t.payloadId),
-    digest: sha256Hex(t.digest),
+    digest: parseSha256Hex(t.digest),
     authorIds: stringSet(t.authorIds),
   };
   if (t.sourceVersionId !== undefined)
@@ -176,9 +176,9 @@ function parseSource(value: unknown): SourceDependency {
     throw new Error("Invalid source influence.");
   return {
     versionId: boundedText(s.versionId),
-    contentDigest: sha256Hex(s.contentDigest),
+    contentDigest: parseSha256Hex(s.contentDigest),
     permissionId: boundedText(s.permissionId),
-    permissionDigest: sha256Hex(s.permissionDigest),
+    permissionDigest: parseSha256Hex(s.permissionDigest),
     revision: parseRevision(s.revision),
     influence: s.influence,
     requiredApprovers: stringSet(s.requiredApprovers),
@@ -268,7 +268,7 @@ function parseProcessor(value: unknown): ProcessorProvenance {
       const input = object(entry, ["permissionId", "inputDigest"]);
       return {
         permissionId: boundedText(input.permissionId),
-        inputDigest: sha256Hex(input.inputDigest),
+        inputDigest: parseSha256Hex(input.inputDigest),
       };
     })
     .sort((a, b) => (a.permissionId < b.permissionId ? -1 : 1));
@@ -315,7 +315,7 @@ function parseDerivative(value: unknown): DerivativeCommitment {
     throw new Error("Invalid derivative provenance or range.");
   return {
     id: boundedText(d.id),
-    digest: sha256Hex(d.digest),
+    digest: parseSha256Hex(d.digest),
     sourceVersionId: boundedText(d.sourceVersionId),
     transformationVersion: boundedText(d.transformationVersion),
     startMs: d.startMs as number,
@@ -449,7 +449,7 @@ export function parseManifest(value: unknown): EditionManifest {
     collectionId: boundedText(m.collectionId),
     plan: {
       id: boundedText(p.id),
-      digest: sha256Hex(p.digest),
+      digest: parseSha256Hex(p.digest),
       schemaVersion: boundedText(p.schemaVersion),
       componentVersion: boundedText(p.componentVersion),
       creationOrigin,

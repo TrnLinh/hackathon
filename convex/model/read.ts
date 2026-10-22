@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
-import { modelRecordId } from "./validators";
+import { modelRecordId, workflowTarget } from "./validators";
 import { fail } from "./common";
 
 // Internal reads only. Future public APIs must authorize each exact resource.
@@ -25,12 +25,7 @@ export const history = internalQuery({
 });
 export const projection = internalQuery({
   args: {
-    target: v.union(
-      v.id("processingJobs"),
-      v.id("designPlans"),
-      v.id("candidates"),
-      v.id("compositionPermissions"),
-    ),
+    target: workflowTarget,
   },
   handler: async (ctx, args) =>
     ctx.db

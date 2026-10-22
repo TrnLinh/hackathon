@@ -3,7 +3,7 @@ import { internalMutation } from "../_generated/server";
 import {
   boundedText,
   parseAcceptedText,
-  sha256Hex,
+  parseSha256Hex,
 } from "../../src/lib/consent/manifest";
 import {
   approvers,
@@ -33,7 +33,7 @@ export const appendPlan = internalMutation({
   handler: async (ctx, args) =>
     recordMutation(ctx, "design-plan", args, async () => {
       await sameCollection(ctx, args.payloadId, args.collectionId);
-      sha256Hex(args.contentDigest);
+      parseSha256Hex(args.contentDigest);
       boundedText(args.schemaVersion);
       boundedText(args.componentVersion);
       const parent = args.parentId

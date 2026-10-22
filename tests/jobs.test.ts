@@ -131,6 +131,87 @@ describe("processing lineage and immutable AI plans", () => {
       f.t.mutation(createJob, { ...j.jobArgs, retryKey: "new-job" }),
     ).rejects.toThrow("AI_DISABLED");
   });
+  it("requires fresh processor scope for every source carried by a composite derivative", async () => {
+    const f = await fixture();
+    const j = await jobFixture(f);
+    const first = await permissionFixture(f, "composite-first");
+    const second = await permissionFixture(f, "composite-second");
+    const artifactId = await f.t.mutation(
+      makeFunctionReference<"mutation">("model/media:appendArtifact"),
+      {
+        collectionId: f.collectionId,
+        actorId: f.alice,
+        retryKey: "composite-artifact",
+        versionId: first.versionId,
+        payloadId: f.payloadId,
+        contentDigest: "e".repeat(64),
+        kind: "visual-summary",
+        transformationVersion: "local-v1",
+        startMs: 0,
+        endMs: 1000,
+        provenance: "local",
+        sourceUses: [
+          { permissionId: first.permissionId, influence: "visible" },
+          { permissionId: second.permissionId, influence: "style" },
+        ],
+        derivativeIds: [],
+      },
+    );
+    const originalGrant = await f.t.query(get, {
+      collectionId: f.collectionId,
+      id: first.permissionId,
+    });
+    const grant = async (versionId: string, retryKey: string) =>
+      f.t.mutation(createPermission, {
+        collectionId: f.collectionId,
+        actorId: f.alice,
+        retryKey,
+        versionId,
+        revision: originalGrant.revision,
+        scope: {
+          kind: "processor",
+          processor: {
+            ...j.processor,
+            derivativeType: "visual-summary",
+            inputDigest: "e".repeat(64),
+          },
+        },
+      });
+    const primaryId = await grant(first.versionId, "primary-processor");
+    const jobArgs = {
+      ...j.jobArgs,
+      retryKey: "composite-job",
+      processor: { ...j.jobArgs.processor, derivativeType: "visual-summary" },
+      inputs: [{ kind: "derivative", artifactId, permissionId: primaryId }],
+    };
+    await expect(f.t.mutation(createJob, jobArgs)).rejects.toThrow(
+      "INCOMPLETE_PROCESSOR_LINEAGE",
+    );
+    const additionalId = await grant(second.versionId, "additional-processor");
+    const jobId = await f.t.mutation(createJob, {
+      ...jobArgs,
+      inputs: [
+        { ...jobArgs.inputs[0], additionalPermissionIds: [additionalId] },
+      ],
+    });
+    const job = await f.t.query(get, {
+      collectionId: f.collectionId,
+      id: jobId,
+    });
+    expect(
+      job.sources.map(
+        (source: { permissionId: string }) => source.permissionId,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        first.permissionId,
+        second.permissionId,
+        primaryId,
+        additionalId,
+      ]),
+    );
+  });
+
   it("freezes processor/model and timestamp provenance even after switching to manual editing or AI-off", async () => {
     const f = await fixture();
     const j = await jobFixture(f);

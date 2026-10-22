@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import { boundedText, sha256Hex } from "../../src/lib/consent/manifest";
+import { boundedText, parseSha256Hex } from "../../src/lib/consent/manifest";
 import {
   command,
   fail,
@@ -23,7 +23,7 @@ export const appendPayload = internalMutation({
   handler: async (ctx, args) =>
     recordMutation(ctx, "private-payload", args, async () => {
       boundedText(args.encryptionFormat);
-      sha256Hex(args.ciphertextDigest);
+      parseSha256Hex(args.ciphertextDigest);
       if (
         args.body.kind === "inline" &&
         (!args.body.ciphertext.length || args.body.ciphertext.length > 256_000)
@@ -64,7 +64,7 @@ export const appendAsset = internalMutation({
         args.collectionId,
       );
       await sameCollection(ctx, args.payloadId, args.collectionId);
-      sha256Hex(args.contentDigest);
+      parseSha256Hex(args.contentDigest);
       boundedText(args.codec);
       boundedText(args.mimeType);
       const mediaType = args.mimeType.split("/")[0];
@@ -103,7 +103,7 @@ export const appendArtifact = internalMutation({
     recordMutation(ctx, "derived-artifact", args, async () => {
       await sameCollection(ctx, args.versionId, args.collectionId);
       await sameCollection(ctx, args.payloadId, args.collectionId);
-      sha256Hex(args.contentDigest);
+      parseSha256Hex(args.contentDigest);
       boundedText(args.kind);
       boundedText(args.transformationVersion);
       if (

@@ -84,6 +84,9 @@ export const lineageInput = v.union(
     kind: v.literal("derivative"),
     artifactId: v.id("derivedArtifacts"),
     permissionId: v.id("compositionPermissions"),
+    additionalPermissionIds: v.optional(
+      v.array(v.id("compositionPermissions")),
+    ),
   }),
 );
 export const modelRecordId = v.union(

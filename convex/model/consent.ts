@@ -4,7 +4,7 @@ import {
   boundedText,
   canonicalJson,
   commitment,
-  sha256Hex,
+  parseSha256Hex,
 } from "../../src/lib/consent/manifest";
 import {
   approvers,
@@ -31,7 +31,7 @@ export const recordEvidence = internalMutation({
       await sameCollection(ctx, args.payloadId, args.collectionId);
       boundedText(args.authority);
       boundedText(args.format);
-      sha256Hex(args.statementDigest);
+      parseSha256Hex(args.statementDigest);
       return ctx.db.insert("evidence", {
         ...recorded(args),
         payloadId: args.payloadId,
@@ -95,7 +95,7 @@ export const createPermission = internalMutation({
           p.retention,
         ])
           boundedText(field);
-        sha256Hex(p.inputDigest);
+        parseSha256Hex(p.inputDigest);
       }
       const requiredApprovers = await Promise.all(
         requiredApproverIds.map(

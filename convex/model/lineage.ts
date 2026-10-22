@@ -3,7 +3,7 @@ import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { canonicalJson } from "../../src/lib/consent/manifest";
 import { fail, sameCollection, user } from "./common";
-import { sourceDependency, sourceUse } from "./validators";
+import { lineageInput, sourceDependency, sourceUse } from "./validators";
 
 export type Lineage = {
   processingJobIds: Id<"processingJobs">[];
@@ -101,4 +101,16 @@ export async function loadLineage(
     });
   }
   return mergeLineage(...parts);
+}
+
+export function inputPermissionIds(input: Infer<typeof lineageInput>) {
+  const ids = [
+    input.permissionId,
+    ...(input.kind === "derivative"
+      ? (input.additionalPermissionIds ?? [])
+      : []),
+  ];
+  if (ids.length > 64 || new Set(ids).size !== ids.length)
+    return fail("INVALID_PROCESSOR_GRANT_SET");
+  return ids;
 }

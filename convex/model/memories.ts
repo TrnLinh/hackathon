@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import { sha256Hex } from "../../src/lib/consent/manifest";
+import { parseSha256Hex } from "../../src/lib/consent/manifest";
 import {
   approvers,
   command,
@@ -30,7 +30,7 @@ export const appendVersion = internalMutation({
       );
       if (memory.uploaderId !== args.actorId) return fail("NOT_UPLOADER");
       await sameCollection(ctx, args.payloadId, args.collectionId);
-      sha256Hex(args.contentDigest);
+      parseSha256Hex(args.contentDigest);
       if (args.priorVersionId) {
         const prior = await sameCollection(
           ctx,

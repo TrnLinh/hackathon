@@ -12,7 +12,7 @@ import {
   user,
 } from "./common";
 import { latestConfiguration } from "./configuration";
-import { loadLineage } from "./lineage";
+import { inputPermissionIds, loadLineage } from "./lineage";
 import { lineageInput, processorSpec } from "./validators";
 
 export async function completedJob(
@@ -66,23 +66,20 @@ export const createJob = internalMutation({
       if (!args.inputs.length || args.inputs.length > 64)
         return fail("INVALID_JOB_INPUTS");
       for (const input of args.inputs) {
-        const grant = await sameCollection(
-          ctx,
-          input.permissionId,
-          args.collectionId,
+        const grants = await Promise.all(
+          inputPermissionIds(input).map((id) =>
+            sameCollection(ctx, id, args.collectionId),
+          ),
         );
-        if (grant.scope.kind !== "processor")
-          return fail("PROCESSOR_SCOPE_REQUIRED");
-        const { inputDigest, ...processor } = grant.scope.processor;
-        if (canonicalJson(processor) !== canonicalJson(args.processor))
-          return fail("PROCESSOR_SCOPE_MISMATCH");
+        const primary = grants[0];
         const version = await sameCollection(
           ctx,
-          grant.versionId,
+          primary.versionId,
           args.collectionId,
         );
         let actualDigest = version.contentDigest;
         let actualType: string = version.mediaKind;
+        let expectedVersionIds = new Set([version._id]);
         if (input.kind === "derivative") {
           const artifact = await sameCollection(
             ctx,
@@ -93,20 +90,40 @@ export const createJob = internalMutation({
             return fail("WRONG_DERIVATIVE_SOURCE");
           actualDigest = artifact.contentDigest;
           actualType = artifact.kind;
+          expectedVersionIds = new Set(
+            artifact.sources.map((source) => source.versionId),
+          );
         }
+        const grantedVersions = new Set(grants.map((grant) => grant.versionId));
         if (
-          inputDigest !== actualDigest ||
-          processor.derivativeType !== actualType
+          grantedVersions.size !== grants.length ||
+          grantedVersions.size !== expectedVersionIds.size ||
+          [...expectedVersionIds].some((id) => !grantedVersions.has(id))
         )
-          return fail("PROCESSOR_INPUT_MISMATCH");
+          return fail("INCOMPLETE_PROCESSOR_LINEAGE");
+        for (const grant of grants) {
+          await sameCollection(ctx, grant.versionId, args.collectionId);
+          if (grant.scope.kind !== "processor")
+            return fail("PROCESSOR_SCOPE_REQUIRED");
+          const { inputDigest, ...processor } = grant.scope.processor;
+          if (canonicalJson(processor) !== canonicalJson(args.processor))
+            return fail("PROCESSOR_SCOPE_MISMATCH");
+          if (
+            inputDigest !== actualDigest ||
+            processor.derivativeType !== actualType
+          )
+            return fail("PROCESSOR_INPUT_MISMATCH");
+        }
       }
       const lineage = await loadLineage(
         ctx,
         args.collectionId,
-        args.inputs.map((i) => ({
-          permissionId: i.permissionId,
-          influence: "style",
-        })),
+        args.inputs.flatMap((input) =>
+          inputPermissionIds(input).map((permissionId) => ({
+            permissionId,
+            influence: "style" as const,
+          })),
+        ),
         args.inputs.flatMap((i) =>
           i.kind === "derivative" ? [i.artifactId] : [],
         ),
