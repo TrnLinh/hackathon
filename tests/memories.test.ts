@@ -130,7 +130,7 @@ describe("CH-05 memories", () => {
       },
     });
     // The uploader is always a required approver.
-    expect([...mine[0].head.requiredApproverIds].sort()).toEqual(
+    expect([...mine[0].head!.requiredApproverIds].sort()).toEqual(
       [s.ids.alice, s.ids.bob].sort(),
     );
     expect(
@@ -219,7 +219,7 @@ describe("CH-05 memories", () => {
     const [mine] = await s.alice.query(api.memories.list, {
       collectionId: s.collectionId,
     });
-    expect(mine.head.media).toMatchObject({
+    expect(mine.head?.media).toMatchObject({
       mimeType: "image/jpeg",
       byteLength: 32,
       width: 4,

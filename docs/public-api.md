@@ -111,3 +111,28 @@ Browser preparation (`src/features/data/memories.ts`): file type comes from the 
 - Image dimensions and audio/video duration are the uploader's own claims, checked locally before upload. The server requires them and bounds them but cannot decode the bytes. Size, type and SHA-256 come from storage.
 - An upload URL isn't bound to the member who requested it. A storage ID is unguessable and never returned to anyone else, and each blob can be claimed once, but binding uploads to their requester would close the gap.
 - Video stills and typed excerpts use `appendArtifact`, which requires approved permissions; they move to Convex after CH-07.
+
+## CH-06/07 consent, local half
+
+| Function         | Kind     | Notes                                                                                                                                                                                      |
+| ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `consent.submit` | mutation | Uploader only. `{ memoryId, retryKey }`. One manual request for the current version: editor = collection creator, review audience = the people in the memory. Submitting again returns it. |
+| `consent.decide` | mutation | `{ permissionId, action: "approve" \| "decline" \| "request-edit" \| "withdraw", retryKey }`. Required approvers who are active members only.                                              |
+| `consent.inbox`  | query    | Requests for current versions that include the caller, across their active collections, with their latest decision.                                                                        |
+
+`memories.list` and `memories.get` now return an access level per memory:
+
+- **Uploader:** everything, including earlier versions.
+- **People in the memory:** once submitted, the version under review (content and media URL), plus each person's latest decision. This is the pre-consent review grant.
+- **Editor (collection creator):** the content once every required approver's latest decision is approve.
+- **Other active members:** kind, uploader and status only (private → hidden, awaiting permission, available, excluded). No per-person decisions or explanations.
+
+A revision is a new private draft: no permission or approval carries over, reviewers lose access until it is resubmitted, and approving the old request fails with `SUPERSEDED_VERSION`. `request-edit` is a decision event that keeps the request pending.
+
+### Local, unverified evidence (documented exception)
+
+Until the CH-02 live gate closes, the backend records each request (`chorus-local-request/v0` statement) and decision with **local** evidence (`src/lib/consent/local-evidence.ts`): authority `chorus-local-unverified`, format `chorus-local-evidence/v0`, statement stored as a dev-envelope payload, and `statementDigest` equal to the exact `chorus-decision/v1` commitment (request digest, action, actor token, revisions). Evidence rows stay `verification: "unverified"`; the UI labels every status "Recorded locally and unverified". These statuses gate the app's own reads and the model's consent checks, but they are not Tide release and protect nothing against a compromised backend. Swap in Tide-backed evidence when CH-02 lands.
+
+Former members (removed after approving) keep their approval in force and can still withdraw it: `consent.inbox` lists those approvals with `formerMember: true`, and `decide` accepts `withdraw` from them (the model checks membership after the retry receipt, so a lost-response retry also recovers). They cannot make any other new decision. `decide` accepts manual requests only.
+
+Not yet: per-processor (AI) permissions (manual scope only; AI stays off) and invalidation of plans/candidates on withdrawal (none exist on Convex yet; CH-09/10).

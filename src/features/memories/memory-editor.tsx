@@ -41,6 +41,7 @@ import type {
 } from "@/features/prototype/types";
 import { toPerson, useCollection } from "@/features/data/collections";
 import { useViewer } from "@/features/data/current-user";
+import { useConsentActions } from "@/features/data/consent";
 import { useMemories, useMemoryActions } from "@/features/data/memories";
 import { cn } from "@/lib/utils";
 import { CountedField, PeoplePicker, codePoints } from "./fields";
@@ -398,6 +399,7 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
   const member = collection?.access === "member" ? collection : null;
   const memories = useMemories(member?.collectionId ?? null);
   const { addMemory } = useMemoryActions();
+  const { submitMemory } = useConsentActions();
   if (!member || !viewer || !memories)
     return (
       <p role="status" className="text-sm text-muted-foreground">
@@ -414,14 +416,14 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
         processors: null,
         existingCount: memories.length,
         usedBytes: memories.reduce(
-          (n, m) => n + (m.head.media?.byteLength ?? 0),
+          (n, m) => n + (m.head?.media?.byteLength ?? 0),
           0,
         ),
-        canSubmit: false,
+        canSubmit: true,
         prep: "dev",
         trustNote:
-          "Encryption isn’t connected yet. Photos are re-encoded on your device to remove location and other hidden metadata; audio and video are kept as validated. For development, files and text are then stored unencrypted and labelled that way. Drafts are visible only to you.",
-        save: async (items) => {
+          "Encryption isn’t connected yet. Photos are re-encoded on your device to remove location and other hidden metadata; audio and video are kept as validated. For development, files and text are then stored unencrypted and labelled that way. Drafts are visible only to you; submitting asks everyone in the memory to review it. Consent is recorded locally and unverified until Tide is connected.",
+        save: async (items, submit) => {
           const ids: string[] = [];
           const saved: string[] = [];
           for (const item of items) {
@@ -442,6 +444,20 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
               return { ok: false, reason: result.reason, savedItemIds: saved };
             ids.push(result.result.memoryId);
             saved.push(item.itemId);
+            // Saved as a draft either way; a failed submission can be retried
+            // from the memory itself.
+            if (submit) {
+              const submitted = await submitMemory(
+                result.result.memoryId,
+                result.result.versionId,
+              );
+              if (!submitted.ok)
+                return {
+                  ok: false,
+                  reason: `Saved as a private draft, but not submitted: ${submitted.reason}`,
+                  savedItemIds: saved,
+                };
+            }
           }
           return { ok: true, ids };
         },

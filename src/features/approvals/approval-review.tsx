@@ -57,6 +57,8 @@ import type {
 } from "@/features/prototype/types";
 import { DecisionSummary } from "./decision-summary";
 import { WithdrawDialog } from "./withdraw-dialog";
+import { BackendOnly, QueryBoundary } from "@/features/data/backend";
+import { ApprovalNotFound, ConvexApprovalReview } from "./convex-inbox";
 
 type Choice = "approved" | "declined" | undefined;
 /** Processor choices may stay pending: AI decisions are optional (CH-07). */
@@ -764,6 +766,19 @@ function memoryStatusLabel(memory: Memory) {
 }
 
 export function ApprovalReview({ memoryId }: { memoryId: string }) {
+  const state = usePrototype();
+  return state.memories.some((m) => m.id === memoryId) ? (
+    <PrototypeApprovalReview memoryId={memoryId} />
+  ) : (
+    <BackendOnly fallback={<ApprovalNotFound />}>
+      <QueryBoundary fallback={<ApprovalNotFound />}>
+        <ConvexApprovalReview memoryId={memoryId} />
+      </QueryBoundary>
+    </BackendOnly>
+  );
+}
+
+function PrototypeApprovalReview({ memoryId }: { memoryId: string }) {
   const state = usePrototype();
   const memory = state.memories.find((m) => m.id === memoryId);
   const back = (

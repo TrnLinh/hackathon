@@ -113,3 +113,11 @@ export const ciphertextBody = v.union(
   v.object({ kind: v.literal("inline"), ciphertext: v.string() }),
   v.object({ kind: v.literal("storage"), storageId: v.id("_storage") }),
 );
+
+/** "request-edit" asks the uploader for a new version; it never approves. */
+export const decisionAction = v.union(
+  v.literal("approve"),
+  v.literal("decline"),
+  v.literal("request-edit"),
+  v.literal("withdraw"),
+);

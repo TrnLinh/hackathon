@@ -10,6 +10,7 @@
 
 import type * as aiConfig from "../aiConfig.js";
 import type * as collections from "../collections.js";
+import type * as consent from "../consent.js";
 import type * as identity from "../identity.js";
 import type * as lib_auth_config from "../lib/auth_config.js";
 import type * as lib_viewer from "../lib/viewer.js";
@@ -41,6 +42,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   aiConfig: typeof aiConfig;
   collections: typeof collections;
+  consent: typeof consent;
   identity: typeof identity;
   "lib/auth_config": typeof lib_auth_config;
   "lib/viewer": typeof lib_viewer;

@@ -13,7 +13,13 @@ import {
   sha256Hex,
 } from "../src/lib/memory-content";
 import { fail, member, recordMutation } from "./model/common";
-import { requireEnvelope } from "./model/collections";
+import { approvalStatus } from "./model/approval";
+import { membershipOf, requireEnvelope } from "./model/collections";
+import {
+  describePermission,
+  manualPermission,
+  permissionView,
+} from "./consent";
 import { mediaKind } from "./model/validators";
 import { optionalViewer, requireViewer } from "./lib/viewer";
 
@@ -21,8 +27,8 @@ import { optionalViewer, requireViewer } from "./lib/viewer";
 // private payload envelope; media bytes in a separate storage payload. Until
 // CH-02 both use the labelled dev envelope, which is NOT encryption.
 //
-// Visibility in this slice: a version is a private draft visible only to its
-// uploader. CH-06 adds submission and approver review.
+// Visibility: an unsubmitted version is a private draft visible only to its
+// uploader. Submission (consent.submit) grants the people in it a review.
 
 const content = v.object({ envelope: v.string(), contentDigest: v.string() });
 const upload = v.object({
@@ -329,21 +335,40 @@ export const revise = mutation({
 
 // ---- Reads -----------------------------------------------------------------
 
+type Access = "full" | "status";
+
+/**
+ * Who may see what. The uploader sees everything; required approvers get a
+ * review grant to a submitted head version; the editor sees it once approved;
+ * other active members see only its status. Unsubmitted drafts stay private.
+ */
+async function accessTo(
+  ctx: Pick<QueryCtx, "db">,
+  viewerId: Id<"users">,
+  memory: Doc<"memories">,
+) {
+  if (!memory.headVersionId) return null;
+  const membership = await membershipOf(ctx, memory.collectionId, viewerId);
+  if (membership?.status !== "active") return null;
+  const permission = await manualPermission(ctx, memory.headVersionId);
+  if (memory.uploaderId === viewerId)
+    return { access: "full" as Access, permission };
+  if (!permission || permission.scope.kind !== "manual") return null;
+  const full =
+    permission.requiredApproverIds.includes(viewerId) ||
+    (permission.scope.editorId === viewerId &&
+      (await approvalStatus(ctx, permission)) === "approved");
+  return { access: (full ? "full" : "status") as Access, permission };
+}
+
 async function viewable(ctx: Pick<QueryCtx, "db" | "auth">, memoryId: string) {
   const viewer = await optionalViewer(ctx);
   const id = ctx.db.normalizeId("memories", memoryId);
   const memory = id && (await ctx.db.get(id));
   if (!viewer || !memory || !memory.headVersionId) return null;
-  // Drafts are visible only to their uploader, and only while a member.
-  if (memory.uploaderId !== viewer._id) return null;
-  const membership = await ctx.db
-    .query("memberships")
-    .withIndex("by_collection_and_user", (q) =>
-      q.eq("collectionId", memory.collectionId).eq("userId", viewer._id),
-    )
-    .unique();
-  if (membership?.status !== "active") return null;
-  return { viewer, memory, headVersionId: memory.headVersionId };
+  const granted = await accessTo(ctx, viewer._id, memory);
+  if (!granted) return null;
+  return { viewer, memory, headVersionId: memory.headVersionId, ...granted };
 }
 
 async function versionView(
@@ -394,33 +419,51 @@ const memoryValidator = v.object({
   memoryId: v.id("memories"),
   collectionId: v.id("collections"),
   uploaderId: v.id("users"),
+  uploaderName: v.union(v.string(), v.null()),
   createdAt: v.number(),
   versionCount: v.number(),
-  head: versionValidator,
+  mediaKind,
+  access: v.union(v.literal("full"), v.literal("status")),
+  /** Content of the current version; null with status-only access. */
+  head: v.union(versionValidator, v.null()),
+  /** The current version's manual request; null while a private draft. */
+  permission: v.union(permissionView, v.null()),
 });
 
 async function memoryView(
   ctx: Pick<QueryCtx, "db">,
-  memory: Doc<"memories">,
-  headVersionId: Id<"memoryVersions">,
+  viewerId: Id<"users">,
+  found: {
+    memory: Doc<"memories">;
+    headVersionId: Id<"memoryVersions">;
+    access: Access;
+    permission: Doc<"compositionPermissions"> | null;
+  },
 ) {
+  const { memory, access, permission } = found;
   const versions = await ctx.db
     .query("memoryVersions")
     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
     .collect();
-  const head = versions.find((x) => x._id === headVersionId);
+  const head = versions.find((x) => x._id === found.headVersionId);
   if (!head) return fail("MISSING_HEAD_VERSION");
   return {
     memoryId: memory._id,
     collectionId: memory.collectionId,
     uploaderId: memory.uploaderId,
+    uploaderName: (await ctx.db.get(memory.uploaderId))?.name ?? null,
     createdAt: memory.createdAt,
     versionCount: versions.length,
-    head: await versionView(ctx, head),
+    mediaKind: head.mediaKind,
+    access,
+    head: access === "full" ? await versionView(ctx, head) : null,
+    permission: permission
+      ? await describePermission(ctx, permission, viewerId)
+      : null,
   };
 }
 
-/** Memories in a collection that the caller may see. */
+/** Memories in a collection that the caller may see, at their access level. */
 export const list = query({
   args: { collectionId: v.id("collections") },
   returns: v.array(memoryValidator),
@@ -433,18 +476,26 @@ export const list = query({
         q.eq("collectionId", args.collectionId),
       )
       .collect();
-    const visible = await Promise.all(
-      memories.map((m) => viewable(ctx, m._id)),
-    );
-    return Promise.all(
-      visible
-        .filter((x) => x !== null)
-        .map((x) => memoryView(ctx, x.memory, x.headVersionId)),
-    );
+    const rows = [];
+    for (const memory of memories) {
+      const granted = await accessTo(ctx, viewer._id, memory);
+      if (granted && memory.headVersionId)
+        rows.push(
+          await memoryView(ctx, viewer._id, {
+            memory,
+            headVersionId: memory.headVersionId,
+            ...granted,
+          }),
+        );
+    }
+    return rows;
   },
 });
 
-/** One memory with its full linear version history, newest first. */
+/**
+ * One memory. The uploader gets the full linear history, newest first; a
+ * reviewer gets only the version under review.
+ */
 export const get = query({
   args: { memoryId: v.string() },
   returns: v.union(
@@ -457,15 +508,20 @@ export const get = query({
   handler: async (ctx, args) => {
     const found = await viewable(ctx, args.memoryId);
     if (!found) return null;
-    const versions = await ctx.db
-      .query("memoryVersions")
-      .withIndex("by_memory", (q) => q.eq("memoryId", found.memory._id))
-      .collect();
+    const view = await memoryView(ctx, found.viewer._id, found);
+    let versions: Doc<"memoryVersions">[] = [];
+    if (found.memory.uploaderId === found.viewer._id)
+      versions = (
+        await ctx.db
+          .query("memoryVersions")
+          .withIndex("by_memory", (q) => q.eq("memoryId", found.memory._id))
+          .collect()
+      ).reverse();
     return {
-      ...(await memoryView(ctx, found.memory, found.headVersionId)),
-      versions: await Promise.all(
-        versions.reverse().map((x) => versionView(ctx, x)),
-      ),
+      ...view,
+      versions: view.head
+        ? await Promise.all(versions.map((x) => versionView(ctx, x)))
+        : [],
     };
   },
 });
@@ -480,7 +536,14 @@ export const mediaUrl = query({
   handler: async (ctx, args) => {
     const version = await ctx.db.get(args.versionId);
     if (!version) return null;
-    if (!(await viewable(ctx, version.memoryId))) return null;
+    const found = await viewable(ctx, version.memoryId);
+    if (!found || found.access !== "full") return null;
+    // Only the uploader may open earlier versions.
+    if (
+      found.headVersionId !== version._id &&
+      found.memory.uploaderId !== found.viewer._id
+    )
+      return null;
     const asset = await assetOf(ctx, version._id);
     const payload = asset && (await ctx.db.get(asset.payloadId));
     if (payload?.body.kind !== "storage") return null;

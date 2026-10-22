@@ -18,7 +18,7 @@ import {
   sameCollection,
   user,
 } from "./common";
-import { revision, scope } from "./validators";
+import { decisionAction, revision, scope } from "./validators";
 
 export const recordEvidence = internalMutation({
   args: {
@@ -145,11 +145,7 @@ export const appendDecision = internalMutation({
   args: {
     ...command,
     target: v.union(v.id("compositionPermissions"), v.id("candidates")),
-    action: v.union(
-      v.literal("approve"),
-      v.literal("decline"),
-      v.literal("withdraw"),
-    ),
+    action: decisionAction,
     requestDigest: v.string(),
     revisions: v.array(revision),
     evidenceId: v.id("evidence"),
