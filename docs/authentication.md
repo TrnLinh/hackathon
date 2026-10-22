@@ -65,6 +65,8 @@ Create a public browser client `chorus` with client authentication disabled, sta
 
 Enable the client's DPoP support for the SDK's DPoP access-token flow. Export the client adapter privately. Copy only its public URL, realm, resource/client ID, vendor ID, home ORK URL, and the `client-origin-auth-http://localhost:3000` value into the corresponding `NEXT_PUBLIC_TIDECLOAK_*` fields. Do not copy a confidential client secret or administrative token. The browser callback always returns to `/app`; it accepts no arbitrary return URL.
 
+Check the `chorus` client's audience mapper explicitly: `included.client.audience=chorus` and `id.token.claim=true`. The imported template had this audience enabled only on access tokens. Convex receives an ID token, so the access-token setting alone does not satisfy the application's audience requirement. Keep the access-token audience enabled as well.
+
 For hosted use, configure the exact HTTPS equivalents. Do not mix `localhost` and `127.0.0.1` browser origins without registering both separately. The backend must be able to reach the issuer's discovery document and its advertised JWKS URI. For local Tide on loopback, use a native Convex backend: a Docker container's `localhost` points to that container, not your Mac. For the Docker Convex setup, use a shared resolvable HTTPS Tide URL reachable by both the browser and backend.
 
 ## Connect the application and backend
@@ -158,6 +160,16 @@ Colima and Docker were subsequently installed on the Apple Silicon development m
 - A container running as UID `1000` could write the database directory in both cases.
 - The one-shot initializer exited with code `0`; the main server remained running as UID `1000`.
 - The isolated test deployment and its disposable volume were removed; the original development volume was retained.
+
+### Realm setup follow-up
+
+On 22 October 2026, the startup fix was present on `main` through PR #24. The existing local `chorus` realm returned HTTP 200 for OIDC discovery. Its public browser client had the exact callback, silent-SSO and logout URLs above, PKCE S256, DPoP enabled, standard flow enabled, and implicit/direct-grant flows disabled. The ID-token audience mapper was corrected and its saved configuration was read back successfully. This is configuration evidence; an issued Tide ID token has not yet been inspected.
+
+The native Convex deployment on port 3320 was configured with issuer `http://localhost:8080/realms/chorus` and audience `chorus`. The browser's Tide settings remain unconfigured until a valid adapter is available; do not invent vendor or enclave values to enable sign-in prematurely.
+
+The realm has a subscription and pending vendor key, but no active vendor key, certificate, or enrolled users. A targeted `POST /admin/realms/chorus/vendorResources/CreateTideVendorKey` with `licensingTier=free` again returned HTTP 500 with code `TIDE-IDPEXT-VENDOR-KEYGEN_FAILED`. Container logs identify the underlying failure as `Midgard.FinalizeWallet` receiving HTTP 403 Forbidden. `isPendingLicenseActive=true` does not establish that wallet finalization or key activation succeeded.
+
+The original realm, subscription, and database volume were preserved. Do not rerun the fresh-realm initializer against this partial realm: it repeats identity-provider creation and can fail on the existing provider; its existing-realm override also approves pending governance requests. Tide must advise how to recover the existing pending wallet. Once recovered, resume enrollment and configuration from the documented initializer stages with inspection between steps, then run the live evidence table above. Creating ordinary local users does not resolve this activation failure.
 
 Container startup does not establish Tide sign-in, license activation, contributor enrollment, or administrator quorum. Those live checks remain required before closing CH-01; keep private enrollment links, license contacts, adapter exports, and credentials outside the PR.
 

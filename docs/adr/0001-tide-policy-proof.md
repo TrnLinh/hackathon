@@ -8,7 +8,7 @@ Issue: [CH-02 #3](https://github.com/TrnLinh/hackathon/issues/3). Parent impleme
 
 Use the existing browser TideCloak instance for policy-governed operations. Do not introduce a server decryption key, an application signer, or a database approval flag that substitutes for contributor signatures. The new development-only `/app/policy-proof` workbench invokes the installed SDK; it stores no requests, policy bytes or plaintext in Convex, local storage or application logs. Private binary downloads are explicit operator actions.
 
-No realm has been enrolled for this task. The user explicitly deferred enrollment and live checks. Docker's daemon was unavailable and the local realm discovery endpoint was unreachable during inspection. No cryptographic acceptance criterion is claimed complete. The local tests substitute the SDK boundary, use deliberately invalid synthetic signatures, and establish only request construction, binding and client failure handling.
+No realm has been enrolled for this task. Enrollment and live checks were deferred during the original implementation. Setup subsequently progressed to a running local TideCloak server and an existing `chorus` realm, but external wallet finalization still returns HTTP 403, surfaced by TideCloak as HTTP 500. See the [current realm setup evidence](../authentication.md#realm-setup-follow-up). No cryptographic acceptance criterion is claimed complete. The local tests substitute the SDK boundary, use deliberately invalid synthetic signatures, and establish only request construction, binding and client failure handling.
 
 The deployed Chorus Forseti contract is still missing. This change defines its input commitment and an SDK probe; it does **not** implement, compile, distribute or verify that contract. Its required invariants are below. Neither the workbench nor the SHA-256 tag provides those invariants against a compromised application. Downstream protected-release implementation remains gated on real-network evidence.
 
@@ -48,6 +48,8 @@ Before trusting a deployed contract, prove on ORKs that it:
 6. Binds signing to the exact frozen edition and final approver set, then produces a signature verifiable with independently trusted public configuration.
 
 The generic role-threshold contract is insufficient by itself: a count of role holders does not establish the exact contributor set, resource binding, or named executor. A custom reviewed contract or an explicitly reviewed envelope design is required.
+
+Tide's hosted Raziel MCP guidance, consulted on 22 October 2026, additionally states that custom Forseti deployment is experimental, test-network only, and performed by Tide's team after review. Contract authoring or local compilation does not make it available on ORKs. Request review/deployment through Tide's documented channels; do not reconstruct an upload operation. The built-in `RelationshipAttestation:1` is a candidate for a narrower assigned-user/group/role encryption probe, subject to actual network availability. Its documented encryption/decryption checks do not establish Chorus's exact multi-contributor consent, authoritative withdrawal, or edition-signing requirements. Those gates remain open. Source: [Raziel MCP](https://docs.tide.org/ai-agent-pack), `tide_canon` names `custom-contracts`, `tidecloak-endpoints`, and `troubleshooting`.
 
 ## Withdrawal and race ordering: unresolved design gate
 
@@ -112,7 +114,7 @@ On 22 October 2026, `npm test` passed 8 backlog-publication tests and 36 Vitest 
 
 The independent standards review reported zero findings. The spec review found two local defects: incorrect approval-display metadata and the inherited one-week drafted-release expiry. Both were reproduced with failing tests, corrected, and rechecked by the reviewer. The installed SDK's actual model renderer now decodes the complete edition metadata; new drafted release requests are capped before initialization. The remaining security integration gaps in the acceptance table are unresolved.
 
-Prettier passes for every changed file. The repository-wide `npm run format:check` fails only on the pre-existing, unrelated working-tree edit to `public/silent-check-sso.html`; this task preserves and excludes that edit from its commits. Tide's published SDK packages emit missing-sourcemap warnings during tests; the tests pass without modifying those packages.
+The original repository-wide formatting failure from a local `public/silent-check-sso.html` edit was resolved by the later CH-01 integration; that file now matches the SDK output and is excluded from formatting. Tide's published SDK packages emit missing-sourcemap warnings during tests; the tests pass without modifying those packages.
 
 ## Sources inspected
 
