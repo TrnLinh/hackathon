@@ -1,160 +1,132 @@
 # Chorus Product Specification
 
-Version 0.1 · 22 October 2026 · Hackathon MVP
+Version 0.2 · 22 October 2026 · Hackathon MVP
 
-Chorus helps friends turn shared photos and stories into a downloadable photozine, with the people involved approving how their contributions are used. The first release creates a six-page PDF that users can save, share, or print without needing a Chorus account to read it.
+Chorus turns shared photos, voice notes, videos, and stories into an AI-designed, downloadable photozine. The memories themselves inspire its style, and the people involved approve both their use and the final edition. The first release creates a six-page PDF that users can save, share, or print without needing a Chorus account to read it.
 
-This specification defines the product experience and scope. The [Software Requirements Document](chorus-srd.md) defines implementation requirements and acceptance tests.
+This specification defines the product experience and scope. The [Software Requirements Document](chorus-srd.md) defines implementation requirements and acceptance tests. Version 0.2 makes multimedia input and AI-directed design core MVP capabilities. CH-01 authentication remains unchanged and can continue while downstream work adapts.
 
 ## Product purpose
 
-People have meaningful memories scattered across camera rolls and group chats. Making a collection takes effort, and sharing someone else's photo, story, or private joke can put them in an uncomfortable position. Contributors may withhold good material because they do not know what will happen to it.
+Meaningful memories are scattered across camera rolls, recordings, and group chats. Turning them into a keepsake takes creative work, and contributors need a say in how private moments are processed and shared.
 
-Chorus makes the creative process collaborative. Contributors choose material, agree on its use, and review the resulting edition. AI can help with wording and arrangement, while the collection preserves the contributors' own voices.
+Chorus uses authorized memories to propose a visual direction: typography, colors, composition, pacing, titles, and editable captions. Contributors retain their own voices and review the result. A style prompt is optional; the collection should provide enough inspiration for a first design.
 
-The product promise is: “Turn shared memories into a photozine, with everyone involved having a say in what becomes part of the story.”
+The product promise is: “Your memories inspire the design. Everyone involved has a say in the story.”
 
 ## Initial audience and occasion
 
-The initial audience is a small group of friends creating a keepsake for a wedding, graduation, farewell, or reunion. The hackathon demonstration uses three contributors making a collection titled Our First Year Away From Home.
+The initial audience is a small group of friends creating a keepsake for a wedding, graduation, farewell, or reunion. The hackathon demonstration uses three contributors making Our First Year Away From Home, with photos, a short voice note, and a short video.
 
-The creator starts and arranges the collection. Contributors add memories and make consent decisions. The same person can hold both roles. A person named as a required approver must enroll and authenticate before approving; the creator cannot approve on their behalf.
+The creator starts and arranges the collection. Contributors add memories and make consent decisions. The same person can hold both roles. Required approvers enroll and authenticate before approving; the creator cannot approve on their behalf.
 
-An infrastructure administrator operates the service. Administrative access does not automatically grant permission to decrypt all contributions, speak for contributors, or certify an edition as unanimously approved.
+Infrastructure administrators operate the service. Their access does not automatically authorize source decryption, AI processing, contributor decisions, or official edition issuance.
 
 ## Finished artifact
 
-The MVP exports one portrait A5 PDF with six pages:
+The primary output is one portrait A5 PDF with six pages. Its editorial structure covers a title and cover, opening note, photos and captions, multiple attributed perspectives, additional memories, and closing messages. AI may vary page composition and visual treatment within that structure.
 
-1. Cover with a title, optional date range, and approved cover photo.
-2. Opening note written or approved by contributors.
-3. Photo spread with short captions.
-4. One memory told by several people, with each voice attributed.
-5. Additional approved memories arranged as a collage.
-6. Closing messages and a small edition identifier.
+Voice notes become reviewed transcript excerpts or attributed quotes. Videos become selected stills with reviewed captions. Original audio and video remain protected source material; the PDF does not require playback, a live media URL, or a Chorus account. Quotes link internally to their source version and timestamp for review; this provenance need not expose private source links in the PDF.
 
-All pages are readable offline. Photos are embedded, text is selectable where supported by the chosen renderer, and the file has no dependency on authenticated image URLs. The MVP targets home printing and screen reading; professional print production is outside scope.
+All necessary photos, stills, and fonts are embedded. Text is selectable where supported by the chosen renderer. The MVP targets screen reading and home printing. The optional detached consent receipt identifies the exact approved file without private sources or rejection explanations.
 
-The PDF is the primary download. A separate consent receipt can accompany it and identify the exact approved file. The receipt excludes private source material and individual rejection explanations.
+## AI design experience
+
+The creator selects eligible memories and chooses Generate from my memories. An optional instruction, such as “make it playful,” can guide the result. AI analyzes authorized image colors and scenery, transcript themes, and sampled video frames. It proposes one coherent design, a short explanation of its inspiration, and a six-page preview.
+
+For example, sunset photos, laughing friends in a beach clip, and a voice note about a last summer together could inspire a warm scrapbook with film-like accents and handwritten-style headings. Neon city photos and concert memories could inspire a bold editorial treatment. These are creative interpretations that users can change, not claims about contributors' hidden emotions.
+
+The creator can refine the result with text, change colors or typography through controls, replace a photo, edit captions, or return to a simple manual layout. At least two visibly different directions, such as warm scrapbook and bold editorial, must be demonstrated. Styles vary from the inputs; the product does not require users to choose a fixed theme first.
+
+AI returns a structured design plan using supported components: cover, image, grid, collage, quote, heading, caption, and note blocks. A validated renderer builds the preview and PDF. AI never supplies arbitrary executable code, external asset URLs, or the final unreviewed PDF. Layout constraints preserve readability, approved attribution, page bounds, and photo content. Decorative accents are local renderer assets rather than fabricated memory photos.
+
+AI design generation is required for the complete MVP. Manual editing and export remain a full recovery path when processing is declined or unavailable. A manual-only prototype must disclose the missing AI requirement.
 
 ## Product principles
 
-- A declined contribution does not prevent the group from creating something good from other memories.
-- Consent is an explicit decision about a particular version and use. Silence does not count as approval.
-- Every approval clearly distinguishes private composition and review from distribution of the final downloadable edition.
+- Silence does not count as consent; decisions bind a version and a disclosed use.
+- A declined contribution can be omitted without blocking the rest of the collection.
+- Source review, AI processing, and final distribution are clearly distinguished.
 - Contributors can decline without supplying a reason.
-- AI preserves the supplied facts and meaning. It does not invent memories or attribute statements to people who did not make them.
-- The PDF remains usable outside Chorus. Chorus does not offer recall or remote control over downloaded copies.
+- AI preserves supplied facts and attribution; people review suggested captions and quotes.
+- Style inference uses authorized material only, including sources that influence style without appearing directly on a page.
+- The downloadable PDF stays usable outside Chorus. Previously released plaintext and downloaded copies cannot be recalled.
 
 ## Consent and distribution model
 
 ### Required approvers
 
-Each memory has a required approver set: its uploader plus the people the uploader declares as involved. For the MVP, an involved person is a registered collection member. If someone required has not enrolled, the memory stays private and cannot be submitted for approval; the creator can omit it from the edition.
+Each memory requires its uploader and the people declared as involved. For audio and video, this includes declared speakers and represented people. All required people must be registered collection members before submission for approval.
 
-The application does not use face recognition or claim to discover every affected person. Contributors are responsible for declaring the people involved. The uploader already possesses their original material, so Chorus cannot prevent them from sharing it outside the service.
+Chorus does not use face recognition, speaker identification, or voice cloning. Uploaders declare affected people and verify quotation attribution. The service cannot stop an uploader from sharing their own original outside Chorus.
 
-### Permission to compose and review
+### Permission to compose, process, and review
 
-Before a memory can be used, every required approver approves its exact photo, caption, story, and declared participants for a specific collection. The approval identifies the permitted editor, private review audience, and AI processor, if any.
+Every required approver reviews the exact retained source version, text, participants, named editor, and fixed private review audience. They separately decide whether specified derivatives may be sent to the disclosed processors. Manual composition permission does not imply permission for AI processing.
 
-Required approvers receive limited access to the material they must review. Other members receive source material only after the composition permission succeeds. The MVP uses a fixed, named review audience for each edition; expanding that audience requires fresh permission for affected memories.
+The processing disclosure identifies each service and its role: transcription may receive sanitized audio; visual analysis may receive resized photos and selected video frames; design generation may receive authorized transcripts, visual summaries, selected images where disclosed, and an optional prompt. The disclosure states relevant retention behavior and the bounded derivative types. No processor is selected yet; choosing and documenting transcription is part of CH-19, and visual/design processing is part of CH-18, before their respective live submissions.
 
-Photo pixels stay outside the AI pipeline in the MVP. An optional text assistant receives only authorized text. A contributor who declines AI processing may still approve a manually composed version.
+Local, bounded preparation such as resizing or frame extraction does not authorize an external request. Model-based transcription and image analysis require current explicit processing permission before the service receives content, even if the service runs on a team-controlled machine. Limited source review does not grant processing rights.
+
+Changing the processor, purpose, derivative types, or permitted audience requires new relevant permission. A contributor can permit manual use while declining AI. Such memories remain outside AI requests and automatic style inference and can be added manually under the approved editor/reviewer scope.
+
+Derived transcripts, stills, visual summaries, and style plans inherit their source protections and retain exact lineage. A withdrawn or excluded memory cannot influence a new design through cached summaries or an old style plan. Past processor exposure cannot be undone.
 
 ### Permission to issue the final edition
 
-The creator freezes a PDF candidate and sends it for final review. Every uploader, declared participant, and author of new attributed text represented in that candidate must approve the whole immutable edition. Each person can inspect the entire candidate and focus their review on their own contributions.
+The creator freezes an exact PDF candidate. Every source approver whose memory appears in the PDF or influenced its style, plus authors of new attributed text, must approve the whole immutable edition. This prevents style-only use from bypassing contributor consent. Removing a dependency requires rebuilding the design from the remaining authorized inputs.
 
-The approval states: “I approve this edition as a file that the named collection members can download, keep, print, and share outside Chorus.” It does not promise that recipients will restrict forwarding.
+The approval states: “I approve this edition as a file that the named collection members can download, keep, print, and share outside Chorus.” It does not promise restrictions on forwarding.
 
-An edition becomes officially approved only when all required approvals are valid for its exact version. Any change to the content, layout, included memories, or download recipient list creates a new candidate and requires new final approvals. Changing the material or processing permissions also requires new composition permission where relevant.
+Changes to content, layout, design plan, included or influencing source versions, or recipients create a new candidate with new final approvals. Changed source content or processing scope also requires new composition or processing permission where relevant.
 
-Private review necessarily exposes an authorized preview to reviewers and the editor. They may be able to save or photograph it before final approval. Final approval certifies the official edition; it is not digital rights management over previews or downloaded files.
+Authorized editors, processors, and reviewers receive plaintext and can copy it. Final approval certifies the official edition; it does not provide DRM over previews or downloaded files.
 
-### Declining and changing a decision
+### Declining and withdrawing
 
-A contributor can decline, suggest an edit, or withdraw an approval before official issuance. A proposed edit creates a new memory version. Affected permissions must be collected again.
+Before issuance, a committed withdrawal blocks later protected release, processing dispatch, derivative reuse, and issuance depending on that permission. Cancel queued work where possible; discard late results from invalidated requests. A request already sent to a processor cannot be recalled.
 
-Before issuance, a withdrawal blocks new protected releases and official issuance of candidates that depend on it. It does not erase plaintext or previews already received. After issuance, a withdrawal stops the app from issuing new downloads under that permission and excludes the material from new editions until approved again. Copies already downloaded remain outside Chorus's control.
+After issuance, withdrawal stops new app-authorized downloads under that permission and use in later editions until approved again. Historical records remain; downloaded PDFs continue to open.
 
-## User journey
+## User journey and main screens
 
-### Create a collection
+1. Sign in through TideCloak, create a collection, and admit contributors. Three pre-enrolled demo accounts are sufficient; email delivery is unnecessary.
+2. Add a photo, uploaded voice note, short video, or text memory; provide attribution and required people. Validate and sanitize media locally, then encrypt retained sources before remote persistence.
+3. In the approval inbox, inspect protected source playback or preview, approve manual editor/reviewer use, and separately approve or decline disclosed AI processing.
+4. Generate a design from AI-authorized memories. Inspect the style explanation, proposed quotes, and six-page preview. Edit transcripts and attribution before accepting quotes; refine the style or edit manually.
+5. Freeze a candidate, collect every required final approval, and download the exact approved PDF and optional receipt.
 
-The creator signs in through TideCloak, chooses a title and occasion, and adds contributors. The MVP can use three pre-enrolled demo accounts and a collection join flow; email delivery is unnecessary.
+The collection workspace shows contribution and processing status. The memory editor shows media type, limits, playback or preview, text, participants, and use scope. The approval inbox shows exact versions and distinct use decisions. The composer shows inspiration, editable pages, style controls, AI job status, and recovery actions. Edition review shows the complete frozen file, edition identifier, distribution notice, and approval progress. Download explains that saved copies can be forwarded.
 
-### Contribute a memory
+## MVP scope and limits
 
-A contributor uploads a JPEG or PNG photo, enters a caption and optional short story, and selects required approvers. They see the intended use and review audience before submission. The client encrypts protected content before storing it remotely.
+The core release includes real TideCloak identity and protected release, three demo contributors, one collection of six to twelve memories, encrypted multimodal sources, explicit review and processing permissions, bounded media preparation, AI-inferred design, manual editing, final edition approvals, and an offline six-page PDF.
 
-### Review a contribution
+The SRD defines enforceable formats and budgets: JPEG/PNG images; short supported audio uploads; short supported videos; bounded transcription, resized images, and sparse frame sampling. Continuous video understanding, long recordings, real-time capture, and live collaborative editing are outside scope. Uploading a voice note is sufficient; an in-app recorder is future work.
 
-Each required person opens an approval inbox, reviews the relevant source version, and approves or declines. The creator sees whether the memory is available, waiting, or excluded, without requiring a rejection explanation.
-
-### Compose the photozine
-
-The creator selects available memories and arranges them in the fixed template. The interface identifies which material can be used. Declined or pending material is excluded before generation. AI text suggestions are optional, editable, and reviewed as part of the final edition.
-
-### Review and download an edition
-
-The creator freezes the candidate. Reviewers approve its exact version or request changes. The creator can remove a blocked contribution and submit a new candidate, with new approvals. Once approved, authorized members can download the official PDF and optional receipt.
-
-## Main screens
-
-| Screen               | User task                     | Essential content                                                              |
-| -------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
-| Collections          | Start or open a collection    | Title, occasion, member count, progress                                        |
-| Collection workspace | Coordinate contributions      | Memory cards, permission status, add memory action                             |
-| Memory editor        | Submit a photo and story      | Photo preview, caption, story, required people, use scope                      |
-| Approval inbox       | Decide on a source or edition | Exact version, audience, processing disclosure, approve, decline, request edit |
-| Zine composer        | Arrange authorized material   | Six-page preview, selected memories, caption edits, optional text assistance   |
-| Edition review       | Approve a frozen candidate    | Complete PDF preview, edition ID, distribution notice, approval progress       |
-| Download             | Save an approved edition      | PDF download, optional receipt, reminder about unrestricted copies             |
-
-## MVP scope
-
-The core release includes TideCloak authentication, three demo contributors, one collection, encrypted photo and text contributions, explicit required approvers, real source access enforcement, a fixed six-page layout, final edition approvals, and a downloadable PDF.
-
-One visual style is sufficient for the MVP: a restrained scrapbook with warm backgrounds, generous margins, readable type, and short attributed captions. Other styles are future options. The layout must gracefully handle a photo or story being removed.
-
-Optional AI text assistance is included only after the encrypted contribution and approval path works. Manual captions and deterministic layout must still produce a complete photozine.
-
-Future releases may add multiple templates, longer collections, collaborative layout editing, voice transcription, video, and print fulfillment. The MVP excludes voice cloning, facial identification, public galleries, a social feed, payments, external sharing integrations, and automatic publishing.
+The MVP also excludes voice cloning, facial or speaker identification, fabricated memory photos, arbitrary model-generated code, public galleries, social feeds, payments, print fulfillment, professional print production, external sharing integrations, and automatic publishing. Native device saving and ordinary file sharing are sufficient.
 
 ## TideCloak contribution
 
-TideCloak supplies identity and the foundation for encrypted access and administrative governance. Its encryption guide describes browser encryption with governed permissions. Its QEA documentation describes quorum approval for identity and permission changes. Forseti provides programmable validation for protected operations. [Encryption guide](https://docs.tide.org/Admin/e2ee), [QEA guide](https://docs.tide.org/Core-Concepts/iga-workflow), [Forseti guide](https://docs.tide.org/Core-Concepts/forseti-engine).
+TideCloak supplies identity and the foundation for encrypted access and administrative governance. Its guides describe governed browser encryption, quorum approval for identity and permission changes, and Forseti validation of protected operations. [Encryption guide](https://docs.tide.org/Admin/e2ee), [QEA guide](https://docs.tide.org/Core-Concepts/iga-workflow), [Forseti guide](https://docs.tide.org/Core-Concepts/forseti-engine).
 
-Chorus must implement the application-specific requirement that every named approver consents to a version. Administrative quorum is a separate policy and cannot stand in for those contributors. Likewise, a standard self-encryption example is not proof that cross-user review or sharing works.
+Chorus must implement the distinct requirement that every declared approver consents to an exact version and use. Administrative quorum does not replace contributor consent. A self-encryption example does not establish cross-user sharing or processor-scoped release.
 
-The first implementation milestone must demonstrate the cross-user access policy on one encrypted memory. The exact policy-backed encryption, approval, withdrawal, and receipt mechanism remains an integration dependency until verified. A prototype that only hides a button while leaving plaintext available to the backend does not satisfy this scope.
+The first integration milestone proves cross-user review and protected release on one encrypted memory, then verifies processor-recipient binding, withdrawal, and receipt feasibility. These remain integration obligations until demonstrated. Hiding a button while plaintext remains accessible to an unauthorized backend does not satisfy them.
 
-## Success measures
+## Success measures and demonstration
 
-The hackathon build succeeds when three people can contribute, approve, and create a coherent six-page photozine; a blocked source cannot be retrieved through a direct unauthorized request; one administrator cannot independently grant that access; and the resulting PDF opens offline on another device.
+A successful demonstration uses three people, photos, a voice note, and a video to generate a coherent photozine without a required style prompt. It shows a distinctly different authorized collection producing a different design and a text refinement updating the draft. Transcripts and frame choices remain traceable and reviewable.
 
-The final edition identifies its exact approved content. An altered candidate or receipt must not pass verification. An excluded memory must be absent from model inputs, rendered pages, and PDF resources.
+The demo must also show a missing approval blocking a direct protected request, one administrator unable to grant access alone, a blocked memory absent from processor inputs and all derivatives, final contributor approval, an exact-byte PDF download, and offline viewing. A subsequent edit requires fresh approval. A failed or declined AI request leaves manual editing usable without contacting another provider.
 
-Provisional usability targets are a complete creation session within ten minutes, excluding time spent waiting for other people, and PDF rendering within thirty seconds on the reference demo device. These are validation targets, not measured results.
-
-## Hackathon demonstration
-
-1. Open a collection containing several ordinary memories and one sensitive story.
-2. Show that a missing source approval prevents a direct decryption attempt.
-3. Show one administrator's permission change remaining pending because additional governance approval is required.
-4. Omit the blocked story and compose a complete photozine from approved material.
-5. Freeze the edition and collect the final contributor approvals.
-6. Download the PDF and open it offline in a separate viewer.
-7. Show that editing the candidate changes its identity and requires fresh approval.
-
-Use synthetic or explicitly authorized demo photos and stories. The submission must describe which protections work, which external services are mocked, and any integration gaps.
+Use synthetic or explicitly authorized media. Describe working protections, provider exposure, mocks, and unmet requirements accurately. Provisional usability targets remain a ten-minute creation session excluding contributor waiting, and a thirty-second PDF render on the documented device. Media preparation and AI latency are measured separately.
 
 ## Delivery order
 
-1. Prove a protected contribution can be reviewed by the right users and released only with all required source approvals. Verify that one administrator cannot bypass the governing permissions.
-2. Build collection membership, contribution upload, versioning, and the approval inbox.
-3. Build the fixed photozine layout, immutable candidate review, official edition authorization, and PDF download.
-4. Add optional AI caption assistance, visual polish, and the demonstration recording.
+1. Continue CH-01 unchanged. Prove the protected review, release, withdrawal, and signing integration in CH-02.
+2. Define the design-plan and renderer contract in CH-20 using synthetic fixtures; it can proceed independently of authentication. Implement immutable multimedia records, collection membership, protected uploads, and consent UI.
+3. After consent and withdrawal gates work, build bounded media processing in CH-19. Build the composer in CH-09 against the contract; implement AI art direction in promoted core ticket CH-18.
+4. Integrate the AI and manual paths, freeze exact candidates, collect final approvals, issue receipts, and download. Finish verification, accessibility, and demonstration.
 
-If the first milestone fails, reduce optional features and resolve the Tide integration before claiming the consent protection is implemented. An interface-only simulation can illustrate the concept but must be labeled as such.
+The [backlog](backlog.md) provides dependencies and parallel groups. If an integration gate fails, document the unmet requirement rather than presenting a simulation or manual-only fallback as the complete MVP.

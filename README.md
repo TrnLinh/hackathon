@@ -1,8 +1,8 @@
 # Chorus
 
-Chorus turns shared photos and stories into a downloadable photozine, with everyone involved having a say in what becomes part of the story.
+Chorus turns shared photos, voice notes, videos, and stories into an AI-designed, downloadable photozine. The memories inspire its style, with everyone involved having a say in their use and the final edition.
 
-This repository contains the project foundation. Collection creation, photo uploads, TideCloak authentication and encryption, contributor approvals, and PDF export are not implemented yet.
+This repository contains the project foundation. Collection creation, multimedia uploads/processing, AI design, TideCloak authentication and encryption, contributor approvals, and PDF export are not implemented yet. No AI provider/model has been selected. The product and SRD are version 0.2; CH-01 authentication can continue unchanged while CH-20 defines the design contract independently.
 
 ## Stack
 
@@ -121,7 +121,7 @@ For the browser smoke check, open /app, navigate to Collections and Project Setu
 
 ## Implementation backlog
 
-See the [implementation issues](docs/backlog.md) for priorities, dependencies, scope, and acceptance criteria. The issue manifest in docs/backlog/issues.json can be published by the Publish Chorus backlog workflow. Existing issue edits and closed states are preserved on retries. Regenerate the readable backlog with npm run backlog:docs; run publication tests with npm test.
+See the [implementation issues](docs/backlog.md) for priorities, dependencies, parallel groups, and acceptance criteria. The issue manifest in docs/backlog/issues.json is published by the Publish Chorus backlog workflow. Explicit once-only scope revisions retain prior issue descriptions/notes, unchanged completed criteria, comments, assignments, and closed states; other issue text stays unchanged. Regenerate the readable backlog with npm run backlog:docs; run publication tests with npm test.
 
 ## Product documents
 

@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Create missing issues and link dependencies
+      - name: Publish issues and apply explicit scope revisions
         uses: actions/github-script@v8
         with:
           script: |
@@ -31,6 +31,7 @@ jobs:
             const fs = await import('node:fs/promises');
             await fs.writeFile('backlog-publication.json', JSON.stringify(result, null, 2));
             await core.summary.addHeading('Chorus implementation backlog')
+              .addRaw(`Created: ${result.created.join(', ') || 'none'}. Revised: ${result.updated.join(', ') || 'none'}.\n\n`)
               .addTable([
                 [{ data: 'Ticket', header: true }, { data: 'Issue', header: true }],
                 ...result.issues.map(issue => [issue.id, issue.url]),
