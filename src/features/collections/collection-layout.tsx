@@ -64,8 +64,8 @@ export function PrototypeOnly({ children }: { children: ReactNode }) {
       icon={<Images className="size-5" aria-hidden="true" />}
       title="Not connected to the backend yet"
     >
-      Memories, composing, editions and history still run on prototype data.
-      Open a prototype demo collection from Your collections to try them.
+      Composing, editions and history still run on prototype data. Open a
+      prototype demo collection from Your collections to try them.
     </EmptyState>
   );
 }

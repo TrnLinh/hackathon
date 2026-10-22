@@ -73,6 +73,7 @@ import type {
 import { BudgetMeter } from "@/features/collections/budget-meter";
 import { cn } from "@/lib/utils";
 import { CountedField, PeoplePicker, codePoints } from "./fields";
+import { ConvexMemoryDetail } from "./convex-memories";
 
 const processorShort: Record<string, string> = {
   transcriber: "Transcription",
@@ -652,6 +653,21 @@ function Derivatives({
 }
 
 export function MemoryDetail({
+  collectionId,
+  memoryId,
+}: {
+  collectionId: string;
+  memoryId: string;
+}) {
+  const state = usePrototype();
+  return state.collections.some((c) => c.id === collectionId) ? (
+    <PrototypeMemoryDetail collectionId={collectionId} memoryId={memoryId} />
+  ) : (
+    <ConvexMemoryDetail collectionId={collectionId} memoryId={memoryId} />
+  );
+}
+
+function PrototypeMemoryDetail({
   collectionId,
   memoryId,
 }: {

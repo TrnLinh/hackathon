@@ -33,9 +33,14 @@ import {
 import type {
   MediaInfo,
   MemoryKind,
+  Person,
   PersonId,
+  Processor,
   ProcessorId,
 } from "@/features/prototype/types";
+import { toPerson, useCollection } from "@/features/data/collections";
+import { useViewer } from "@/features/data/current-user";
+import { useMemories, useMemoryActions } from "@/features/data/memories";
 import { cn } from "@/lib/utils";
 import { CountedField, PeoplePicker, codePoints } from "./fields";
 import {
@@ -256,10 +261,150 @@ function ItemCard({
 
 let itemCounter = 0;
 
+/** One memory to save; the editor builds these from its form. */
+export type EditorMemory = {
+  itemId: string;
+  kind: MemoryKind;
+  title: string;
+  caption: string;
+  story: string;
+  peopleIds: PersonId[];
+  requestedProcessors: ProcessorId[];
+  file?: File;
+  media?: MediaInfo;
+};
+
+type SaveResult =
+  | { ok: true; ids: string[] }
+  | { ok: false; reason: string; savedItemIds: string[] };
+
+/** Where the editor reads collection context from and saves to. */
+type EditorSource = {
+  members: Person[];
+  viewerId: string;
+  /** Processors to request AI permission for; null hides that section. */
+  processors: Processor[] | null;
+  existingCount: number;
+  usedBytes: number;
+  /** False until submission for approval exists on this backend (CH-06). */
+  canSubmit: boolean;
+  trustNote: string;
+  save: (memories: EditorMemory[], submit: boolean) => Promise<SaveResult>;
+};
+
 export function MemoryEditor({ collectionId }: { collectionId: string }) {
   const state = usePrototype();
-  const navigate = useNavigate();
+  return state.collections.some((c) => c.id === collectionId) ? (
+    <PrototypeMemoryEditor collectionId={collectionId} />
+  ) : (
+    <ConvexMemoryEditor collectionId={collectionId} />
+  );
+}
+
+function PrototypeMemoryEditor({ collectionId }: { collectionId: string }) {
+  const state = usePrototype();
   const collection = state.collections.find((c) => c.id === collectionId);
+  if (!collection) return null;
+  const existing = collectionMemories(state, collectionId).filter(
+    (m) => m.submitted && memoryStatus(m) !== "excluded",
+  );
+  return (
+    <MemoryEditorView
+      collectionId={collectionId}
+      source={{
+        members: collection.memberIds.map((id) => personById(state, id)),
+        viewerId: state.viewerId,
+        processors: state.processors,
+        existingCount: existing.length,
+        usedBytes: existing.reduce((n, m) => n + (m.media?.sizeBytes ?? 0), 0),
+        canSubmit: true,
+        trustNote:
+          "Prototype: files never leave this browser. Type detection uses the file’s contents; sanitization and encryption are simulated. The real build prepares and encrypts media on your device before anything is stored remotely.",
+        save: async (memories, submit) => ({
+          ok: true,
+          ids: memories.map((m) =>
+            actions.addMemory({
+              collectionId,
+              kind: m.kind,
+              title: m.title,
+              caption: m.caption,
+              story: m.story,
+              peopleIds: m.peopleIds,
+              requestedProcessors: m.requestedProcessors,
+              media: m.media,
+              art:
+                m.kind === "photo" || m.kind === "video"
+                  ? artworkFromSeed(m.title + (m.file?.size ?? 0), m.title)
+                  : undefined,
+              submit,
+            }),
+          ),
+        }),
+      }}
+    />
+  );
+}
+
+function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
+  const collection = useCollection(collectionId);
+  const viewer = useViewer();
+  const member = collection?.access === "member" ? collection : null;
+  const memories = useMemories(member?.collectionId ?? null);
+  const { addMemory } = useMemoryActions();
+  if (!member || !viewer || !memories) return null;
+  const id = member.collectionId;
+  return (
+    <MemoryEditorView
+      collectionId={collectionId}
+      source={{
+        members: member.members.map(toPerson),
+        viewerId: viewer.userId,
+        processors: null,
+        existingCount: memories.length,
+        usedBytes: memories.reduce(
+          (n, m) => n + (m.head.media?.byteLength ?? 0),
+          0,
+        ),
+        canSubmit: false,
+        trustNote:
+          "Encryption isn’t connected yet. Photos are re-encoded on your device to remove location and other hidden metadata; audio and video are kept as validated. For development, files and text are then stored unencrypted and labelled that way. Drafts are visible only to you.",
+        save: async (items) => {
+          const ids: string[] = [];
+          const saved: string[] = [];
+          for (const item of items) {
+            const result = await addMemory(
+              id,
+              {
+                kind: item.kind,
+                title: item.title,
+                caption: item.caption,
+                story: item.story,
+                peopleIds: item.peopleIds,
+                file: item.file,
+                media: item.media,
+              },
+              item.itemId,
+            );
+            if (!result.ok)
+              return { ok: false, reason: result.reason, savedItemIds: saved };
+            ids.push(result.result.memoryId);
+            saved.push(item.itemId);
+          }
+          return { ok: true, ids };
+        },
+      }}
+    />
+  );
+}
+
+function MemoryEditorView({
+  collectionId,
+  source,
+}: {
+  collectionId: string;
+  source: EditorSource;
+}) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"files" | "story">("files");
   const [items, setItems] = useState<Item[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -269,6 +414,7 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
   const [declined, setDeclined] = useState<ProcessorId[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const urls = useRef(new Set<string>());
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -325,22 +471,18 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
     return () => window.removeEventListener("paste", onPaste);
   });
 
-  if (!collection) return null;
-  const members = collection.memberIds.map((id) => personById(state, id));
+  const members = source.members;
   const kindsPresent: MemoryKind[] =
     mode === "story"
       ? ["text"]
       : Array.from(
           new Set(items.filter((i) => i.kind).map((i) => i.kind as MemoryKind)),
         );
-  const applicable = state.processors.filter((p) =>
+  const applicable = (source.processors ?? []).filter((p) =>
     p.appliesTo.some((k) => kindsPresent.includes(k)),
   );
-  const existing = collectionMemories(state, collectionId).filter(
-    (m) => m.submitted && memoryStatus(m) !== "excluded",
-  );
-  const slotsLeft = Math.max(LIMITS.activeMemories - existing.length, 0);
-  const usedBytes = existing.reduce((n, m) => n + (m.media?.sizeBytes ?? 0), 0);
+  const slotsLeft = Math.max(LIMITS.activeMemories - source.existingCount, 0);
+  const usedBytes = source.usedBytes;
   const usable = items.filter(
     (i) => i.phase === "checked" && i.errors.length === 0 && i.kind,
   );
@@ -397,55 +539,52 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
   }
 
   function requestedFor(kind: MemoryKind) {
-    return state.processors
+    return (source.processors ?? [])
       .filter((p) => p.appliesTo.includes(kind) && !declined.includes(p.id))
       .map((p) => p.id);
   }
 
-  function save(submit: boolean) {
+  async function save(submit: boolean) {
     setTriedSubmit(true);
     if (errors.length || submitting) return;
     setSubmitting(true);
-    const created: string[] = [];
-    if (mode === "story") {
-      created.push(
-        actions.addMemory({
-          collectionId,
-          kind: "text",
-          title: storyTitle.trim(),
-          caption: "",
-          story: storyText.trim(),
-          peopleIds: people,
-          requestedProcessors: requestedFor("text"),
-          submit,
-        }),
-      );
-    } else {
-      for (const i of usable) {
-        const kind = i.kind!;
-        created.push(
-          actions.addMemory({
-            collectionId,
-            kind,
+    setSaveError(null);
+    const memories: EditorMemory[] =
+      mode === "story"
+        ? [
+            {
+              itemId: "story",
+              kind: "text",
+              title: storyTitle.trim(),
+              caption: "",
+              story: storyText.trim(),
+              peopleIds: people,
+              requestedProcessors: requestedFor("text"),
+            },
+          ]
+        : usable.map((i) => ({
+            itemId: i.id,
+            kind: i.kind!,
             title: i.title.trim(),
             caption: i.caption.trim(),
             story: i.story.trim(),
             peopleIds: people,
-            requestedProcessors: requestedFor(kind),
+            requestedProcessors: requestedFor(i.kind!),
+            file: i.file,
             media: i.media,
-            art:
-              kind === "photo" || kind === "video"
-                ? artworkFromSeed(i.title + i.file.size, i.title.trim())
-                : undefined,
-            submit,
-          }),
-        );
-      }
+          }));
+    const result = await source.save(memories, submit);
+    setSubmitting(false);
+    if (!result.ok) {
+      // Keep only what wasn't saved, so trying again can't duplicate.
+      for (const id of result.savedItemIds) removeItem(id);
+      setSaveError(result.reason);
+      return;
     }
-    if (created.length === 1)
+    if (result.ids.length === 1)
       void navigate({
         to: "/collections/$collectionId/memories/$memoryId",
-        params: { collectionId, memoryId: created[0] },
+        params: { collectionId, memoryId: result.ids[0] },
       });
     else
       void navigate({
@@ -456,7 +595,7 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    save(true);
+    void save(source.canSubmit);
   }
 
   function onDrop(event: DragEvent) {
@@ -656,7 +795,7 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
         <div className="min-w-0 space-y-6">
           <PeoplePicker
             people={members}
-            uploaderId={state.viewerId}
+            uploaderId={source.viewerId}
             selected={people}
             onChange={setPeople}
           />
@@ -667,73 +806,75 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
             </p>
           )}
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">
-              Ask permission for AI processing
-            </legend>
-            <p className="text-xs text-muted-foreground">
-              Each person decides on these separately from manual use. Nothing
-              is sent until everyone approves.
-            </p>
-            {applicable.length === 0 ? (
-              <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                Add a file to see which processors apply.
+          {source.processors && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">
+                Ask permission for AI processing
+              </legend>
+              <p className="text-xs text-muted-foreground">
+                Each person decides on these separately from manual use. Nothing
+                is sent until everyone approves.
               </p>
-            ) : (
-              <ul className="space-y-2">
-                {applicable.map((p) => {
-                  const id = `proc-${p.id}`;
-                  const on = !declined.includes(p.id);
-                  const kinds = p.appliesTo
-                    .filter((k) => kindsPresent.includes(k))
-                    .map((k) => kindMeta[k].label.toLowerCase());
-                  return (
-                    <li key={p.id}>
-                      <label
-                        htmlFor={id}
-                        className={cn(
-                          "flex cursor-pointer gap-3 rounded-lg border bg-card p-3 text-sm has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
-                          on && "border-primary/40",
-                        )}
-                      >
-                        <Checkbox
-                          id={id}
-                          checked={on}
-                          className="mt-0.5"
-                          onCheckedChange={(v) =>
-                            setDeclined((prev) =>
-                              v
-                                ? prev.filter((x) => x !== p.id)
-                                : [...prev, p.id],
-                            )
-                          }
-                        />
-                        <span className="min-w-0 space-y-1">
-                          <span className="block font-medium">{p.name}</span>
-                          <span className="block text-xs text-muted-foreground">
-                            {p.role}
-                            {mode === "files" && ` · for ${kinds.join(", ")}`}
-                          </span>
-                          <span className="block text-xs">
-                            <span className="text-muted-foreground">
-                              Receives:{" "}
+              {applicable.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                  Add a file to see which processors apply.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {applicable.map((p) => {
+                    const id = `proc-${p.id}`;
+                    const on = !declined.includes(p.id);
+                    const kinds = p.appliesTo
+                      .filter((k) => kindsPresent.includes(k))
+                      .map((k) => kindMeta[k].label.toLowerCase());
+                    return (
+                      <li key={p.id}>
+                        <label
+                          htmlFor={id}
+                          className={cn(
+                            "flex cursor-pointer gap-3 rounded-lg border bg-card p-3 text-sm has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
+                            on && "border-primary/40",
+                          )}
+                        >
+                          <Checkbox
+                            id={id}
+                            checked={on}
+                            className="mt-0.5"
+                            onCheckedChange={(v) =>
+                              setDeclined((prev) =>
+                                v
+                                  ? prev.filter((x) => x !== p.id)
+                                  : [...prev, p.id],
+                              )
+                            }
+                          />
+                          <span className="min-w-0 space-y-1">
+                            <span className="block font-medium">{p.name}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {p.role}
+                              {mode === "files" && ` · for ${kinds.join(", ")}`}
                             </span>
-                            {p.receives.join("; ")}
-                          </span>
-                          <span className="block text-xs">
-                            <span className="text-muted-foreground">
-                              Retention:{" "}
+                            <span className="block text-xs">
+                              <span className="text-muted-foreground">
+                                Receives:{" "}
+                              </span>
+                              {p.receives.join("; ")}
                             </span>
-                            {p.retention}
+                            <span className="block text-xs">
+                              <span className="text-muted-foreground">
+                                Retention:{" "}
+                              </span>
+                              {p.retention}
+                            </span>
                           </span>
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </fieldset>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </fieldset>
+          )}
 
           {mode === "files" && (
             <PrepChecklist
@@ -741,14 +882,17 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
             />
           )}
 
-          <TrustNote>
-            Prototype: files never leave this browser. Type detection uses the
-            file’s contents; sanitization and encryption are simulated. The real
-            build prepares and encrypts media on your device before anything is
-            stored remotely.
-          </TrustNote>
+          <TrustNote>{source.trustNote}</TrustNote>
         </div>
       </div>
+
+      {saveError && (
+        <Alert variant="destructive" role="alert">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Not saved</AlertTitle>
+          <AlertDescription>{saveError}</AlertDescription>
+        </Alert>
+      )}
 
       {triedSubmit && errors.length > 0 && (
         <Alert variant="destructive" role="alert">
@@ -774,15 +918,17 @@ export function MemoryEditor({ collectionId }: { collectionId: string }) {
           type="button"
           variant="outline"
           disabled={submitting}
-          onClick={() => save(false)}
+          onClick={() => void save(false)}
         >
           {count > 1 ? `Save ${count} private drafts` : "Save private draft"}
         </Button>
-        <Button type="submit" disabled={submitting}>
-          {count > 1
-            ? `Submit ${count} ${noun} for approval`
-            : "Submit for approval"}
-        </Button>
+        {source.canSubmit && (
+          <Button type="submit" disabled={submitting}>
+            {count > 1
+              ? `Submit ${count} ${noun} for approval`
+              : "Submit for approval"}
+          </Button>
+        )}
       </div>
     </form>
   );
