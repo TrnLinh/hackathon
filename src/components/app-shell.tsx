@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Outlet } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -21,7 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuthConfiguration } from "@/components/providers";
 import { AccountControls } from "@/features/auth/auth-status";
+import { useAiConfig } from "@/features/data/ai-config";
+import { BackendOnly } from "@/features/data/backend";
+import { EnsureCurrentUser } from "@/features/data/current-user";
 import { actions, usePrototype } from "@/features/prototype/store";
 import { inboxFor, personById } from "@/features/prototype/selectors";
 
@@ -35,14 +40,12 @@ const links = [
 ] as const;
 
 /** Reflects server-authoritative AI availability (CH-22). */
-function AiStatusPill() {
-  const state = usePrototype();
-  const on = state.aiConfig.enabled;
+function AiStatusPill({ on, revision }: { on: boolean; revision: number }) {
   const Icon = on ? Power : PowerOff;
   return (
     <Link
       to="/processors"
-      title={`AI is ${on ? "on" : "off"} (configuration r${state.aiConfig.revision})`}
+      title={`AI is ${on ? "on" : "off"} (configuration r${revision})`}
       className={
         on
           ? "inline-flex h-6 items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--status-available)_35%,transparent)] bg-[color-mix(in_srgb,var(--status-available)_10%,transparent)] px-2.5 text-xs font-medium text-[var(--status-available)] hover:underline"
@@ -52,6 +55,24 @@ function AiStatusPill() {
       <Icon className="size-3.5" aria-hidden="true" />
       AI {on ? "on" : "off"}
     </Link>
+  );
+}
+
+/**
+ * Reads AI availability from the server and mirrors it into the prototype
+ * store, so screens still on mock data agree with the server.
+ */
+function ServerAiStatus() {
+  const config = useAiConfig();
+  useEffect(() => {
+    if (config) actions.syncAiConfig(config);
+  }, [config]);
+  // Missing or unreadable configuration means off.
+  return (
+    <AiStatusPill
+      on={config?.enabled ?? false}
+      revision={config?.revision ?? 0}
+    />
   );
 }
 
@@ -97,6 +118,7 @@ function ViewerSwitcher() {
 
 export function AppShell() {
   const state = usePrototype();
+  const { configured: authConfigured } = useAuthConfiguration();
   const inboxCount = inboxFor(state, state.viewerId).length;
   return (
     <div className="min-h-screen">
@@ -112,7 +134,10 @@ export function AppShell() {
             <Brand />
           </Link>
           <div className="flex flex-wrap items-center gap-3">
-            <AiStatusPill />
+            <BackendOnly fallback={<AiStatusPill on={false} revision={0} />}>
+              <ServerAiStatus />
+            </BackendOnly>
+            {authConfigured && <EnsureCurrentUser />}
             <ViewerSwitcher />
             <AccountControls />
           </div>

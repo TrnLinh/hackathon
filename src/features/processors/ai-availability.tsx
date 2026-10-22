@@ -1,30 +1,51 @@
 import { useState } from "react";
 import { History, Power, PowerOff, ShieldAlert } from "lucide-react";
-import { PersonAvatar } from "@/components/chorus/people";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { actions, usePrototype } from "@/features/prototype/store";
-import { formatWhen, personById } from "@/features/prototype/selectors";
+import { BackendOnly, formatTime } from "@/features/data/backend";
+import {
+  useAiCapabilities,
+  useAiConfig,
+  useAiHistory,
+  useSetAiEnabled,
+} from "@/features/data/ai-config";
 
 // CH-22: runtime AI availability. The server is the source of truth; this card
 // only reflects it and lets an authorized operator change it.
 
 export function AiAvailabilityCard() {
-  const state = usePrototype();
-  const [message, setMessage] = useState<string | null>(null);
-  const config = state.aiConfig;
-  const viewer = personById(state, state.viewerId);
-  const isOperator = !!viewer.operator;
-  const changedBy =
-    config.changedBy === "system" ? null : personById(state, config.changedBy);
-  const audit = state.history
-    .filter((e) => e.kind === "ai.enabled" || e.kind === "ai.disabled")
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 8);
-  const StateIcon = config.enabled ? Power : PowerOff;
+  return (
+    <BackendOnly
+      fallback={
+        <p role="status" className="text-sm text-muted-foreground">
+          AI is off. The backend isn’t connected, so availability can’t be read;
+          templates and manual editing still work.
+        </p>
+      }
+    >
+      <ConnectedAiAvailabilityCard />
+    </BackendOnly>
+  );
+}
 
-  function toggle() {
-    const result = actions.setAiEnabled(!config.enabled);
+function ConnectedAiAvailabilityCard() {
+  const config = useAiConfig();
+  const capabilities = useAiCapabilities();
+  const audit = useAiHistory() ?? [];
+  const setAiEnabled = useSetAiEnabled();
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  // Missing or unreadable configuration means off.
+  const enabled = config?.enabled ?? false;
+  const isOperator = capabilities?.isOperator ?? false;
+  const latest = audit[0];
+  const StateIcon = enabled ? Power : PowerOff;
+
+  async function toggle() {
+    if (!config) return;
+    setPending(true);
+    const result = await setAiEnabled(!config.enabled, config.revision);
+    setPending(false);
     setMessage(result.ok ? null : result.reason);
   }
 
@@ -44,13 +65,13 @@ export function AiAvailabilityCard() {
           <span
             className={cn(
               "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium",
-              config.enabled
+              enabled
                 ? "border-[color-mix(in_srgb,var(--status-available)_35%,transparent)] bg-[color-mix(in_srgb,var(--status-available)_10%,transparent)] text-[var(--status-available)]"
                 : "bg-muted text-muted-foreground",
             )}
           >
             <StateIcon className="size-4" aria-hidden="true" />
-            AI is {config.enabled ? "on" : "off"}
+            AI is {enabled ? "on" : "off"}
           </span>
         </div>
       </CardHeader>
@@ -59,41 +80,44 @@ export function AiAvailabilityCard() {
           <button
             type="button"
             role="switch"
-            aria-checked={config.enabled}
+            aria-checked={enabled}
             aria-label="AI processing"
             aria-describedby="ai-switch-help"
-            disabled={!isOperator}
-            onClick={toggle}
+            disabled={!isOperator || !config || pending}
+            onClick={() => void toggle()}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
-              config.enabled ? "bg-primary" : "bg-input",
+              enabled ? "bg-primary" : "bg-input",
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
                 "inline-block size-5 rounded-full bg-background shadow transition-transform",
-                config.enabled ? "translate-x-5" : "translate-x-0",
+                enabled ? "translate-x-5" : "translate-x-0",
               )}
             />
           </button>
           <div className="min-w-0 flex-1 text-sm">
             <p className="font-medium">
-              {config.enabled ? "Turn AI off" : "Turn AI on"}
+              {enabled ? "Turn AI off" : "Turn AI on"}
             </p>
             <p id="ai-switch-help" className="text-xs text-muted-foreground">
               {isOperator
                 ? "You’re signed in as an authorized operator. The change is audited."
-                : "Only an authorized operator can change this. Switch to Avery Kim (operator) in Viewing as to try it."}
+                : capabilities?.signedIn
+                  ? "Only an authorized operator can change this."
+                  : "Sign in as an authorized operator to change this."}
             </p>
           </div>
           <dl className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 text-xs">
             <dt className="text-muted-foreground">Configuration revision</dt>
-            <dd className="font-mono">r{config.revision}</dd>
+            <dd className="font-mono">r{config?.revision ?? 0}</dd>
             <dt className="text-muted-foreground">Last changed</dt>
-            <dd className="inline-flex items-center gap-1.5">
-              {changedBy && <PersonAvatar person={changedBy} size="sm" />}
-              {changedBy?.name ?? "System"} · {formatWhen(config.changedAt)}
+            <dd>
+              {config?.changedAt
+                ? `${latest?.changedByYou ? "You" : (latest?.changedByName ?? "An operator")} · ${formatTime(config.changedAt)}`
+                : "Never (off by default)"}
             </dd>
           </dl>
           {message && (
@@ -139,7 +163,7 @@ export function AiAvailabilityCard() {
           </li>
         </ul>
 
-        {!config.processorsConfigured && (
+        {capabilities && !capabilities.processorsConfigured && (
           <p className="flex items-start gap-2 text-xs text-[var(--status-awaiting)]">
             <ShieldAlert className="mt-0.5 size-3.5" aria-hidden="true" />
             Processor roles aren’t configured, so AI can’t be turned on.
@@ -152,35 +176,41 @@ export function AiAvailabilityCard() {
             Audit log
           </h3>
           {audit.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No changes yet.</p>
+            <p className="text-xs text-muted-foreground">
+              {capabilities?.signedIn
+                ? "No changes yet."
+                : "Sign in to see who changed availability and when."}
+            </p>
           ) : (
             <ol className="divide-y rounded-lg border">
-              {audit.map((e) => {
-                const actor =
-                  e.actorId === "system" ? null : personById(state, e.actorId);
-                return (
-                  <li
-                    key={e.id}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs"
-                  >
-                    {e.kind === "ai.enabled" ? (
-                      <Power
-                        className="size-3.5 text-[var(--status-available)]"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <PowerOff
-                        className="size-3.5 text-muted-foreground"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <span className="min-w-0 flex-1">{e.summary}</span>
-                    <span className="text-muted-foreground">
-                      {actor?.name ?? "System"} · {formatWhen(e.at)}
-                    </span>
-                  </li>
-                );
-              })}
+              {audit.map((e) => (
+                <li
+                  key={e.revision}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs"
+                >
+                  {e.enabled ? (
+                    <Power
+                      className="size-3.5 text-[var(--status-available)]"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <PowerOff
+                      className="size-3.5 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    Turned AI {e.enabled ? "on" : "off"} (configuration revision{" "}
+                    {e.revision})
+                  </span>
+                  <span className="text-muted-foreground">
+                    {e.changedByYou
+                      ? "You"
+                      : (e.changedByName ?? "An operator")}{" "}
+                    · {formatTime(e.changedAt)}
+                  </span>
+                </li>
+              ))}
             </ol>
           )}
           <p className="text-xs text-muted-foreground">

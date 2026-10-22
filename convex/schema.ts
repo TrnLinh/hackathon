@@ -27,6 +27,9 @@ export default defineSchema({
     issuer: v.string(),
     subject: v.string(),
     tokenIdentifier: v.string(),
+    // Display name from the verified ID token's claims. Operator-visible
+    // routing metadata, refreshed by users.ensureCurrent.
+    name: v.optional(v.string()),
   })
     .index("by_identity", ["issuer", "subject"])
     .index("by_token", ["tokenIdentifier"]),
@@ -197,6 +200,12 @@ export default defineSchema({
     "by_user",
     ["userId"],
   ),
+  // Append-only log of operator grants and revocations (admin key only).
+  operatorChanges: defineTable({
+    userId: v.id("users"),
+    active: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
   configurationReceipts: defineTable({
     actorId: v.id("users"),
     retryKey: v.string(),

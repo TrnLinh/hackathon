@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as aiConfig from "../aiConfig.js";
 import type * as identity from "../identity.js";
 import type * as lib_auth_config from "../lib/auth_config.js";
+import type * as lib_viewer from "../lib/viewer.js";
 import type * as model_approval from "../model/approval.js";
 import type * as model_candidates from "../model/candidates.js";
 import type * as model_common from "../model/common.js";
@@ -19,10 +21,12 @@ import type * as model_jobs from "../model/jobs.js";
 import type * as model_lineage from "../model/lineage.js";
 import type * as model_media from "../model/media.js";
 import type * as model_memories from "../model/memories.js";
+import type * as model_operators from "../model/operators.js";
 import type * as model_plans from "../model/plans.js";
 import type * as model_read from "../model/read.js";
 import type * as model_validators from "../model/validators.js";
 import type * as system from "../system.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -31,8 +35,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiConfig: typeof aiConfig;
   identity: typeof identity;
   "lib/auth_config": typeof lib_auth_config;
+  "lib/viewer": typeof lib_viewer;
   "model/approval": typeof model_approval;
   "model/candidates": typeof model_candidates;
   "model/common": typeof model_common;
@@ -42,10 +48,12 @@ declare const fullApi: ApiFromModules<{
   "model/lineage": typeof model_lineage;
   "model/media": typeof model_media;
   "model/memories": typeof model_memories;
+  "model/operators": typeof model_operators;
   "model/plans": typeof model_plans;
   "model/read": typeof model_read;
   "model/validators": typeof model_validators;
   system: typeof system;
+  users: typeof users;
 }>;
 
 /**
