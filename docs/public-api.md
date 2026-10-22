@@ -45,3 +45,34 @@ npx convex run model/operators:revoke '{"tokenIdentifier":"https://id.example/re
 ```
 
 Collection ownership never makes someone an operator, and operator status grants no contributor consent.
+
+## CH-04 collections and membership
+
+| Function                  | Kind     | Notes                                                                                                                                                  |
+| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `collections.create`      | mutation | `{ encryptedMetadata, retryKey }`. The caller becomes creator. Retries with the same key return the same collection (`collectionReceipts`).            |
+| `collections.listMine`    | query    | Active collections (with members and, for the creator, pending count) plus the caller's own pending requests, which show only the creator's name.      |
+| `collections.get`         | query    | `{ collectionId: string }`. `access: "member"` with metadata and members; `"requested"`; or `"none"` for non-members, unknown and malformed IDs alike. |
+| `memberships.preview`     | query    | `{ joinCode }` for signed-in people: creator name, member count and the caller's own status. Never the encrypted title.                                |
+| `memberships.requests`    | query    | Pending join requests, creator only.                                                                                                                   |
+| `memberships.requestJoin` | mutation | `{ joinCode, retryKey }`. Creates or re-opens a `requested` membership. Grants nothing until admitted.                                                 |
+| `memberships.admit`       | mutation | Creator only. `requested` → `active`.                                                                                                                  |
+| `memberships.decline`     | mutation | Creator only. `requested` → `declined`. The person may ask again.                                                                                      |
+| `memberships.remove`      | mutation | Creator only. `active` → `removed`. Approved audiences, decisions and files already received are unchanged.                                            |
+
+Membership statuses are `requested`, `active`, `declined` and `removed`. `admittedAt` records the first admission. Only someone admitted at some point keeps former-member rights (recording evidence, withdrawing), so a declined or never-admitted requester has none. Every membership change goes through `recordMutation`: retry receipt, membership check, write, audit event.
+
+Join codes are eight characters from an unambiguous alphabet (`XXXX-XXXX`, case-insensitive). They are routing metadata that operators can see; admission by the creator is the control.
+
+### Interim dev envelope (documented exception)
+
+The SRD forbids plaintext private metadata remotely, and the CH-02 envelope does not exist yet. As an explicit, temporary exception, collection metadata may use `chorus-dev-envelope/v0` (`src/lib/consent/dev-envelope.ts`). **It is not encryption**: it is base64 of UTF-8 JSON, readable by anyone with database access.
+
+- The backend rejects it with `DEV_ENVELOPE_DISABLED` unless the deployment sets `npx convex env set CHORUS_ALLOW_DEV_ENVELOPE 1`. The default is off. Only enable it on disposable development deployments with synthetic content.
+- Any other format fails with `UNSUPPORTED_ENVELOPE`; the server never decodes the envelope.
+- The UI labels such collections "Not encrypted (dev)".
+- When CH-02 lands, replace the format, stop setting the flag, and discard dev-envelope data: it was never protected.
+
+### Transition from the prototype store
+
+Collections, Members and Join use Convex and require sign-in. Prototype seed collections stay listed under "Prototype demo collections" so screens not yet switched (memories, compose, edition, history) remain explorable; those child routes are wrapped in `PrototypeOnly` and show a notice for Convex collections.

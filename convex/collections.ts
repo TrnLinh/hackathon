@@ -22,7 +22,10 @@ async function activeMembers(
     )
     .collect();
   return {
-    active: rows.filter((m) => m.status === "active"),
+    // Creator first, then contributors in a stable order.
+    active: rows
+      .filter((m) => m.status === "active")
+      .sort((a, b) => (a.role === b.role ? 0 : a.role === "creator" ? -1 : 1)),
     requested: rows.filter((m) => m.status === "requested"),
   };
 }
