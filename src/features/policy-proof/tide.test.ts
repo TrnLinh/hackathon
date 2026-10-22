@@ -238,10 +238,14 @@ describe("Tide policy proof boundary (SDK substituted; not live security evidenc
       "Policy:1",
       new Uint8Array([11]),
     );
+    draft.setCustomExpiry(604800);
     sdk.draftDecryption.mockResolvedValueOnce(draft.encode());
     sdk.createTideRequest.mockImplementationOnce(async (bytes) => {
       const request = Models.BaseTideRequest.decode(bytes);
       expect(request.policy).toEqual(policy);
+      expect(request.expiry).toBeLessThanOrEqual(
+        Math.floor(Date.now() / 1000) + 30,
+      );
       request.addCreationSignature(
         new Uint8Array(8),
         new Uint8Array(64).fill(5),
@@ -287,6 +291,18 @@ describe("Tide policy proof boundary (SDK substituted; not live security evidenc
       return request.encode();
     });
     const request = await proof.draftEdition(edition, policy.toBytes());
+    expect(
+      Models.ModelRegistry.getHumanReadableModelBuilder(
+        "edition-proof",
+        request,
+      ).getRequestDataJson(),
+    ).toEqual({
+      protocol: "chorus-policy-proof/v1",
+      binding: expect.objectContaining({
+        candidateId: "candidate",
+        pdfDigest: edition.pdfDigest,
+      }),
+    });
     sdk.executeSignRequest.mockRejectedValueOnce(
       new Error("missing final approver"),
     );

@@ -122,6 +122,9 @@ export class TidePolicyProof {
       { encrypted: ciphertext, tags: [await bindingTag(binding)] },
     ]);
     const request = Models.BaseTideRequest.decode(draft);
+    // The SDK's drafted decryption path defaults to one week. Limit this
+    // probe before initialization, so approvals cover the shorter expiry.
+    request.setCustomExpiry(30);
     request.addPolicy(policy);
     return this.sdk.createTideRequest(request.encode());
   }
@@ -134,12 +137,7 @@ export class TidePolicyProof {
     // Candidate wire layout for a custom Chorus contract: field 0 is the
     // review label; field 1 is the exact canonical receipt payload. Live
     // deployment must prove the model and signature format before issuance.
-    const draft = Tools.TideMemory.CreateFromArray([
-      new TextEncoder().encode(
-        "Approve the exact Chorus edition and download audience",
-      ),
-      bindingBytes(binding),
-    ]);
+    const draft = this.editionDraft(binding);
     const request = new Models.BaseTideRequest(
       "BasicCustom<ChorusEdition>",
       "BasicCustom<1>",
@@ -211,7 +209,7 @@ export class TidePolicyProof {
       request.name !== "BasicCustom<ChorusEdition>" ||
       request.version !== "BasicCustom<1>" ||
       request.authFlow !== "Policy:1" ||
-      !this.equal(request.draft.GetValue(1), bindingBytes(binding)) ||
+      !this.equal(request.draft, this.editionDraft(binding)) ||
       request.dyanmicData.length
     )
       throw new Error("Signing request does not bind the exact edition.");
@@ -231,6 +229,20 @@ export class TidePolicyProof {
         "Request is uninitialized, expired, or uses a different policy.",
       );
     return request;
+  }
+
+  private editionDraft(binding: EditionBinding) {
+    const payload = bindingBytes(binding);
+    return Tools.TideMemory.CreateFromArray([
+      new TextEncoder().encode(
+        JSON.stringify({
+          humanReadableName:
+            "Approve the exact Chorus edition and download audience",
+          additionalInfo: JSON.parse(new TextDecoder().decode(payload)),
+        }),
+      ),
+      payload,
+    ]);
   }
 
   private equal(a: Uint8Array, b: Uint8Array) {

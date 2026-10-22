@@ -26,7 +26,7 @@ Low-level `TideCloak.encrypt(data, signedPolicy)` and `decrypt(data, signedPolic
 
 `draftDecryption` → attach the signed policy → `createTideRequest` prepares the source-release probe. The initialized bytes are handed to each contributor's `requestTideOperatorApproval`. Pass the **returned** request bytes to the next contributor; never reconstruct approval arrays from application state. `commitDecryption(request, policy)` submits the collected evidence. The adapter checks that an approval response preserves the initialized request, policy, expiry, draft and dynamic data. It does not count local approvals as authorization.
 
-For edition signing the proposed model ID is `BasicCustom<ChorusEdition>:BasicCustom<1>`, with `Policy:1`, explicit approvals and private execution. The draft is TideMemory with field 0 a human-readable label and field 1 the exact canonical edition binding. `createTideRequest` → contributor approvals → `executeSignRequest(request, true)` is wired. **Model compatibility, what exact message the returned signature signs, and offline verification remain unverified. A returned signature file is not an official Chorus receipt.** The default SDK request lifetime is approximately 30 seconds; obtain fresh requests when expired. Do not extend validity just to hide a slow proof flow.
+For edition signing the proposed model ID is `BasicCustom<ChorusEdition>:BasicCustom<1>`, with `Policy:1`, explicit approvals and private execution. The draft is TideMemory with field 0 JSON metadata (`humanReadableName` plus `additionalInfo` containing the full protocol/binding) and field 1 the exact canonical edition binding. The installed SDK's actual human-readable model decoder is exercised locally. `createTideRequest` → contributor approvals → `executeSignRequest(request, true)` is wired. **Network model compatibility, what exact message the returned signature signs, and offline verification remain unverified. A returned signature file is not an official Chorus receipt.** New edition requests use the SDK's approximately 30-second default. The SDK's drafted decryption path instead sets a one-week expiry: this adapter deliberately resets new release requests to 30 seconds **before initialization**, so approvals cover the shorter lifetime. Existing/imported requests retain their signed lifetime; policy and doken expiry remain separate. Obtain fresh requests when expired. Do not extend validity just to hide a slow proof flow.
 
 The workbench does not provision or sign policies. Tide's policy-signing path is a separate governed operation, with administrator approval and contract distribution. Follow supported Tide guidance for that operation; do not pretend that serializing `Policy.toBytes()` produces a signed policy.
 
@@ -105,6 +105,14 @@ Example edition binding (replace digests, subjects and dependencies with the act
 | Integration record, supported APIs and reproducible checks     | This record; no working server/contract pairing claimed                              |
 | Exact processor/derivative scope enforcement                   | Local scope commitments tested; actual protected enforcement pending                 |
 | Sensitive change blocked below administrator quorum            | Pending enrolled administrators and protected-operation evidence                     |
+
+## Local verification and review
+
+On 22 October 2026, `npm test` passed 8 backlog-publication tests and 36 Vitest tests (including 13 policy-binding/adapter tests). `npm run check` passed lint and both TypeScript checks; `npm run build` passed. Browser inspection confirmed that unconfigured sign-in blocks the development workbench and production mode disables it. Authenticated workbench operations remain untested against a real realm.
+
+The independent standards review reported zero findings. The spec review found two local defects: incorrect approval-display metadata and the inherited one-week drafted-release expiry. Both were reproduced with failing tests, corrected, and rechecked by the reviewer. The installed SDK's actual model renderer now decodes the complete edition metadata; new drafted release requests are capped before initialization. The remaining security integration gaps in the acceptance table are unresolved.
+
+Prettier passes for every changed file. The repository-wide `npm run format:check` fails only on the pre-existing, unrelated working-tree edit to `public/silent-check-sso.html`; this task preserves and excludes that edit from its commits. Tide's published SDK packages emit missing-sourcemap warnings during tests; the tests pass without modifying those packages.
 
 ## Sources inspected
 
