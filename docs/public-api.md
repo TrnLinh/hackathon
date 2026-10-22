@@ -136,3 +136,16 @@ Until the CH-02 live gate closes, the backend records each request (`chorus-loca
 Former members (removed after approving) keep their approval in force and can still withdraw it: `consent.inbox` lists those approvals with `formerMember: true`, and `decide` accepts `withdraw` from them (the model checks membership after the retry receipt, so a lost-response retry also recovers). They cannot make any other new decision. `decide` accepts manual requests only.
 
 Not yet: per-processor (AI) permissions (manual scope only; AI stays off) and invalidation of plans/candidates on withdrawal (none exist on Convex yet; CH-09/10).
+
+## CH-09 template composer (partial)
+
+| Function     | Kind     | Notes                                                                                                                                                                                                                                                                     |
+| ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plans.save` | mutation | Collection creator only. `{ collectionId, parentId?, plan: { envelope, contentDigest }, revisionOrigin: template \| manual, sourceUses, retryKey }`. Body in a dev-envelope payload; `appendPlan` checks versions, templates, approved sources, editor scope and lineage. |
+| `plans.list` | query    | Creator only: the last 50 revisions, newest first, with `usable` (every source still approved).                                                                                                                                                                           |
+
+The browser builds plans with the shared contract (`buildTemplatePlan`), validates them with `commitPlan` against the sources approved for this creator, and saves the canonical digest. No model is called; AI origins come only from the CH-18 job flow. The server can't read the body, so it trusts the client's validation of layout and text; consent, lineage and versions are enforced server-side.
+
+Available now on Convex collections: pick approved memories (photos fill picture slots, stories become credited quotes) and a template, preview the six A5 pages with real media, save immutable revisions, reopen saved ones, and see revisions become unusable after a withdrawal.
+
+Not yet: manual placement, ordering, palette/font/layout controls and text edits (`reviseManually` exists in the contract), video stills and typed excerpts, and "Continue manually" from AI plans.

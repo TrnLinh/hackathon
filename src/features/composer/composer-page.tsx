@@ -54,6 +54,7 @@ import {
   validatePlan,
 } from "./plan-utils";
 import { BudgetPanel, SourcesPanel } from "./sources-panel";
+import { ConvexComposer } from "./convex-composer";
 
 // CH-09 composer over the CH-20 plan contract. Edits stay in a local working
 // copy (persisted per collection so a refresh keeps them) until saved as a new
@@ -273,6 +274,15 @@ function PagePreview({
 }
 
 export function ComposerPage({ collectionId }: { collectionId: string }) {
+  const state = usePrototype();
+  return state.collections.some((c) => c.id === collectionId) ? (
+    <PrototypeComposerPage collectionId={collectionId} />
+  ) : (
+    <ConvexComposer collectionId={collectionId} />
+  );
+}
+
+function PrototypeComposerPage({ collectionId }: { collectionId: string }) {
   const state = usePrototype();
   const isDesktop = useIsDesktop();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);

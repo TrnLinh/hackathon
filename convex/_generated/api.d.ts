@@ -30,6 +30,7 @@ import type * as model_operators from "../model/operators.js";
 import type * as model_plans from "../model/plans.js";
 import type * as model_read from "../model/read.js";
 import type * as model_validators from "../model/validators.js";
+import type * as plans from "../plans.js";
 import type * as system from "../system.js";
 import type * as users from "../users.js";
 
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   "model/plans": typeof model_plans;
   "model/read": typeof model_read;
   "model/validators": typeof model_validators;
+  plans: typeof plans;
   system: typeof system;
   users: typeof users;
 }>;
