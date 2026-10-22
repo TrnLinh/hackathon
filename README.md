@@ -6,6 +6,8 @@ The planned product has two creation modes sharing one DesignPlan/editor/PDF eng
 
 This repository contains the project foundation and a TideCloak authentication integration with a protected Convex identity query. Live Tide realm enrollment and governance verification remain required before CH-01 can close. Collection creation, photo uploads, encryption, contributor approvals, and PDF export are not implemented yet.
 
+CH-02 adds a development-only synthetic policy workbench at `/app/policy-proof`, exact source/processor/edition commitments, and SDK probes for encryption, contributor request handoff, release and signing. These are integration scaffolding, not completed product encryption or consent. The deployed Chorus contract, authoritative withdrawal mechanism, live protected-operation evidence and offline receipt verification remain pending. See the [integration decision and deferred live procedure](docs/adr/0001-tide-policy-proof.md). Realm enrollment and live checks were explicitly deferred; CH-02 remains open.
+
 ## Stack
 
 - Next.js App Router with TypeScript.
@@ -56,11 +58,12 @@ Without NEXT_PUBLIC_CONVEX_URL, the setup page displays Not configured. No fake 
 
 Next.js serves the root layout and the optional catch-all page at src/app/app/[[...path]]/page.tsx. The root URL redirects to /app. A client-only entry mounts TanStack Router with basepath /app.
 
-| URL              | Page                                           |
-| ---------------- | ---------------------------------------------- |
-| /app             | Overview                                       |
-| /app/collections | Collections starter requiring verified sign-in |
-| /app/settings    | Project setup and live backend connection      |
+| URL               | Page                                               |
+| ----------------- | -------------------------------------------------- |
+| /app              | Overview                                           |
+| /app/collections  | Collections starter requiring verified sign-in     |
+| /app/settings     | Project setup and live backend connection          |
+| /app/policy-proof | Synthetic Tide policy workbench (development only) |
 
 Define workspace routes in src/router/index.tsx using TanStack's programmatic route API. Use TanStack Link inside the workspace; its destinations are relative to the router base, such as /collections. Use Next.js routes for future server endpoints or pages outside the workspace. Do not add a second Next.js page for a path already owned by the workspace router.
 
