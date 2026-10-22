@@ -84,7 +84,7 @@ export function AppShell() {
         Skip to content
       </a>
       <header className="border-b bg-card/80">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link to="/" aria-label="Chorus home">
             <Brand />
           </Link>
@@ -94,7 +94,7 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <div className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:px-8 md:grid-cols-[190px_minmax(0,1fr)] md:gap-10 md:py-10">
+      <div className="mx-auto grid max-w-[1600px] gap-6 px-5 py-6 sm:px-8 md:grid-cols-[190px_minmax(0,1fr)] md:gap-10 md:py-10">
         <aside className="min-w-0">
           <p className="mb-4 hidden text-[10px] font-semibold tracking-[0.2em] text-muted-foreground md:block">
             YOUR WORKSPACE

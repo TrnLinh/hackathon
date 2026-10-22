@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Check,
   CheckCircle2,
   Cpu,
   Fingerprint,
@@ -11,6 +12,7 @@ import {
   Play,
   ShieldAlert,
   UserRoundX,
+  X,
 } from "lucide-react";
 import { kindMeta, MemoryThumb } from "@/components/chorus/memory-thumb";
 import { PersonAvatar } from "@/components/chorus/people";
@@ -34,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { actions, usePrototype } from "@/features/prototype/store";
 import {
   approverIds,
@@ -70,7 +73,13 @@ function commitment(memory: Memory) {
   return out;
 }
 
-function FakePlayer({ memory }: { memory: Memory }) {
+function FakePlayer({
+  memory,
+  overlay,
+}: {
+  memory: Memory;
+  overlay?: boolean;
+}) {
   const duration = memory.media?.durationSec ?? 30;
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -89,7 +98,12 @@ function FakePlayer({ memory }: { memory: Memory }) {
   }, [playing, duration]);
   const label = memory.kind === "video" ? "video" : "voice note";
   return (
-    <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2">
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2",
+        overlay ? "bg-black/55 text-white backdrop-blur-sm" : "border bg-card",
+      )}
+    >
       <Button
         size="icon-sm"
         variant="secondary"
@@ -102,15 +116,26 @@ function FakePlayer({ memory }: { memory: Memory }) {
         {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
       </Button>
       <div
-        className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+        className={cn(
+          "h-1.5 flex-1 overflow-hidden rounded-full",
+          overlay ? "bg-white/30" : "bg-muted",
+        )}
         aria-hidden="true"
       >
         <div
-          className="h-full rounded-full bg-primary transition-[width]"
+          className={cn(
+            "h-full rounded-full transition-[width]",
+            overlay ? "bg-white" : "bg-primary",
+          )}
           style={{ width: `${(time / duration) * 100}%` }}
         />
       </div>
-      <span className="font-mono text-xs text-muted-foreground tabular-nums">
+      <span
+        className={cn(
+          "font-mono text-xs tabular-nums",
+          overlay ? "text-white/85" : "text-muted-foreground",
+        )}
+      >
         {formatDuration(time)} / {formatDuration(duration)}
       </span>
     </div>
@@ -140,17 +165,25 @@ function ExactVersion({
         </h2>
         <MemoryStatusBadge status={memoryStatus(memory)} />
       </div>
-      <MemoryThumb
-        memory={memory}
-        className={
-          memory.kind === "text"
-            ? "min-h-40 rounded-lg"
-            : "aspect-[16/10] w-full rounded-lg"
-        }
-      />
-      {(memory.kind === "voice" || memory.kind === "video") && (
-        <FakePlayer memory={memory} />
+      {memory.kind === "video" ? (
+        <div className="relative mx-auto aspect-video w-full max-w-xl overflow-hidden rounded-lg bg-black">
+          <MemoryThumb memory={memory} className="absolute inset-0" />
+          <div className="absolute inset-x-2 bottom-2">
+            <FakePlayer memory={memory} overlay />
+          </div>
+        </div>
+      ) : (
+        <MemoryThumb
+          memory={memory}
+          className={cn(
+            "w-full rounded-lg",
+            memory.kind === "text" && "min-h-40",
+            memory.kind === "voice" && "h-28",
+            memory.kind === "photo" && "mx-auto aspect-[4/3] max-w-xl",
+          )}
+        />
       )}
+      {memory.kind === "voice" && <FakePlayer memory={memory} />}
       <p className="text-xs text-muted-foreground">
         Protected preview. Only the people asked to decide can open it before
         everyone approves; no processor receives anything during this review.
@@ -344,16 +377,34 @@ function ChoiceGroup({
       disabled={disabled}
       className="grid-cols-2 gap-2"
     >
-      {(["approved", "declined"] as const).map((v) => (
-        <Label
-          key={v}
-          htmlFor={`${name}-${v}`}
-          className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 font-normal has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
-        >
-          <RadioGroupItem id={`${name}-${v}`} value={v} />
-          {v === "approved" ? "Approve" : "Decline"}
-        </Label>
-      ))}
+      {(["approved", "declined"] as const).map((v) => {
+        const approve = v === "approved";
+        const Icon = approve ? Check : X;
+        return (
+          <Label
+            key={v}
+            htmlFor={`${name}-${v}`}
+            className={cn(
+              "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 font-normal transition-colors hover:bg-muted/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60",
+              approve
+                ? "has-[[data-state=checked]]:border-[var(--status-available)] has-[[data-state=checked]]:bg-[color-mix(in_srgb,var(--status-available)_10%,transparent)] has-[[data-state=checked]]:text-[var(--status-available)]"
+                : "has-[[data-state=checked]]:border-[var(--status-excluded)] has-[[data-state=checked]]:bg-[color-mix(in_srgb,var(--status-excluded)_8%,transparent)] has-[[data-state=checked]]:text-[var(--status-excluded)]",
+            )}
+          >
+            <RadioGroupItem
+              id={`${name}-${v}`}
+              value={v}
+              className={
+                approve
+                  ? "data-checked:border-[var(--status-available)] data-checked:bg-[var(--status-available)]"
+                  : "data-checked:border-[var(--status-excluded)] data-checked:bg-[var(--status-excluded)]"
+              }
+            />
+            <span className="flex-1">{approve ? "Approve" : "Decline"}</span>
+            {value === v && <Icon className="size-4" aria-hidden="true" />}
+          </Label>
+        );
+      })}
     </RadioGroup>
   );
 }
