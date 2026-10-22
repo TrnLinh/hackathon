@@ -1,6 +1,7 @@
 "use client";
 
 import { useConvex, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import type { FunctionReturnType } from "convex/server";
 import { useCallback, useMemo, useRef } from "react";
 import { api } from "@convex/_generated/api";
@@ -236,6 +237,9 @@ export function useMemoryActions() {
         pending.current.delete(intent);
         return { ok: true as const, result };
       } catch (error) {
+        // The server rejected it, so nothing was committed: start afresh next
+        // time. Keep the key and upload only when the outcome is unknown.
+        if (error instanceof ConvexError) pending.current.delete(intent);
         return { ok: false as const, reason: describeUploadError(error) };
       }
     },
@@ -245,7 +249,7 @@ export function useMemoryActions() {
   const addMemory = useCallback(
     (collectionId: Id<"collections">, input: NewMemory, intent: string) =>
       run(
-        intent,
+        intentFor(intent, input),
         () => prepare(collectionId, input),
         (prepared, retryKey) =>
           create({
@@ -277,7 +281,7 @@ export function useMemoryActions() {
         current?.head.envelope &&
         parseMemoryContent(openDevEnvelope(current.head.envelope))?.media;
       return run(
-        intent,
+        intentFor(intent, input),
         () =>
           prepare(
             memory.collectionId,
@@ -301,6 +305,15 @@ export function useMemoryActions() {
     () => ({ addMemory, reviseMemory }),
     [addMemory, reviseMemory],
   );
+}
+
+/** One intended change: edited input is a new intent with a new key. */
+function intentFor(intent: string, input: NewMemory) {
+  const { file, ...rest } = input;
+  return `${intent}:${JSON.stringify({
+    ...rest,
+    file: file ? [file.name, file.size, file.lastModified] : null,
+  })}`;
 }
 
 function describeUploadError(error: unknown) {

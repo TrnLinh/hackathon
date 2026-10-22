@@ -208,6 +208,10 @@ export async function checkMediaFile(
       errors.push(
         `The image decodes to ${mp.toFixed(1)} megapixels. The limit is ${LIMITS.imageMegapixels}. Resize it first.`,
       );
+  } else if (kind !== "photo" && meta.durationSec === undefined) {
+    errors.push(
+      "Its length couldn’t be read, so Chorus can’t check the time limit. Export it again (for example as MP4 or M4A) and try once more.",
+    );
   } else if (kind !== "photo" && meta.durationSec !== undefined) {
     const max = kind === "voice" ? LIMITS.audioSeconds : LIMITS.videoSeconds;
     if (meta.durationSec > max)

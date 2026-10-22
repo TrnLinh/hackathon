@@ -95,6 +95,7 @@ Collections, Members and Join use Convex and require sign-in. Prototype seed col
 In this slice every version is a **private draft visible only to its uploader** (and only while an active member). CH-06 adds submission, review grants for required approvers and permission requests; CH-07 the inbox.
 
 - `content.envelope` holds `chorus-memory/v1` (`src/lib/memory-content.ts`): kind, title, caption, story and, for media, the SHA-256, type, size and dimensions/duration of the retained bytes. `contentDigest` is the canonical commitment of that object, so a version commits to its exact media.
+- Each `create`/`revise` request is bound to the client's retry key (`memory-add`/`memory-revise` receipts over the whole request), so a retry returns the committed version and reusing a key for different content or media fails.
 - Each change is one Convex transaction: content payload, version (`appendVersion`), media payload and `mediaAssets` row. Internal retry keys derive from the client's key, so a retry after a lost response returns the committed IDs; reusing a key for different input fails.
 - Uploads: the server checks the stored blob's size against the declared size and the per-type limit, the type against the allowlist, and records the blob's SHA-256 from storage (not from the client). Each blob can back only one payload (`uploadClaims`).
 - Limits: twelve memories with a current version per collection, and the collection byte budget over current versions' media (`src/lib/limits.ts`, shared with the browser).
@@ -107,4 +108,6 @@ Browser preparation (`src/features/data/memories.ts`): file type comes from the 
 - Audio and video container metadata (for example MP4 location atoms) is not stripped yet.
 - `mediaUrl` returns a bearer URL: anyone holding it can fetch the bytes until storage is deleted. Real protected playback needs CH-02 decryption.
 - Uploaded blobs that never become a payload are not garbage-collected yet.
+- Image dimensions and audio/video duration are the uploader's own claims, checked locally before upload. The server requires them and bounds them but cannot decode the bytes. Size, type and SHA-256 come from storage.
+- An upload URL isn't bound to the member who requested it. A storage ID is unguessable and never returned to anyone else, and each blob can be claimed once, but binding uploads to their requester would close the gap.
 - Video stills and typed excerpts use `appendArtifact`, which requires approved permissions; they move to Convex after CH-07.

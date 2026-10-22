@@ -91,7 +91,12 @@ export function ConvexMemoriesBoard({
   const collection = useCollection(collectionId);
   const member = collection?.access === "member" ? collection : null;
   const memories = useMemories(member?.collectionId ?? null);
-  if (!memories) return null;
+  if (!memories)
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        Loading memories…
+      </p>
+    );
   const bytes = memories.reduce(
     (n, m) => n + (m.head.media?.byteLength ?? 0),
     0,

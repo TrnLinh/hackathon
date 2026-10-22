@@ -85,8 +85,11 @@ const messages: Record<string, string> = {
     "The upload didn’t arrive intact. Nothing was saved; try again.",
   MISSING_UPLOAD: "The upload expired before saving. Try again.",
   UPLOAD_ALREADY_USED:
-    "This upload already belongs to another memory. Add the file again.",
+    "This upload already belongs to another memory. Remove the file and add it again.",
   MEDIA_REQUIRED: "Add the file for this memory.",
+  MEDIA_DIMENSIONS_REQUIRED:
+    "This image’s size couldn’t be read. Export it again as JPEG or PNG.",
+  TEXT_HAS_NO_MEDIA: "A story memory can’t have a file.",
   STALE_VERSION_HEAD:
     "Someone saved a newer version first. Reopen the memory and try again.",
   NOT_UPLOADER: "Only the person who added this memory can change it.",

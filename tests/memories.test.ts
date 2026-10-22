@@ -294,6 +294,79 @@ describe("CH-05 memories", () => {
     ]);
   });
 
+  it("binds each create and revise request to its retry key", async () => {
+    const s = await setup();
+    const p = await photo(s);
+    const createArgs = {
+      collectionId: s.collectionId,
+      kind: "image" as const,
+      content: p.content,
+      media: p.media,
+      requiredApproverIds: [],
+      retryKey: "photo",
+    };
+    const first = await s.alice.mutation(api.memories.create, createArgs);
+    const m2 = await photo(s, 40);
+    const revision = {
+      memoryId: first.memoryId,
+      priorVersionId: first.versionId,
+      content: m2.content,
+      media: m2.media,
+      requiredApproverIds: [],
+      retryKey: "rev",
+    };
+    const second = await s.alice.mutation(api.memories.revise, revision);
+    // A retry returns the committed result, even after later changes.
+    expect(await s.alice.mutation(api.memories.create, createArgs)).toEqual(
+      first,
+    );
+    expect(await s.alice.mutation(api.memories.revise, revision)).toBe(second);
+    // The same key with different media is a different request.
+    const m3 = await photo(s, 48);
+    await expect(
+      s.alice.mutation(api.memories.revise, { ...revision, media: m3.media }),
+    ).rejects.toThrow("RETRY_KEY_REUSED");
+    const { media: _, ...withoutMedia } = revision;
+    void _;
+    await expect(
+      s.alice.mutation(api.memories.revise, withoutMedia),
+    ).rejects.toThrow("RETRY_KEY_REUSED");
+  });
+
+  it("requires image dimensions and keeps text memories free of media", async () => {
+    const s = await setup();
+    const p = await photo(s);
+    const { width: _w, height: _h, ...noDimensions } = p.media;
+    void [_w, _h];
+    await expect(
+      s.alice.mutation(api.memories.create, {
+        collectionId: s.collectionId,
+        kind: "image",
+        content: p.content,
+        media: noDimensions,
+        requiredApproverIds: [],
+        retryKey: "dims",
+      }),
+    ).rejects.toThrow("MEDIA_DIMENSIONS_REQUIRED");
+    const note = await s.alice.mutation(api.memories.create, {
+      collectionId: s.collectionId,
+      kind: "text",
+      content: await text("Note"),
+      requiredApproverIds: [],
+      retryKey: "note",
+    });
+    await expect(
+      s.alice.mutation(api.memories.revise, {
+        memoryId: note.memoryId,
+        priorVersionId: note.versionId,
+        content: await text("Note 2"),
+        media: p.media,
+        requiredApproverIds: [],
+        retryKey: "note-media",
+      }),
+    ).rejects.toThrow("TEXT_HAS_NO_MEDIA");
+  });
+
   it("enforces twelve active memories per collection", async () => {
     const s = await setup();
     for (let i = 0; i < 12; i++)

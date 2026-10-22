@@ -12,7 +12,7 @@ import {
   normalizeSha256,
   sha256Hex,
 } from "../src/lib/memory-content";
-import { fail, member } from "./model/common";
+import { fail, member, recordMutation } from "./model/common";
 import { requireEnvelope } from "./model/collections";
 import { mediaKind } from "./model/validators";
 import { optionalViewer, requireViewer } from "./lib/viewer";
@@ -80,6 +80,13 @@ async function claimUpload(
   if (stored.size > MEDIA_BYTE_LIMITS[kind]) return fail("MEDIA_TOO_LARGE");
   if (!MEDIA_MIME_TYPES[kind].includes(media.mimeType))
     return fail("UNSUPPORTED_MEDIA_TYPE");
+  // Dimensions and duration are the uploader's own claims, checked locally
+  // before upload; the server can only bound them (it cannot decode bytes).
+  if (
+    kind === "image" &&
+    (media.width === undefined || media.height === undefined)
+  )
+    return fail("MEDIA_DIMENSIONS_REQUIRED");
   if (
     media.width !== undefined &&
     media.height !== undefined &&
@@ -248,28 +255,31 @@ export const create = mutation({
       return fail(
         args.kind === "text" ? "TEXT_HAS_NO_MEDIA" : "MEDIA_REQUIRED",
       );
-    const memoryId = await ctx.runMutation(
-      internal.model.memories.createMemory,
-      {
-        ...actor,
-        retryKey: `${args.retryKey}:memory`,
-        requestDigest: await commitment(args),
+    const requestDigest = await commitment(args);
+    // The whole request is bound to the client's key: a retry returns the
+    // committed version, and reusing the key for anything else fails.
+    const request = { ...actor, retryKey: args.retryKey, requestDigest };
+    const versionId = await recordMutation(
+      ctx,
+      "memory-add",
+      request,
+      async () => {
+        const memoryId = await ctx.runMutation(
+          internal.model.memories.createMemory,
+          { ...actor, retryKey: `${args.retryKey}:memory`, requestDigest },
+        );
+        await requireCapacity(
+          ctx,
+          args.collectionId,
+          memoryId,
+          args.media?.byteLength ?? 0,
+        );
+        return appendContentVersion(ctx, actor, { ...args, memoryId });
       },
     );
-    const memory = await ctx.db.get(memoryId);
-    if (memory?.headVersionId)
-      return { memoryId, versionId: memory.headVersionId };
-    await requireCapacity(
-      ctx,
-      args.collectionId,
-      memoryId,
-      args.media?.byteLength ?? 0,
-    );
-    const versionId = await appendContentVersion(ctx, actor, {
-      ...args,
-      memoryId,
-    });
-    return { memoryId, versionId };
+    const version = await ctx.db.get(versionId);
+    if (!version) return fail("MISSING_HEAD_VERSION");
+    return { memoryId: version.memoryId, versionId };
   },
 });
 
@@ -292,18 +302,27 @@ export const revise = mutation({
     const prior = await ctx.db.get(args.priorVersionId);
     if (!prior || prior.memoryId !== memory._id)
       return fail("WRONG_MEMORY_PREDECESSOR");
+    if (prior.mediaKind === "text" && args.media)
+      return fail("TEXT_HAS_NO_MEDIA");
     const actor = { collectionId: memory.collectionId, actorId: viewer._id };
-    // New media replaces this memory's bytes in the collection budget.
-    if (args.media)
-      await requireCapacity(
-        ctx,
-        memory.collectionId,
-        memory._id,
-        args.media.byteLength,
-      );
-    return appendContentVersion(ctx, actor, {
-      ...args,
-      kind: prior.mediaKind,
+    const request = {
+      ...actor,
+      retryKey: args.retryKey,
+      requestDigest: await commitment(args),
+    };
+    return recordMutation(ctx, "memory-revise", request, async () => {
+      // New media replaces this memory's bytes in the collection budget.
+      if (args.media)
+        await requireCapacity(
+          ctx,
+          memory.collectionId,
+          memory._id,
+          args.media.byteLength,
+        );
+      return appendContentVersion(ctx, actor, {
+        ...args,
+        kind: prior.mediaKind,
+      });
     });
   },
 });

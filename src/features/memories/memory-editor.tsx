@@ -398,7 +398,12 @@ function ConvexMemoryEditor({ collectionId }: { collectionId: string }) {
   const member = collection?.access === "member" ? collection : null;
   const memories = useMemories(member?.collectionId ?? null);
   const { addMemory } = useMemoryActions();
-  if (!member || !viewer || !memories) return null;
+  if (!member || !viewer || !memories)
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        Opening the editor…
+      </p>
+    );
   const id = member.collectionId;
   return (
     <MemoryEditorView
