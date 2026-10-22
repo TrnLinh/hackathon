@@ -1,0 +1,105 @@
+{
+  "source": "https://github.com/google/fonts",
+  "commit": "45e3d5269e4a17d823f6d84470bc084dc5ae46f6",
+  "fonts": [
+    {
+      "id": "crimson-text-regular",
+      "family": "Crimson Text",
+      "style": "Regular",
+      "path": "ofl/crimsontext/CrimsonText-Regular.ttf",
+      "license": "ofl/crimsontext/OFL.txt",
+      "version": "Version 1.100",
+      "sha256": "48e6c5d5ad1d01599d374ecb817e15890d1feb3b8a3a88e527d44c90389e1f06",
+      "size": 107200,
+      "postscriptName": "CrimsonText-Regular"
+    },
+    {
+      "id": "crimson-text-italic",
+      "family": "Crimson Text",
+      "style": "Italic",
+      "path": "ofl/crimsontext/CrimsonText-Italic.ttf",
+      "license": "ofl/crimsontext/OFL.txt",
+      "version": "Version 1.100",
+      "sha256": "4ed1699ac7c64e8b3d33f6bb8323c3d7206b0d7bacb9ee2d65c697e6014d29de",
+      "size": 110216,
+      "postscriptName": "CrimsonText-Italic"
+    },
+    {
+      "id": "crimson-text-semibold",
+      "family": "Crimson Text",
+      "style": "SemiBold",
+      "path": "ofl/crimsontext/CrimsonText-SemiBold.ttf",
+      "license": "ofl/crimsontext/OFL.txt",
+      "version": "Version 1.100",
+      "sha256": "802e84000740fec2a9fbe0ae09b6b6811bd86a78a0173b15d44450a1530e9410",
+      "size": 111176,
+      "postscriptName": "CrimsonText-SemiBold"
+    },
+    {
+      "id": "patrick-hand-regular",
+      "family": "Patrick Hand",
+      "style": "Regular",
+      "path": "ofl/patrickhand/PatrickHand-Regular.ttf",
+      "license": "ofl/patrickhand/OFL.txt",
+      "version": "Version 1.003",
+      "sha256": "0f173b3e6cb6d1af25babf7f0057c5ac4ee11f9992b0469bb817e967ef4ad0fc",
+      "size": 214772,
+      "postscriptName": "PatrickHand-Regular"
+    },
+    {
+      "id": "barlow-condensed-extrabold",
+      "family": "Barlow Condensed",
+      "style": "ExtraBold",
+      "path": "ofl/barlowcondensed/BarlowCondensed-ExtraBold.ttf",
+      "license": "ofl/barlowcondensed/OFL.txt",
+      "version": "Version 1.408",
+      "sha256": "724c9c25952d5f4a2d87185d9767aa006144c5f0d944dc05bf7d5d603551c260",
+      "size": 110296,
+      "postscriptName": "BarlowCondensed-ExtraBold"
+    },
+    {
+      "id": "barlow-condensed-medium",
+      "family": "Barlow Condensed",
+      "style": "Medium",
+      "path": "ofl/barlowcondensed/BarlowCondensed-Medium.ttf",
+      "license": "ofl/barlowcondensed/OFL.txt",
+      "version": "Version 1.408",
+      "sha256": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "size": 103360,
+      "postscriptName": "BarlowCondensed-Medium"
+    },
+    {
+      "id": "barlow-regular",
+      "family": "Barlow",
+      "style": "Regular",
+      "path": "ofl/barlow/Barlow-Regular.ttf",
+      "license": "ofl/barlow/OFL.txt",
+      "version": "Version 1.408",
+      "sha256": "95aa02c7c43096e0dd44d787ba6216864a67157e402adab59b35572e0c1577ea",
+      "size": 104068,
+      "postscriptName": "Barlow-Regular"
+    },
+    {
+      "id": "barlow-italic",
+      "family": "Barlow",
+      "style": "Italic",
+      "path": "ofl/barlow/Barlow-Italic.ttf",
+      "license": "ofl/barlow/OFL.txt",
+      "version": "Version 1.408",
+      "sha256": "70cf45c354af39e55082fd506e748cc6a0a1812949875f99ded3f76bf691e4ca",
+      "size": 109624,
+      "postscriptName": "Barlow-Italic"
+    },
+    {
+      "id": "ibm-plex-mono-semibold",
+      "family": "IBM Plex Mono",
+      "style": "SemiBold",
+      "path": "ofl/ibmplexmono/IBMPlexMono-SemiBold.ttf",
+      "license": "ofl/ibmplexmono/OFL.txt",
+      "version": "Version 2.3",
+      "sha256": "d3c38e55c78f5b0f28009fddba4834ec503278936a5986032424c9bd2d23aa46",
+      "size": 140216,
+      "postscriptName": "IBMPlexMono-SemiBold"
+    }
+  ]
+}
