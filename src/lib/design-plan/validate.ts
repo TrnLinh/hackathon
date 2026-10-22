@@ -21,6 +21,7 @@ import {
   textFits,
   type AssetRef,
   type DesignPlan,
+  type Frame,
   type TextKind,
 } from "./schema";
 
@@ -35,6 +36,7 @@ export type PlanErrorCode =
   | "UNSUPPORTED_COMPONENT_VERSION"
   | "PAGE_COUNT"
   | "PAGE_FORMAT"
+  | "PAGE_ORDER"
   | "UNKNOWN_PAGE_ROLE"
   | "UNKNOWN_LAYOUT"
   | "UNKNOWN_COMPONENT"
@@ -48,6 +50,7 @@ export type PlanErrorCode =
   | "INVALID_ID"
   | "DUPLICATE_ID"
   | "INVALID_BOUNDS"
+  | "FRAME_OVERLAP"
   | "COMPONENT_LIMIT"
   | "COMPONENT_CONTENT"
   | "EMPTY_SLOT"
@@ -85,14 +88,40 @@ const COLOR = /^#[0-9a-f]{6}$/;
 const DIGEST = /^[a-f0-9]{64}$/;
 const MARKUP =
   /<[a-z!/?%]|&#?[a-z0-9]+;|\$\{|\{\{|\bjavascript:|\bon[a-z]+\s*=|\burl\(/i;
+// Every pattern stays linear: a scheme may only start after a non-scheme
+// character, and each other run ends at a character it cannot contain.
 const NETWORK_URL =
-  /[a-z][a-z0-9+.-]*:\/\/|\/\/[a-z0-9-]+\.[a-z]|\bwww\.[a-z0-9-]+\.[a-z]|\b(?:data|blob|file|javascript|vbscript|mailto|tel|ftp):\S/i;
-// C0/C1 controls except newline, plus bidirectional overrides.
+  /(?:^|[^a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/|\/\/[a-z0-9-]+\.[a-z]|\bwww\.[a-z0-9-]+\.[a-z]|\b(?:data|blob|file|javascript|vbscript|mailto|tel|ftp):\S/i;
+// C0/C1 controls except newline; zero-width, direction and line/paragraph
+// separator marks; BOM; Arabic letter mark; tag characters.
 const CONTROL =
-  /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/;
+  /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u{e0000}-\u{e007f}]/u;
 const MAX_DEPTH = 12;
 const MAX_NODES = 20000;
 const MAX_ERRORS = 100;
+/** UTF-16 units; the longest field is a 2,000-code-point note. */
+const MAX_STRING_UNITS = 4000;
+const MAX_TOTAL_UNITS = 256 * 1024;
+
+/** Shared area, not just a shared edge. */
+function overlaps(a: Frame, b: Frame) {
+  return (
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+  );
+}
+
+function unpairedSurrogate(value: string) {
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i);
+    if (c >= 0xdc00 && c <= 0xdfff) return true;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const next = value.charCodeAt(i + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
+      i++;
+    }
+  }
+  return false;
+}
 
 type Report = (code: PlanErrorCode, path: string, message: string) => void;
 type Obj = Record<string, unknown>;
@@ -106,21 +135,39 @@ function isObject(value: unknown): value is Obj {
   );
 }
 
-/** Rejects markup, URLs and control characters in every string, known field or not. */
+/**
+ * Rejects markup, URLs and control characters in every string, known field
+ * or not. Size caps come first, and patterns run on the NFKC form so
+ * fullwidth and compatibility look-alikes match too.
+ */
 function scanStrings(input: unknown, report: Report) {
   let nodes = 0;
+  let units = 0;
+  let stopped = false;
   const walk = (value: unknown, path: string, depth: number) => {
-    if (++nodes > MAX_NODES || depth > MAX_DEPTH) {
-      if (nodes === MAX_NODES + 1 || depth === MAX_DEPTH + 1)
-        report("MALFORMED", path, "Plan is too large or too deeply nested.");
+    if (stopped) return;
+    if (++nodes > MAX_NODES || depth > MAX_DEPTH || units > MAX_TOTAL_UNITS) {
+      // The plan is already invalid; stop scanning rather than do more work.
+      stopped = true;
+      report("MALFORMED", path, "Plan is too large or too deeply nested.");
       return;
     }
     if (typeof value === "string") {
-      if (MARKUP.test(value))
+      units += value.length;
+      if (value.length > MAX_STRING_UNITS) {
+        report("TEXT_OVERFLOW", path, "Text is too long.");
+        return;
+      }
+      if (unpairedSurrogate(value)) {
+        report("CONTROL_CHARACTER", path, "Text has an unpaired surrogate.");
+        return;
+      }
+      const folded = value.normalize("NFKC");
+      if (MARKUP.test(folded))
         report("UNSAFE_MARKUP", path, "Text contains markup or code.");
-      if (NETWORK_URL.test(value))
+      if (NETWORK_URL.test(folded))
         report("EXTERNAL_URL", path, "Text contains a URL.");
-      if (CONTROL.test(value))
+      if (CONTROL.test(value) || CONTROL.test(folded))
         report("CONTROL_CHARACTER", path, "Text contains a control character.");
     } else if (Array.isArray(value)) {
       value.forEach((item, i) => walk(item, `${path}[${i}]`, depth + 1));
@@ -155,11 +202,17 @@ export function validatePlan(
     for (const key of Object.keys(value))
       if (!required.includes(key) && !optional.includes(key))
         report("UNKNOWN_FIELD", `${path}.${key}`, "Field is not allowed.");
-    const missing = required.filter((key) => value[key] === undefined);
+      // Canonical JSON has no undefined: omit the field instead.
+      else if (value[key] === undefined)
+        report("MALFORMED", `${path}.${key}`, "Omit the field, not undefined.");
+    const missing = required.filter(
+      (key) => !Object.prototype.hasOwnProperty.call(value, key),
+    );
     if (missing.length) {
       report("MALFORMED", path, `Missing ${missing.join(", ")}.`);
       return undefined;
     }
+    if (required.some((key) => value[key] === undefined)) return undefined;
     return value;
   };
   const text = (value: unknown, path: string, max = 128) => {
@@ -385,6 +438,14 @@ export function validatePlan(
     if (!page) return;
     if (!(PAGE_ROLES as readonly unknown[]).includes(page.role))
       report("UNKNOWN_PAGE_ROLE", `${pagePath}.role`, "Role not allowlisted.");
+    else if (p < PAGE_COUNT && page.role !== PAGE_ROLES[p])
+      report(
+        "PAGE_ORDER",
+        `${pagePath}.role`,
+        `Page ${p + 1} must be the ${PAGE_ROLES[p]} page.`,
+      );
+    // Painted frames so far: a later frame may not cover earlier text.
+    const painted: { frame: Frame; text: boolean; path: string }[] = [];
     if (!(PAGE_LAYOUTS as readonly unknown[]).includes(page.layout))
       report("UNKNOWN_LAYOUT", `${pagePath}.layout`, "Layout not allowlisted.");
     if (page.widthMm !== PAGE_WIDTH_MM || page.heightMm !== PAGE_HEIGHT_MM)
@@ -456,6 +517,16 @@ export function validatePlan(
           `${path}.frame`,
           `Expected whole millimetres inside the page, at least ${PLAN_LIMITS.minFrameMm} mm each way.`,
         );
+      else {
+        const hidden = painted.find((d) => d.text && overlaps(d.frame, frame));
+        if (hidden)
+          report(
+            "FRAME_OVERLAP",
+            `${path}.frame`,
+            `Covers the text of ${hidden.path}.`,
+          );
+        painted.push({ frame, text: hasText, path });
+      }
 
       if (hasAssets) {
         const max =

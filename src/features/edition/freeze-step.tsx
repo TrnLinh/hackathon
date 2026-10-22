@@ -129,6 +129,7 @@ export function FreezeStep({
   const failedChecks = validatePlan(
     plan,
     state.memories.filter((m) => m.collectionId === plan.collectionId),
+    collection.memberIds,
   ).filter((row) => !row.ok);
   const visible = planVisibleIds(plan);
   const frozenFromThis =

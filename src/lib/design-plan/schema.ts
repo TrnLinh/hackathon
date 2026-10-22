@@ -172,7 +172,7 @@ export const TYPE_SIZE_MM: Record<"cover" | TextKind, number> = {
   heading: 8,
   quote: 5.5,
   caption: 4,
-  note: 4,
+  note: 3.5,
 };
 export const PLAN_LIMITS = {
   componentsPerPage: 8,
@@ -200,8 +200,17 @@ export function refKey(ref: AssetRef) {
   return `${ref.kind}:${ref.id}`;
 }
 
+/** `#rrggbb` or `#rgb` as 0xRRGGBB; anything else reads as black. */
+function rgb(hex: string) {
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(hex);
+  const full = short
+    ? `${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`
+    : /^#([0-9a-f]{6})$/i.exec(hex)?.[1];
+  return full ? Number.parseInt(full, 16) : 0;
+}
+
 function luminance(hex: string) {
-  const value = Number.parseInt(hex.slice(1), 16);
+  const value = rgb(hex);
   const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255].map(
     (c) => {
       const s = c / 255;
@@ -211,10 +220,19 @@ function luminance(hex: string) {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
-/** WCAG contrast ratio of two `#rrggbb` colors (1 to 21). */
+/**
+ * WCAG contrast ratio (1 to 21). Accepts `#rgb` for live editor feedback;
+ * plans themselves must use lowercase `#rrggbb` (`INVALID_COLOR`).
+ */
 export function contrastRatio(a: string, b: string) {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
+}
+
+const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/;
+function metrics(kind: "cover" | TextKind, width: number) {
+  const size = TYPE_SIZE_MM[kind];
+  return { perLine: Math.floor(width / (size * 0.5)), lineMm: size * 1.25 };
 }
 
 /**
@@ -222,15 +240,20 @@ export function contrastRatio(a: string, b: string) {
  * nominal size. The renderer must still prove nothing is clipped (NFR-03).
  */
 export function textFits(kind: "cover" | TextKind, frame: Frame, text: string) {
-  const size = TYPE_SIZE_MM[kind];
-  const perLine = Math.floor(frame.w / (size * 0.5));
-  const lines = Math.floor(frame.h / (size * 1.25));
+  const { perLine, lineMm } = metrics(kind, frame.w);
   if (perLine < 1) return false;
   const needed = text
-    .split("\n")
+    .split(LINE_BREAK)
     .reduce(
       (sum, line) => sum + Math.max(1, Math.ceil(codePoints(line) / perLine)),
       0,
     );
-  return needed <= lines;
+  return needed <= Math.floor(frame.h / lineMm);
+}
+
+/** Height (mm) a frame of `width` needs for one paragraph at the kind's limit. */
+export function reservedHeight(kind: "cover" | TextKind, width: number) {
+  const { perLine, lineMm } = metrics(kind, width);
+  if (perLine < 1) return Infinity;
+  return Math.ceil(Math.ceil(TEXT_LIMITS[kind] / perLine) * lineMm);
 }

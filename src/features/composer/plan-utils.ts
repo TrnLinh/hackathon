@@ -4,6 +4,7 @@ import {
   contrastRatio,
   MIN_TEXT_CONTRAST,
   PLAN_SCHEMA_VERSION,
+  TEXT_LIMITS,
   validatePlan as validateDesignPlan,
 } from "@/lib/design-plan";
 import { contractContext, toContractPlan } from "@/features/prototype/contract";
@@ -29,6 +30,13 @@ export const ALLOWED_BLOCKS: readonly BlockKind[] = COMPONENT_KINDS;
 
 export function codePoints(text: string | undefined) {
   return countCodePoints(text ?? "");
+}
+
+/** Code-point limit for a block's text, shared with the CH-20 validator. */
+export function textLimit(kind: BlockKind) {
+  return kind in TEXT_LIMITS
+    ? TEXT_LIMITS[kind as keyof typeof TEXT_LIMITS]
+    : TEXT_LIMITS.caption;
 }
 
 export const originLabel: Record<DesignPlan["origin"], string> = {
@@ -76,9 +84,27 @@ export type ValidationRow = {
   detail: string;
 };
 
+/** "plan.pages[2].components[1].text.value" → "page 3, block 2: text.value". */
+function where(path: string) {
+  const at = /^plan\.pages\[(\d+)\](?:\.components\[(\d+)\])?\.?(.*)$/.exec(
+    path,
+  );
+  if (!at) return path.replace(/^plan\./, "");
+  const [, page, block, field] = at;
+  return [
+    `page ${Number(page) + 1}`,
+    block !== undefined && `block ${Number(block) + 1}`,
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .concat(field ? `: ${field}` : "");
+}
+
 export function validatePlan(
   plan: DesignPlan,
   memories: Memory[],
+  /** Collection members who may be credited; omit to skip that check. */
+  memberIds?: string[],
 ): ValidationRow[] {
   const byId = new Map(memories.map((m) => [m.id, m]));
   const blocks = plan.pages.flatMap((p) => p.blocks);
@@ -102,9 +128,7 @@ export function validatePlan(
         })
     : [];
   const longCaptions = blocks.filter(
-    (b) =>
-      (b.kind === "caption" && codePoints(b.text) > LIMITS.captionChars) ||
-      (b.kind === "note" && codePoints(b.text) > LIMITS.storyChars),
+    (b) => b.kind in TEXT_LIMITS && codePoints(b.text) > textLimit(b.kind),
   );
   const unreviewedQuotes = blocks.filter((b) => {
     if (b.kind !== "quote" || !b.excerptId) return false;
@@ -115,7 +139,7 @@ export function validatePlan(
   const ratio = contrastRatio(plan.tokens.ink, plan.tokens.paper);
   // Empty slots have their own row; the contract row covers the rest.
   const contract = validateDesignPlan(toContractPlan(plan, memories), {
-    ...contractContext(memories),
+    ...contractContext(memories, memberIds),
     allowEmptySlots: true,
   });
 
@@ -171,7 +195,7 @@ export function validatePlan(
       ok: longCaptions.length === 0,
       detail:
         longCaptions.length === 0
-          ? `Captions ≤ ${LIMITS.captionChars}, notes ≤ ${LIMITS.storyChars.toLocaleString()} characters`
+          ? `Headings ≤ ${TEXT_LIMITS.heading}, captions and quotes ≤ ${TEXT_LIMITS.caption}, notes ≤ ${TEXT_LIMITS.note.toLocaleString()} characters`
           : `${longCaptions.length} block(s) over the limit`,
     },
     {
@@ -195,7 +219,7 @@ export function validatePlan(
       ok: contract.ok,
       detail: contract.ok
         ? `${PLAN_SCHEMA_VERSION}: allowlisted parts, A5 bounds, safe text, full influence`
-        : `${contract.errors.length} issue(s): ${contract.errors[0].message}`,
+        : `${contract.errors.length} issue(s). ${where(contract.errors[0].path)}: ${contract.errors[0].message}`,
     },
     {
       id: "current",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildTemplatePlan,
   commitPlan,
+  contrastRatio,
   layoutFrames,
   PAGE_COUNT,
   PAGE_HEIGHT_MM,
@@ -11,6 +12,8 @@ import {
   planDigest,
   reviseManually,
   templates,
+  TEXT_LIMITS,
+  textFits,
   validatePlan,
   type AssetRef,
   type ComponentKind,
@@ -236,5 +239,85 @@ describe("manual revisions", () => {
     // The accepted parent is untouched.
     expect(codes(warmScrapbook)).toEqual([]);
     expect(warmScrapbook.pages[1].components).toHaveLength(3);
+  });
+});
+
+describe("review regressions", () => {
+  const timed = (plan: unknown) => {
+    const start = performance.now();
+    const result = codes(plan);
+    return { result, ms: performance.now() - start };
+  };
+
+  it("caps string size before pattern scanning, so hostile text stays fast", () => {
+    for (const rationale of ["a".repeat(200_000), "a".repeat(3999)]) {
+      const { result, ms } = timed({
+        ...warmScrapbook,
+        inspiration: { rationale },
+      });
+      expect(result).toEqual(["TEXT_OVERFLOW"]);
+      expect(ms).toBeLessThan(50);
+    }
+    const { result } = timed({
+      ...warmScrapbook,
+      extra: Array.from({ length: 70 }, () => "a".repeat(3999)),
+    });
+    expect(result).toEqual(["MALFORMED", "UNKNOWN_FIELD"]);
+  });
+
+  it("gives every template room for text at the editor's limits", () => {
+    const max = (n: number, creditId?: string): PlanText => ({
+      value: "a".repeat(n),
+      ...(creditId ? { creditId } : {}),
+    });
+    const full: TemplateContent = {
+      title: "a".repeat(TEXT_LIMITS.cover),
+      occasion: "a".repeat(TEXT_LIMITS.heading),
+      visuals: content.visuals.map((v) => ({
+        ...v,
+        caption: max(TEXT_LIMITS.caption),
+      })),
+      note: max(TEXT_LIMITS.note),
+      quotes: [
+        max(TEXT_LIMITS.quote, "person-priya"),
+        max(TEXT_LIMITS.quote, "person-maya"),
+      ],
+      closing: max(TEXT_LIMITS.note),
+    };
+    for (const template of templates)
+      expect(codes(buildTemplatePlan(template.id, full))).toEqual([]);
+  });
+
+  it("counts U+2028/U+2029 as line breaks", () => {
+    const frame = { x: 0, y: 0, w: 124, h: 10 };
+    expect(textFits("caption", frame, "a b")).toBe(true);
+    expect(textFits("caption", frame, "a\u2028b\u2029c")).toBe(false);
+  });
+
+  it("reads three-digit colors in contrastRatio", () => {
+    expect(contrastRatio("#fff", "#111111")).toBeCloseTo(
+      contrastRatio("#ffffff", "#111111"),
+    );
+  });
+
+  it("commits only schema fields and never throws on explicit undefined", async () => {
+    const extra = { ...warmScrapbook, editingMode: "ai" } as DesignPlan;
+    expect(await planDigest(extra)).toBe(await planDigest(warmScrapbook));
+    expect(planBytes(extra)).toEqual(planBytes(warmScrapbook));
+    const undef = { ...warmScrapbook, inspiration: undefined };
+    await expect(commitPlan(undef, context)).resolves.toMatchObject({
+      ok: false,
+    });
+  });
+
+  it("allows text painted over an earlier image", () => {
+    const plan = structuredClone(warmScrapbook);
+    plan.pages[2].components.push({
+      id: "w-overlay",
+      kind: "caption",
+      frame: { x: 14, y: 80, w: 70, h: 20 },
+      text: { value: "Taped in", creditId: "person-maya", authored: true },
+    });
+    expect(codes(plan)).toEqual([]);
   });
 });

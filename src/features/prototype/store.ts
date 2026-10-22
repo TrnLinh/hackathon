@@ -789,6 +789,16 @@ export const actions = {
         createdAt: now(),
         invalidatedReason: undefined,
       };
+      // Influence never shrinks along a lineage (FR-31): sources removed
+      // from the pages stay as style-only influence and keep their approvers.
+      const parent = d.plans.find((p) => p.id === plan.id);
+      const visible = new Set(planVisibleIds(next));
+      next.styleOnlyIds = Array.from(
+        new Set([
+          ...next.styleOnlyIds,
+          ...(parent ? planInfluenceIds(parent) : []),
+        ]),
+      ).filter((memoryId) => !visible.has(memoryId));
       d.plans.push(next);
       log(d, {
         collectionId: plan.collectionId,

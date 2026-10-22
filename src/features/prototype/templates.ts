@@ -67,7 +67,8 @@ export function buildTemplatePlan(
       note: texts[0]
         ? sourced(
             texts[0].id,
-            texts[0].story.slice(0, 220),
+            // Code points, so a surrogate pair is never split.
+            Array.from(texts[0].story).slice(0, 220).join(""),
             texts[0].uploaderId,
           )
         : undefined,

@@ -26,8 +26,14 @@ const PROTOTYPE_JOB = { jobId: "prototype-design", modelVersion: "prototype" };
 export const memoryRef = (id: string): AssetRef => ({ kind: "version", id });
 export const stillRef = (id: string): AssetRef => ({ kind: "derivative", id });
 
-/** Assets this editor may use: manually approved memories and their stills. */
-export function contractContext(memories: Memory[]): ValidationContext {
+/**
+ * Assets this editor may use (manually approved memories and their stills)
+ * and, when given, the collection members who may be credited.
+ */
+export function contractContext(
+  memories: Memory[],
+  memberIds?: string[],
+): ValidationContext {
   return {
     authorizedAssets: memories
       .filter(manualEligible)
@@ -35,6 +41,7 @@ export function contractContext(memories: Memory[]): ValidationContext {
         memoryRef(m.id),
         ...(m.stills ?? []).map((s) => stillRef(s.id)),
       ]),
+    ...(memberIds ? { people: memberIds } : {}),
   };
 }
 

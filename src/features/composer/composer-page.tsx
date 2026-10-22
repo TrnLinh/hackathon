@@ -310,7 +310,9 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
   const draftBase = draft?.baseId
     ? plans.find((p) => p.id === draft.baseId)
     : undefined;
-  const validation = plan ? validatePlan(plan, memories) : [];
+  const validation = plan
+    ? validatePlan(plan, memories, collection?.memberIds)
+    : [];
   const allPass = validation.every((r) => r.ok);
   const currentPage = plan?.pages[pageIndex];
   const selectedBlock = currentPage?.blocks.find(

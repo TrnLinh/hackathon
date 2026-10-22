@@ -21,11 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { stylePresets } from "@/features/prototype/store";
-import {
-  formatDuration,
-  LIMITS,
-  manualEligible,
-} from "@/features/prototype/selectors";
+import { formatDuration, manualEligible } from "@/features/prototype/selectors";
 import { templateById } from "@/features/prototype/templates";
 import type {
   Block,
@@ -39,6 +35,7 @@ import {
   contrastRatio,
   hasAiLineage,
   originLabel,
+  textLimit,
   type ValidationRow,
 } from "./plan-utils";
 
@@ -63,13 +60,6 @@ const kindLabel: Record<Block["kind"], string> = {
   caption: "Caption",
   note: "Note",
 };
-
-function limitFor(kind: Block["kind"]) {
-  if (kind === "caption") return LIMITS.captionChars;
-  if (kind === "note") return LIMITS.storyChars;
-  if (kind === "cover") return LIMITS.titleChars;
-  return LIMITS.captionChars;
-}
 
 export function BlockInspector({
   block,
@@ -118,7 +108,7 @@ export function BlockInspector({
         .filter((e) => e.reviewed)
         .map((e) => ({ m, e, key: `${m.id}::${e.id}` })),
     );
-  const limit = limitFor(block.kind);
+  const limit = textLimit(block.kind);
   const length = codePoints(block.text);
   const edit = (patch: Partial<Block>) =>
     onChange({ ...block, ...patch, edited: true });

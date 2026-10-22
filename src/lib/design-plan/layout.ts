@@ -1,9 +1,12 @@
 import {
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
+  reservedHeight,
+  TEXT_KINDS,
   type ComponentKind,
   type Frame,
   type PageLayout,
+  type TextKind,
 } from "./schema";
 
 // Deterministic frames for a page layout. Templates and the prototype
@@ -22,15 +25,51 @@ const WEIGHT: Record<ComponentKind, number> = {
   note: 5,
 };
 
+const MIN_VISUAL = 24;
+const hasAssets = (kind: ComponentKind) =>
+  kind === "cover" || kind === "image" || kind === "grid" || kind === "collage";
+
+function heights(
+  space: number,
+  reserved: number[],
+  weights: number[],
+): number[] {
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  const free = space - reserved.reduce((sum, h) => sum + h, 0);
+  return reserved.map((h, i) => h + Math.floor((free * weights[i]) / total));
+}
+
+/**
+ * Each text component first gets the height its longest allowed text needs
+ * (`reservedHeight`); the rest goes to photos by weight, or to the text when
+ * there are none. If that leaves photos too small, every component shares
+ * the space by weight and over-long text fails validation instead.
+ */
 function stack(box: Frame, kinds: readonly ComponentKind[]): Frame[] {
-  const total = kinds.reduce((sum, kind) => sum + WEIGHT[kind], 0);
-  const free = box.h - GAP * (kinds.length - 1);
+  const space = box.h - GAP * (kinds.length - 1);
+  const visual = kinds.some(hasAssets);
+  let result = heights(
+    space,
+    kinds.map((k) =>
+      k === "cover" || TEXT_KINDS.includes(k as TextKind)
+        ? reservedHeight(k as "cover" | TextKind, box.w)
+        : 0,
+    ),
+    kinds.map((k) => (!visual || hasAssets(k) ? WEIGHT[k] : 0)),
+  );
+  if (
+    result.some(
+      (h, i) => !Number.isFinite(h) || (hasAssets(kinds[i]) && h < MIN_VISUAL),
+    )
+  )
+    result = heights(
+      space,
+      kinds.map(() => 0),
+      kinds.map((k) => WEIGHT[k]),
+    );
   let y = box.y;
-  return kinds.map((kind, i) => {
-    const h =
-      i === kinds.length - 1
-        ? box.y + box.h - y
-        : Math.floor((free * WEIGHT[kind]) / total);
+  return kinds.map((_, i) => {
+    const h = i === kinds.length - 1 ? box.y + box.h - y : result[i];
     const frame = { x: box.x, y, w: box.w, h };
     y += h + GAP;
     return frame;

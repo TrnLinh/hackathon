@@ -280,6 +280,84 @@ export const adversarialPlans: {
       p.provenance.aiJobs = [];
     }),
   },
+  ...(
+    [
+      ["zero-width space", "Before\u200bwe"],
+      ["byte order mark", "Before\ufeffwe"],
+      ["left-to-right mark", "Before\u200ewe"],
+      ["Arabic letter mark", "Before\u061cwe"],
+      ["line separator", "Before\u2028we"],
+      ["tag character", `Before${String.fromCodePoint(0xe0041)}we`],
+      ["unpaired surrogate", `Before${String.fromCharCode(0xd800)}we`],
+    ] as const
+  ).map(([name, value]) => ({
+    name: `invisible text: ${name}`,
+    expected: ["CONTROL_CHARACTER"] as PlanErrorCode[],
+    plan: variant((p) => {
+      text(p, 1, 0).value = value;
+    }),
+  })),
+  {
+    name: "fullwidth URL",
+    expected: ["EXTERNAL_URL"],
+    plan: variant((p) => {
+      text(p, 2, 2).value = "See ｈｔｔｐｓ：／／example.com";
+    }),
+  },
+  {
+    name: "fullwidth markup",
+    expected: ["UNSAFE_MARKUP"],
+    plan: variant((p) => {
+      text(p, 2, 2).value = "＜script＞alert(1)＜/script＞";
+    }),
+  },
+  {
+    name: "three-digit color",
+    expected: ["INVALID_COLOR"],
+    plan: variant((p) => {
+      p.style.paper = "#fff";
+    }),
+  },
+  {
+    name: "explicit undefined inspiration",
+    expected: ["MALFORMED"],
+    plan: variant((p) => {
+      p.inspiration = undefined;
+    }),
+  },
+  {
+    name: "explicit undefined parent digest",
+    expected: ["MALFORMED"],
+    plan: variant((p) => {
+      p.provenance.parentDigest = undefined;
+    }),
+  },
+  {
+    name: "pages out of order",
+    expected: ["PAGE_ORDER"],
+    plan: variant((p) => {
+      [p.pages[1], p.pages[2]] = [p.pages[2], p.pages[1]];
+    }),
+  },
+  {
+    name: "six cover pages",
+    expected: ["PAGE_ORDER"],
+    plan: variant((p) => {
+      for (const page of p.pages) page.role = "cover";
+    }),
+  },
+  {
+    name: "image painted over a quote",
+    expected: ["FRAME_OVERLAP"],
+    plan: variant((p) => {
+      p.pages[3].components.push({
+        id: "w-sticker",
+        kind: "image",
+        frame: { x: 60, y: 30, w: 60, h: 40 },
+        assets: [{ kind: "version", id: "ver-pier" }],
+      });
+    }),
+  },
   {
     name: "executable payload field",
     expected: ["UNKNOWN_FIELD"],
