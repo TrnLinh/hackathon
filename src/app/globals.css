@@ -158,3 +158,17 @@
     outline-offset: 4px;
   }
 }
+
+/* Zine font stacks: local system fonts only, no external font requests. */
+@theme inline {
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-hand: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  --font-grotesk: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  --status-available: #2f6b4a;
+  --status-awaiting: #8a5a12;
+  --status-excluded: #9b2c2c;
+  --status-manual: #3e5a8a;
+}
