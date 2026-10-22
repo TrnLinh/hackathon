@@ -34,8 +34,13 @@ export function normalizeJoinCode(code: string) {
 
 async function newJoinCode(ctx: Pick<QueryCtx, "db">) {
   for (;;) {
-    const bytes = crypto.getRandomValues(new Uint8Array(8));
-    const chars = Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]);
+    // Rejection sampling keeps every character equally likely.
+    const limit = 256 - (256 % ALPHABET.length);
+    const chars: string[] = [];
+    while (chars.length < 8)
+      for (const b of crypto.getRandomValues(new Uint8Array(16)))
+        if (b < limit && chars.length < 8)
+          chars.push(ALPHABET[b % ALPHABET.length]);
     const code = `${chars.slice(0, 4).join("")}-${chars.slice(4).join("")}`;
     const taken = await ctx.db
       .query("collections")
@@ -139,7 +144,7 @@ export const requestJoin = internalMutation({
           await ctx.db.patch(existing._id, { status: "requested" });
         return existing._id;
       },
-      { membership: "none" },
+      { membership: "join-request" },
     ),
 });
 

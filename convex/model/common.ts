@@ -88,10 +88,11 @@ export async function approvers(
 /**
  * Who may record a new mutation. "active" requires current membership. "any"
  * also admits removed members, for operations they must still be able to make,
- * such as withdrawing a decision they gave while a member. "none" is only for
- * asking to join; the caller must authorize that operation itself.
+ * such as withdrawing a decision they gave while a member. "join-request"
+ * skips the membership check and exists only for model/collections.requestJoin,
+ * which must authorize the request itself.
  */
-export type MembershipRequirement = "active" | "any" | "none";
+export type MembershipRequirement = "active" | "any" | "join-request";
 
 export async function recordMutation<T extends string>(
   ctx: MutationCtx,

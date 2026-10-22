@@ -134,9 +134,25 @@ function MembersView({
   onRemove: (id: string) => Promise<ActionResult> | void;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const run = (action: Promise<ActionResult> | void) => {
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  // One action per person at a time; a double click must not send another.
+  const run = (
+    id: string,
+    action: (id: string) => Promise<ActionResult> | void,
+  ) => {
+    if (busy.has(id)) return;
     setError(null);
-    void action?.then((result) => setError(result.ok ? null : result.reason));
+    const pending = action(id);
+    if (!pending) return;
+    setBusy((s) => new Set(s).add(id));
+    void pending.then((result) => {
+      setBusy((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
+      setError(result.ok ? null : result.reason);
+    });
   };
   const joinUrl = joinCode
     ? typeof window !== "undefined"
@@ -147,6 +163,11 @@ function MembersView({
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-8">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <section aria-labelledby="members-heading" className="space-y-3">
           <h2
             id="members-heading"
@@ -182,7 +203,7 @@ function MembersView({
                   {isCreator && !creator && (
                     <RemoveMemberDialog
                       person={person}
-                      onRemove={() => run(onRemove(person.id))}
+                      onRemove={() => run(person.id, onRemove)}
                     />
                   )}
                 </li>
@@ -198,11 +219,6 @@ function MembersView({
           >
             Join requests ({requests.length})
           </h2>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
           {requests.length === 0 ? (
             <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
               No one is waiting to join.
@@ -226,14 +242,16 @@ function MembersView({
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          onClick={() => run(onAdmit(person.id))}
+                          onClick={() => run(person.id, onAdmit)}
+                          disabled={busy.has(person.id)}
                         >
                           <UserPlus aria-hidden="true" /> Admit
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => run(onDecline(person.id))}
+                          onClick={() => run(person.id, onDecline)}
+                          disabled={busy.has(person.id)}
                         >
                           <X aria-hidden="true" /> Decline
                         </Button>

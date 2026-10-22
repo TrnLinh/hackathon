@@ -96,6 +96,11 @@ export const requestJoin = mutation({
     if (args.joinCode.length > 64) return fail("INVALID_JOIN_CODE");
     const collection = await byJoinCode(ctx, args.joinCode);
     if (!collection) return fail("INVALID_JOIN_CODE");
+    // Asking again while pending or already a member changes nothing, so it
+    // writes nothing: no receipt, audit event or collection contention.
+    const existing = await membershipOf(ctx, collection._id, viewer._id);
+    if (existing?.status === "requested" || existing?.status === "active")
+      return collection._id;
     await ctx.runMutation(internal.model.collections.requestJoin, {
       collectionId: collection._id,
       actorId: viewer._id,

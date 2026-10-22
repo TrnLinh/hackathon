@@ -62,6 +62,10 @@ Collection ownership never makes someone an operator, and operator status grants
 
 Membership statuses are `requested`, `active`, `declined` and `removed`. `admittedAt` records the first admission. Only someone admitted at some point keeps former-member rights (recording evidence, withdrawing), so a declined or never-admitted requester has none. Every membership change goes through `recordMutation`: retry receipt, membership check, write, audit event.
 
+Asking to join again while a request is pending, or while already a member, writes nothing. A removed member keeps evidence and withdraw rights in the model, but `collections.get` and `listMine` no longer show them the collection; CH-08 must give former members a screen to withdraw from.
+
+Signing in from a gated page (for example a join link) returns to that page: the path is kept in `sessionStorage` and only same-origin `/app` paths are accepted (`src/features/auth/return-path.ts`).
+
 Join codes are eight characters from an unambiguous alphabet (`XXXX-XXXX`, case-insensitive). They are routing metadata that operators can see; admission by the creator is the control.
 
 ### Interim dev envelope (documented exception)

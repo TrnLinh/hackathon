@@ -178,13 +178,20 @@ describe("CH-04 membership", () => {
         retryKey: "bad",
       }),
     ).rejects.toThrow("INVALID_JOIN_CODE");
-    // Retrying the same request recovers it.
-    expect(
-      await s.bob.mutation(api.memberships.requestJoin, {
-        joinCode,
-        retryKey: "join",
-      }),
-    ).toBe(collectionId);
+    // Asking again, with the same or a new key, writes nothing.
+    const events = () =>
+      s.t.run(
+        async (ctx) => (await ctx.db.query("auditEvents").collect()).length,
+      );
+    const before = await events();
+    for (const retryKey of ["join", "again"])
+      expect(
+        await s.bob.mutation(api.memberships.requestJoin, {
+          joinCode,
+          retryKey,
+        }),
+      ).toBe(collectionId);
+    expect(await events()).toBe(before);
     expect(
       await s.alice.query(api.memberships.requests, { collectionId }),
     ).toEqual([{ userId: s.ids.bob, name: "Bob" }]);

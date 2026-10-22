@@ -5,6 +5,7 @@ import { api } from "@convex/_generated/api";
 import { useAuthConfiguration } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { useTideSession } from "./auth-provider";
+import { rememberReturnPath } from "./return-path";
 
 function SessionControls() {
   const session = useTideSession();
@@ -32,7 +33,10 @@ function SessionControls() {
         <Button
           size="sm"
           disabled={session.phase === "loading"}
-          onClick={() => void session.login()}
+          onClick={() => {
+            rememberReturnPath();
+            void session.login();
+          }}
         >
           Sign in
         </Button>

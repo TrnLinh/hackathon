@@ -67,10 +67,13 @@ export function JoinPage({ code }: { code: string }) {
           its title once you’re admitted.
         </p>
 
-        <div className="mt-6 space-y-3" role="status">
+        <div className="mt-6 space-y-3">
           {preview.viewerStatus === "active" ? (
             <div className="space-y-3">
-              <p className="inline-flex items-center gap-2 text-sm">
+              <p
+                role="status"
+                className="inline-flex items-center gap-2 text-sm"
+              >
                 <UsersRound
                   className="size-4 text-primary"
                   aria-hidden="true"
@@ -89,7 +92,7 @@ export function JoinPage({ code }: { code: string }) {
               </div>
             </div>
           ) : preview.viewerStatus === "requested" ? (
-            <p className="inline-flex items-center gap-2 text-sm">
+            <p role="status" className="inline-flex items-center gap-2 text-sm">
               <Clock3
                 className="size-4 text-[var(--status-awaiting)]"
                 aria-hidden="true"
@@ -99,7 +102,7 @@ export function JoinPage({ code }: { code: string }) {
           ) : (
             <>
               {preview.viewerStatus !== "none" && (
-                <p className="text-sm text-muted-foreground">
+                <p role="status" className="text-sm text-muted-foreground">
                   {preview.viewerStatus === "declined"
                     ? `${firstName} declined your last request.`
                     : `${firstName} removed you from this collection.`}{" "}
