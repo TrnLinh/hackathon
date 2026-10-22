@@ -88,11 +88,7 @@ const memoriesRoute = createRoute({
   path: "/",
   component: function MemoriesRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return (
-      <PrototypeOnly>
-        <MemoriesBoard collectionId={collectionId} />
-      </PrototypeOnly>
-    );
+    return <MemoriesBoard collectionId={collectionId} />;
   },
 });
 const membersRoute = createRoute({
@@ -108,11 +104,7 @@ const newMemoryRoute = createRoute({
   path: "/memories/new",
   component: function NewMemoryRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return (
-      <PrototypeOnly>
-        <MemoryEditor collectionId={collectionId} />
-      </PrototypeOnly>
-    );
+    return <MemoryEditor collectionId={collectionId} />;
   },
 });
 const memoryRoute = createRoute({
@@ -120,11 +112,7 @@ const memoryRoute = createRoute({
   path: "/memories/$memoryId",
   component: function MemoryRoute() {
     const { collectionId, memoryId } = memoryRoute.useParams();
-    return (
-      <PrototypeOnly>
-        <MemoryDetail collectionId={collectionId} memoryId={memoryId} />
-      </PrototypeOnly>
-    );
+    return <MemoryDetail collectionId={collectionId} memoryId={memoryId} />;
   },
 });
 const composeRoute = createRoute({

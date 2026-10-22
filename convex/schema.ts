@@ -73,6 +73,13 @@ export default defineSchema({
     // immutable; appends compare-and-set this head so history cannot fork.
     headVersionId: v.optional(v.id("memoryVersions")),
   }).index("by_collection", ["collectionId"]),
+  // Each uploaded blob may back at most one payload (CH-05).
+  uploadClaims: defineTable({
+    storageId: v.id("_storage"),
+    collectionId,
+    actorId: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_storage", ["storageId"]),
   privatePayloads: defineTable({
     collectionId,
     body: ciphertextBody,

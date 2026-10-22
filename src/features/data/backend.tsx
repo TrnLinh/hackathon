@@ -75,6 +75,25 @@ const messages: Record<string, string> = {
   INVALID_MEMBERSHIP_TRANSITION:
     "That person’s membership changed. Refresh and try again.",
   COLLECTION_UNAVAILABLE: "This collection is no longer available.",
+  MEMORY_LIMIT: "This collection already has twelve active memories.",
+  COLLECTION_BYTES_LIMIT:
+    "This would take the collection past its upload budget. Remove or shrink a file.",
+  MEDIA_TOO_LARGE: "This file is larger than the limit for its type.",
+  MEDIA_TOO_LONG: "This recording is longer than the limit for its type.",
+  UNSUPPORTED_MEDIA_TYPE: "This file type isn’t supported.",
+  UPLOAD_SIZE_MISMATCH:
+    "The upload didn’t arrive intact. Nothing was saved; try again.",
+  MISSING_UPLOAD: "The upload expired before saving. Try again.",
+  UPLOAD_ALREADY_USED:
+    "This upload already belongs to another memory. Remove the file and add it again.",
+  MEDIA_REQUIRED: "Add the file for this memory.",
+  MEDIA_DIMENSIONS_REQUIRED:
+    "This image’s size couldn’t be read. Export it again as JPEG or PNG.",
+  TEXT_HAS_NO_MEDIA: "A story memory can’t have a file.",
+  STALE_VERSION_HEAD:
+    "Someone saved a newer version first. Reopen the memory and try again.",
+  NOT_UPLOADER: "Only the person who added this memory can change it.",
+  INVALID_APPROVER_SET: "Check the people in this memory and try again.",
 };
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };

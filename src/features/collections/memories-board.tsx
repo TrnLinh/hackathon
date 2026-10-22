@@ -19,6 +19,7 @@ import {
   personById,
 } from "@/features/prototype/selectors";
 import type { MemoryStatus } from "@/features/prototype/types";
+import { ConvexMemoriesBoard } from "@/features/memories/convex-memories";
 import { BudgetMeter } from "./budget-meter";
 
 const filters: { value: MemoryStatus | "all"; label: string }[] = [
@@ -31,6 +32,15 @@ const filters: { value: MemoryStatus | "all"; label: string }[] = [
 ];
 
 export function MemoriesBoard({ collectionId }: { collectionId: string }) {
+  const state = usePrototype();
+  return state.collections.some((c) => c.id === collectionId) ? (
+    <PrototypeMemoriesBoard collectionId={collectionId} />
+  ) : (
+    <ConvexMemoriesBoard collectionId={collectionId} />
+  );
+}
+
+function PrototypeMemoriesBoard({ collectionId }: { collectionId: string }) {
   const state = usePrototype();
   const [filter, setFilter] = useState<MemoryStatus | "all">("all");
 

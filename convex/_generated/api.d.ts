@@ -14,6 +14,7 @@ import type * as identity from "../identity.js";
 import type * as lib_auth_config from "../lib/auth_config.js";
 import type * as lib_viewer from "../lib/viewer.js";
 import type * as memberships from "../memberships.js";
+import type * as memories from "../memories.js";
 import type * as model_approval from "../model/approval.js";
 import type * as model_candidates from "../model/candidates.js";
 import type * as model_collections from "../model/collections.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth_config": typeof lib_auth_config;
   "lib/viewer": typeof lib_viewer;
   memberships: typeof memberships;
+  memories: typeof memories;
   "model/approval": typeof model_approval;
   "model/candidates": typeof model_candidates;
   "model/collections": typeof model_collections;
