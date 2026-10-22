@@ -16,7 +16,8 @@
     "setup:local": "node scripts/setup-local-convex.mjs",
     "test": "node --test scripts/publish-backlog.test.mjs && vitest run",
     "test:auth:backend": "node --test scripts/auth-backend.test.mjs",
-    "backlog:docs": "node scripts/render-backlog.mjs"
+    "backlog:docs": "node scripts/render-backlog.mjs",
+    "sample-db": "node scripts/sample-db-scan.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "1.1.1",

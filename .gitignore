@@ -48,3 +48,12 @@ next-env.d.ts
 
 # Private Tide proof requests can contain session-bound approval credentials.
 /.policy-proof/
+
+# Demo media for the web demo (personal photos, audio and video). Share these
+# through a drive, not git. See public/sample-db/README.md.
+/public/sample-db/photos/*
+/public/sample-db/videos/*
+/public/sample-db/audio/*
+/public/sample-db/avatars/*
+!/public/sample-db/*/.gitkeep
+/public/sample-db/manifest.json
