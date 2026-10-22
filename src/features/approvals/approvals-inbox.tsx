@@ -10,6 +10,8 @@ import {
 import { MemoryStatusBadge } from "@/components/chorus/status";
 import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/features/prototype/store";
+import { Badge } from "@/components/ui/badge";
+import { ConvexInboxSection } from "./convex-inbox";
 import {
   approverIds,
   formatWhen,
@@ -244,6 +246,18 @@ export function ApprovalsInbox() {
             </p>
           </div>
         ))}
+      </div>
+
+      <ConvexInboxSection />
+
+      <div className="space-y-1">
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          Prototype demo requests <Badge variant="outline">Mock data</Badge>
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Synthetic requests stored in this browser, for the demo viewer chosen
+          at the top of the page.
+        </p>
       </div>
 
       <section aria-labelledby="waiting-heading" className="space-y-3">

@@ -485,7 +485,7 @@ export async function manifestDigest(input: unknown): Promise<string> {
  */
 export function decisionStatement(input: {
   requestDigest: string;
-  action: "approve" | "decline" | "withdraw";
+  action: "approve" | "decline" | "request-edit" | "withdraw";
   actor: string;
   revisions: unknown[];
 }) {

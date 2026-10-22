@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import {
   acceptedText,
   ciphertextBody,
+  decisionAction,
   lineageInput,
   mediaKind,
   origin,
@@ -119,11 +120,7 @@ export default defineSchema({
   decisions: defineTable({
     ...record,
     target: v.union(v.id("compositionPermissions"), v.id("candidates")),
-    action: v.union(
-      v.literal("approve"),
-      v.literal("decline"),
-      v.literal("withdraw"),
-    ),
+    action: decisionAction,
     requestDigest: v.string(),
     revisions: v.array(revision),
     evidenceId: v.id("evidence"),

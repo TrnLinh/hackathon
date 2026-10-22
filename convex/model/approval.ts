@@ -26,7 +26,8 @@ export async function approvalStatus(
       )
       .order("desc")
       .first();
-    if (!latest) pending = true;
+    // No decision yet, or a request for an edit, leaves it pending.
+    if (!latest || latest.action === "request-edit") pending = true;
     else if (latest.action === "withdraw") return "withdrawn";
     else if (latest.action === "decline") declined = true;
   }

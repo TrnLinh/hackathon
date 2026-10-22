@@ -27,6 +27,7 @@ import { AccountControls } from "@/features/auth/auth-status";
 import { useAiConfig } from "@/features/data/ai-config";
 import { BackendOnly, QueryBoundary } from "@/features/data/backend";
 import { EnsureCurrentUser } from "@/features/data/current-user";
+import { useConvexWaitingCount } from "@/features/approvals/convex-inbox";
 import { actions, usePrototype } from "@/features/prototype/store";
 import { inboxFor, personById } from "@/features/prototype/selectors";
 
@@ -127,6 +128,22 @@ function ViewerSwitcher() {
   );
 }
 
+function InboxBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] leading-5 text-primary-foreground">
+      {count}
+      <span className="sr-only"> waiting for your decision</span>
+    </span>
+  );
+}
+
+/** Backend requests waiting for you, plus prototype ones for the demo viewer. */
+function ConvexInboxBadge({ mockCount }: { mockCount: number }) {
+  const waiting = useConvexWaitingCount();
+  return <InboxBadge count={(waiting ?? 0) + mockCount} />;
+}
+
 export function AppShell() {
   const state = usePrototype();
   const { configured: authConfigured } = useAuthConfiguration();
@@ -185,12 +202,18 @@ export function AppShell() {
               >
                 <Icon className="size-4" aria-hidden="true" />
                 {label}
-                {to === "/approvals" && inboxCount > 0 && (
-                  <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] leading-5 text-primary-foreground">
-                    {inboxCount}
-                    <span className="sr-only"> waiting for your decision</span>
-                  </span>
-                )}
+                {to === "/approvals" &&
+                  (authConfigured ? (
+                    <BackendOnly fallback={<InboxBadge count={inboxCount} />}>
+                      <QueryBoundary
+                        fallback={<InboxBadge count={inboxCount} />}
+                      >
+                        <ConvexInboxBadge mockCount={inboxCount} />
+                      </QueryBoundary>
+                    </BackendOnly>
+                  ) : (
+                    <InboxBadge count={inboxCount} />
+                  ))}
               </Link>
             ))}
           </nav>

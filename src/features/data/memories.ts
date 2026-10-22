@@ -58,36 +58,52 @@ export function readVersion(row: VersionRow) {
 }
 export type MemoryVersionView = ReturnType<typeof readVersion>;
 
+type MemoryRow = FunctionReturnType<typeof api.memories.list>[number];
+export type PermissionView = NonNullable<MemoryRow["permission"]>;
+
+/** CH-07 vocabulary: private, awaiting permission, available, excluded. */
+export type ConsentStatus = "private" | "awaiting" | "available" | "excluded";
+
+export function consentStatus(
+  permission: PermissionView | null,
+): ConsentStatus {
+  if (!permission) return "private";
+  if (permission.status === "approved") return "available";
+  if (permission.status === "pending") return "awaiting";
+  return "excluded";
+}
+
+function readMemory(row: MemoryRow) {
+  return {
+    memoryId: row.memoryId,
+    collectionId: row.collectionId,
+    uploaderId: row.uploaderId,
+    uploaderName: row.uploaderName,
+    createdAt: row.createdAt,
+    versionCount: row.versionCount,
+    kind: toFrontend[row.mediaKind],
+    access: row.access,
+    /** Null with status-only access. */
+    head: row.head ? readVersion(row.head) : null,
+    permission: row.permission,
+    status: consentStatus(row.permission),
+  };
+}
+export type MemoryView = ReturnType<typeof readMemory>;
+
 export function useMemories(collectionId: Id<"collections"> | null) {
   const rows = useQuery(
     api.memories.list,
     collectionId ? { collectionId } : "skip",
   );
-  return useMemo(
-    () =>
-      rows?.map((row) => ({
-        memoryId: row.memoryId,
-        uploaderId: row.uploaderId,
-        createdAt: row.createdAt,
-        versionCount: row.versionCount,
-        head: readVersion(row.head),
-      })),
-    [rows],
-  );
+  return useMemo(() => rows?.map(readMemory), [rows]);
 }
 
 export function useMemory(memoryId: string) {
   const row = useQuery(api.memories.get, { memoryId });
   return useMemo(
     () =>
-      row && {
-        memoryId: row.memoryId,
-        collectionId: row.collectionId,
-        uploaderId: row.uploaderId,
-        versionCount: row.versionCount,
-        head: readVersion(row.head),
-        versions: row.versions.map(readVersion),
-      },
+      row && { ...readMemory(row), versions: row.versions.map(readVersion) },
     [row],
   );
 }
@@ -278,7 +294,7 @@ export function useMemoryActions() {
         memoryId: memory.memoryId,
       });
       const kept =
-        current?.head.envelope &&
+        current?.head?.envelope &&
         parseMemoryContent(openDevEnvelope(current.head.envelope))?.media;
       return run(
         intentFor(intent, input),
