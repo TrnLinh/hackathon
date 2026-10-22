@@ -2,7 +2,11 @@ import { useState } from "react";
 import { History, Power, PowerOff, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { BackendOnly, formatTime } from "@/features/data/backend";
+import {
+  BackendOnly,
+  formatTime,
+  QueryBoundary,
+} from "@/features/data/backend";
 import {
   useAiCapabilities,
   useAiConfig,
@@ -13,17 +17,19 @@ import {
 // CH-22: runtime AI availability. The server is the source of truth; this card
 // only reflects it and lets an authorized operator change it.
 
+const unreadable = (
+  <p role="status" className="text-sm text-muted-foreground">
+    AI is off. Availability can’t be read from the backend right now; templates
+    and manual editing still work.
+  </p>
+);
+
 export function AiAvailabilityCard() {
   return (
-    <BackendOnly
-      fallback={
-        <p role="status" className="text-sm text-muted-foreground">
-          AI is off. The backend isn’t connected, so availability can’t be read;
-          templates and manual editing still work.
-        </p>
-      }
-    >
-      <ConnectedAiAvailabilityCard />
+    <BackendOnly fallback={unreadable}>
+      <QueryBoundary fallback={unreadable}>
+        <ConnectedAiAvailabilityCard />
+      </QueryBoundary>
     </BackendOnly>
   );
 }
