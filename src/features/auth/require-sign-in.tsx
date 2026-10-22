@@ -1,16 +1,59 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
-import type { ReactNode } from "react";
+import { useConvexAuth, useMutation } from "convex/react";
+import { useEffect, useState, type ReactNode } from "react";
+import { api } from "@convex/_generated/api";
 import { useAuthConfiguration } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import { describeError } from "@/features/data/backend";
+import { useViewer } from "@/features/data/current-user";
 import { useTideSession } from "./auth-provider";
+import { rememberReturnPath } from "./return-path";
+
+/** Waits for users.ensureCurrent so screens can rely on a registry row. */
+function RegisteredGate({ children }: { children: ReactNode }) {
+  const viewer = useViewer();
+  const ensure = useMutation(api.users.ensureCurrent);
+  const [slow, setSlow] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (viewer !== null) return;
+    const timer = window.setTimeout(() => setSlow(true), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [viewer]);
+  if (viewer) return children;
+  return (
+    <div className="space-y-3 py-10">
+      <p role="status" className="text-sm text-muted-foreground">
+        {viewer === undefined
+          ? "Verifying your session…"
+          : "Setting up your account…"}
+      </p>
+      {slow && viewer === null && (
+        <Button
+          variant="outline"
+          onClick={() => {
+            setError(null);
+            void ensure({}).catch((e: unknown) => setError(describeError(e)));
+          }}
+        >
+          Try again
+        </Button>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SessionGate({ children }: { children: ReactNode }) {
   const session = useTideSession();
   const convex = useConvexAuth();
   if (session.phase === "authenticated" && convex.isAuthenticated)
-    return children;
+    return <RegisteredGate>{children}</RegisteredGate>;
   const loading =
     session.phase === "loading" ||
     (session.phase === "authenticated" && convex.isLoading);
@@ -28,7 +71,7 @@ function SessionGate({ children }: { children: ReactNode }) {
           onClick={() =>
             void (session.phase === "authenticated"
               ? session.logout()
-              : session.login())
+              : (rememberReturnPath(), session.login()))
           }
         >
           {session.phase === "authenticated"

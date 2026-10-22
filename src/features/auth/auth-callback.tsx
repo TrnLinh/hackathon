@@ -1,23 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConvexAuth } from "convex/react";
 import { useAuthConfiguration } from "@/components/providers";
 import { useTideSession } from "./auth-provider";
+import { clearReturnPath, readReturnPath } from "./return-path";
 
 function CallbackSession() {
   const router = useRouter();
   const session = useTideSession();
   const convex = useConvexAuth();
+  const [target] = useState(readReturnPath);
   useEffect(() => {
-    if (
-      session.phase === "anonymous" ||
-      (session.phase === "authenticated" && convex.isAuthenticated)
-    )
+    if (session.phase === "anonymous") {
+      clearReturnPath();
       router.replace("/app");
-  }, [router, session.phase, convex.isAuthenticated]);
+    } else if (session.phase === "authenticated" && convex.isAuthenticated) {
+      clearReturnPath();
+      router.replace(target);
+    }
+  }, [router, session.phase, convex.isAuthenticated, target]);
   return (
     <p role="status">
       {session.message ??
