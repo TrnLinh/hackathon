@@ -170,6 +170,14 @@ describe("CH-09 plans API", () => {
     expect(
       await s.bob.query(api.plans.list, { collectionId: s.collectionId }),
     ).toEqual([]);
+    // Nested writes keep the collection's audit order strictly increasing.
+    const sequences = await s.t.run(async (ctx) =>
+      (await ctx.db.query("auditEvents").collect()).map((e) => e.sequence),
+    );
+    expect(new Set(sequences).size).toBe(sequences.length);
+    expect([...sequences].sort((x, y) => x - y)).toEqual(
+      sequences.map((_, i) => i + 1),
+    );
 
     // A withdrawal leaves history intact but makes dependent revisions unusable.
     await s.bob.mutation(api.consent.decide, {

@@ -52,7 +52,7 @@ export function useSavePlan() {
     (input: SavePlanInput) =>
       attempt(() =>
         withRetryKey(
-          `${input.parentId ?? "root"}:${input.digest}`,
+          `${input.parentId ?? "root"}:${input.digest}:${JSON.stringify(input.sourceUses)}`,
           (retryKey) =>
             save({
               collectionId: input.collectionId,

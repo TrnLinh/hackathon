@@ -27,9 +27,11 @@ import {
 import { usePlans, useSavePlan } from "@/features/data/plans";
 import { LocalConsentNote } from "@/features/memories/convex-memories";
 
-// CH-09 Template mode for collections on Convex. Plans are built only from
+// CH-09 Template mode for collections on Convex. Plans are built from
 // sources every person in them approved for this creator, use the shared
-// DesignPlan contract and validator, and never call a model. Manual layout,
+// DesignPlan contract and validator, and never call a model. The server checks
+// the sources a save declares; it can't read the body, so CH-10's freeze must
+// verify the body's assets equal the recorded lineage. Manual layout,
 // palette and font controls are not wired for Convex yet.
 
 const fontStack: Record<string, string> = {
@@ -38,6 +40,14 @@ const fontStack: Record<string, string> = {
   grotesk: "var(--font-grotesk)",
   mono: "var(--font-mono)",
   sans: "var(--font-sans)",
+};
+
+type DraftInputs = {
+  /** Template and sources the draft was built from. */
+  key: string;
+  templateId: string;
+  templateVersion: string;
+  sources: MemoryView[];
 };
 
 const clip = (text: string, max: number) =>
@@ -183,9 +193,11 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
   const [templateId, setTemplateId] = useState(templates[0].id);
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   const [viewing, setViewing] = useState<string | null>(null);
+  // A draft carries the inputs it was built from, so Save never pairs a plan
+  // with a template or source list chosen after it was built.
   const [draft, setDraft] = useState<
-    | { ok: true; plan: DesignPlan; digest: string }
-    | { ok: false; errors: PlanError[] }
+    | ({ ok: true; plan: DesignPlan; digest: string } & DraftInputs)
+    | ({ ok: false; errors: PlanError[] } & DraftInputs)
     | null
   >(null);
   const [saving, setSaving] = useState(false);
@@ -213,6 +225,12 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
   useEffect(() => {
     if (!member) return;
     let active = true;
+    const inputs: DraftInputs = {
+      templateId: template.id,
+      templateVersion: template.version,
+      sources: included,
+      key: `${template.id}|${includedKey}`,
+    };
     const plan = buildTemplatePlan(
       template.id,
       templateContent(
@@ -229,7 +247,7 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
       people: member.members.map((p) => p.userId),
       allowEmptySlots: true,
     }).then((result) => {
-      if (active) setDraft(result);
+      if (active) setDraft({ ...result, ...inputs });
     });
     return () => {
       active = false;
@@ -255,6 +273,8 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
       </EmptyState>
     );
 
+  // Save only the plan built from the current template and sources.
+  const fresh = draft?.key === `${template.id}|${includedKey}`;
   const shown = viewing
     ? plans?.find((p) => p.planId === viewing)?.plan
     : draft?.ok
@@ -262,7 +282,7 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
       : null;
 
   async function save() {
-    if (!member || !draft?.ok || saving) return;
+    if (!member || !draft?.ok || !fresh || saving) return;
     setSaving(true);
     setMessage(null);
     const placed = new Set(draft.plan.influence.visible.map((a) => a.id));
@@ -272,10 +292,10 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
       digest: draft.digest,
       origin: {
         kind: "template",
-        templateId: template.id,
-        templateVersion: template.version,
+        templateId: draft.templateId,
+        templateVersion: draft.templateVersion,
       },
-      sourceUses: included
+      sourceUses: draft.sources
         .filter((m) => placed.has(m.head!.versionId))
         .map((m) => ({
           permissionId: m.permission!.permissionId,
@@ -303,7 +323,10 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
               Back to the draft
             </Button>
           ) : (
-            <Button disabled={!draft?.ok || saving} onClick={() => void save()}>
+            <Button
+              disabled={!draft?.ok || !fresh || saving}
+              onClick={() => void save()}
+            >
               <Save aria-hidden="true" /> {saving ? "Saving…" : "Save revision"}
             </Button>
           )}
@@ -436,8 +459,9 @@ export function ConvexComposer({ collectionId }: { collectionId: string }) {
         </section>
         <LocalConsentNote />
         <TrustNote>
-          No model is called. Plans are stored unencrypted for development
-          (labelled), and only you, the creator, can open them.
+          No model is called. Only you, the creator, can open plans in the app,
+          but they’re stored unencrypted for development, so deployment
+          operators could read them.
         </TrustNote>
       </aside>
     </div>
