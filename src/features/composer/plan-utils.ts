@@ -1,4 +1,14 @@
 import {
+  COMPONENT_KINDS,
+  codePoints as countCodePoints,
+  contrastRatio,
+  MIN_TEXT_CONTRAST,
+  PLAN_SCHEMA_VERSION,
+  TEXT_LIMITS,
+  validatePlan as validateDesignPlan,
+} from "@/lib/design-plan";
+import { contractContext, toContractPlan } from "@/features/prototype/contract";
+import {
   aiEligible,
   LIMITS,
   manualEligible,
@@ -12,47 +22,21 @@ import type {
   Memory,
 } from "@/features/prototype/types";
 
-// Local CH-20 checks for the prototype composer. The real validator must run
-// in the shared contract package before preview and again before freezing.
+// Composer checks. Consent rows are prototype-specific; the "contract" row
+// runs the shared CH-20 validator (src/lib/design-plan) on the adapted plan.
 
-export const ALLOWED_BLOCKS: BlockKind[] = [
-  "cover",
-  "heading",
-  "image",
-  "grid",
-  "collage",
-  "quote",
-  "caption",
-  "note",
-];
+export { contrastRatio };
+export const ALLOWED_BLOCKS: readonly BlockKind[] = COMPONENT_KINDS;
 
 export function codePoints(text: string | undefined) {
-  return Array.from(text ?? "").length;
+  return countCodePoints(text ?? "");
 }
 
-function luminance(hex: string) {
-  const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
-  const value = Number.parseInt(full.slice(0, 6), 16);
-  if (Number.isNaN(value)) return 0;
-  const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255].map(
-    (c) => {
-      const s = c / 255;
-      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    },
-  );
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-export function contrastRatio(a: string, b: string) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+/** Code-point limit for a block's text, shared with the CH-20 validator. */
+export function textLimit(kind: BlockKind) {
+  return kind in TEXT_LIMITS
+    ? TEXT_LIMITS[kind as keyof typeof TEXT_LIMITS]
+    : TEXT_LIMITS.caption;
 }
 
 export const originLabel: Record<DesignPlan["origin"], string> = {
@@ -100,9 +84,27 @@ export type ValidationRow = {
   detail: string;
 };
 
+/** "plan.pages[2].components[1].text.value" → "page 3, block 2: text.value". */
+function where(path: string) {
+  const at = /^plan\.pages\[(\d+)\](?:\.components\[(\d+)\])?\.?(.*)$/.exec(
+    path,
+  );
+  if (!at) return path.replace(/^plan\./, "");
+  const [, page, block, field] = at;
+  return [
+    `page ${Number(page) + 1}`,
+    block !== undefined && `block ${Number(block) + 1}`,
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .concat(field ? `: ${field}` : "");
+}
+
 export function validatePlan(
   plan: DesignPlan,
   memories: Memory[],
+  /** Collection members who may be credited; omit to skip that check. */
+  memberIds?: string[],
 ): ValidationRow[] {
   const byId = new Map(memories.map((m) => [m.id, m]));
   const blocks = plan.pages.flatMap((p) => p.blocks);
@@ -126,9 +128,7 @@ export function validatePlan(
         })
     : [];
   const longCaptions = blocks.filter(
-    (b) =>
-      (b.kind === "caption" && codePoints(b.text) > LIMITS.captionChars) ||
-      (b.kind === "note" && codePoints(b.text) > LIMITS.storyChars),
+    (b) => b.kind in TEXT_LIMITS && codePoints(b.text) > textLimit(b.kind),
   );
   const unreviewedQuotes = blocks.filter((b) => {
     if (b.kind !== "quote" || !b.excerptId) return false;
@@ -137,6 +137,11 @@ export function validatePlan(
     return !excerpt || !excerpt.reviewed;
   });
   const ratio = contrastRatio(plan.tokens.ink, plan.tokens.paper);
+  // Empty slots have their own row; the contract row covers the rest.
+  const contract = validateDesignPlan(toContractPlan(plan, memories), {
+    ...contractContext(memories, memberIds),
+    allowEmptySlots: true,
+  });
 
   return [
     {
@@ -190,7 +195,7 @@ export function validatePlan(
       ok: longCaptions.length === 0,
       detail:
         longCaptions.length === 0
-          ? `Captions ≤ ${LIMITS.captionChars}, notes ≤ ${LIMITS.storyChars.toLocaleString()} characters`
+          ? `Headings ≤ ${TEXT_LIMITS.heading}, captions and quotes ≤ ${TEXT_LIMITS.caption}, notes ≤ ${TEXT_LIMITS.note.toLocaleString()} characters`
           : `${longCaptions.length} block(s) over the limit`,
     },
     {
@@ -205,8 +210,16 @@ export function validatePlan(
     {
       id: "contrast",
       label: "Readable text contrast",
-      ok: ratio >= 4.5,
-      detail: `${ratio.toFixed(1)}:1 (minimum 4.5:1)`,
+      ok: ratio >= MIN_TEXT_CONTRAST,
+      detail: `${ratio.toFixed(1)}:1 (minimum ${MIN_TEXT_CONTRAST}:1)`,
+    },
+    {
+      id: "contract",
+      label: "Matches the shared design-plan contract",
+      ok: contract.ok,
+      detail: contract.ok
+        ? `${PLAN_SCHEMA_VERSION}: allowlisted parts, A5 bounds, safe text, full influence`
+        : `${contract.errors.length} issue(s). ${where(contract.errors[0].path)}: ${contract.errors[0].message}`,
     },
     {
       id: "current",

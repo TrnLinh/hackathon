@@ -12,8 +12,10 @@ import {
   get,
   jobFixture,
   permissionFixture,
+  planVersions,
   recordEvidence,
   setJobState,
+  templateOrigin,
 } from "./model-fixtures";
 
 const projection = makeFunctionReference<"query">("model/read:projection");
@@ -28,13 +30,8 @@ const templatePlan = (
   retryKey,
   payloadId: f.payloadId,
   contentDigest: "d".repeat(64),
-  schemaVersion: "1",
-  componentVersion: "1",
-  revisionOrigin: {
-    kind: "template",
-    templateId: "six-page",
-    templateVersion: "1",
-  },
+  ...planVersions,
+  revisionOrigin: templateOrigin,
   sourceUses: [{ permissionId, influence: "visible" }],
   derivativeIds: [],
   acceptedText: [],

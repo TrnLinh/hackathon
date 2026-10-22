@@ -5,7 +5,9 @@ import {
   fixture,
   get,
   permissionFixture,
+  planVersions,
   recordEvidence,
+  templateOrigin,
 } from "./model-fixtures";
 import { decisionStatement } from "../src/lib/consent/manifest";
 const prepareManifest = makeFunctionReference<"query">(
@@ -32,13 +34,8 @@ describe("candidate commitments and append-only evidence history", () => {
       retryKey: "plan",
       payloadId: f.payloadId,
       contentDigest: "d".repeat(64),
-      schemaVersion: "1",
-      componentVersion: "1",
-      revisionOrigin: {
-        kind: "template",
-        templateId: "six-page",
-        templateVersion: "1",
-      },
+      ...planVersions,
+      revisionOrigin: templateOrigin,
       sourceUses: [{ permissionId: source.permissionId, influence: "style" }],
       derivativeIds: [],
       acceptedText: [],

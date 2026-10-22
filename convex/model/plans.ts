@@ -2,10 +2,14 @@ import { v } from "convex/values";
 import { requireAllApproved } from "./approval";
 import { internalMutation } from "../_generated/server";
 import {
-  boundedText,
   parseAcceptedText,
   parseSha256Hex,
 } from "../../src/lib/consent/manifest";
+import {
+  SUPPORTED_COMPONENT_VERSIONS,
+  SUPPORTED_SCHEMA_VERSIONS,
+} from "../../src/lib/design-plan/schema";
+import { findTemplate } from "../../src/lib/design-plan/templates";
 import {
   approvers,
   command,
@@ -35,8 +39,13 @@ export const appendPlan = internalMutation({
     recordMutation(ctx, "design-plan", args, async () => {
       await sameCollection(ctx, args.payloadId, args.collectionId);
       parseSha256Hex(args.contentDigest);
-      boundedText(args.schemaVersion);
-      boundedText(args.componentVersion);
+      // The body is ciphertext here: the client runs the full CH-20
+      // validator before saving and again before freezing (CH-10). The
+      // server checks versions, template identity, lineage and approvals.
+      if (!SUPPORTED_SCHEMA_VERSIONS.includes(args.schemaVersion))
+        return fail("UNSUPPORTED_SCHEMA_VERSION");
+      if (!SUPPORTED_COMPONENT_VERSIONS.includes(args.componentVersion))
+        return fail("UNSUPPORTED_COMPONENT_VERSION");
       const parent = args.parentId
         ? await sameCollection(ctx, args.parentId, args.collectionId)
         : null;
@@ -48,8 +57,13 @@ export const appendPlan = internalMutation({
       );
       if (parent) lineage = mergeLineage(parent, lineage);
       if (args.revisionOrigin.kind === "template") {
-        boundedText(args.revisionOrigin.templateId);
-        boundedText(args.revisionOrigin.templateVersion);
+        if (
+          !findTemplate(
+            args.revisionOrigin.templateId,
+            args.revisionOrigin.templateVersion,
+          )
+        )
+          return fail("UNKNOWN_TEMPLATE");
       } else if (args.revisionOrigin.kind === "ai") {
         const job = await completedJob(
           ctx,
@@ -112,7 +126,9 @@ export const appendPlan = internalMutation({
         collectionId: args.collectionId,
         target: id,
         status: "complete",
-        editingMode: "template",
+        // The schema has two modes: AI revisions are "ai"; template and
+        // manual revisions (including Continue manually) are "template".
+        editingMode: args.revisionOrigin.kind === "ai" ? "ai" : "template",
         updatedAt: Date.now(),
       });
       return id;

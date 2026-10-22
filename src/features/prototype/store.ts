@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { PLAN_SCHEMA_VERSION } from "@/lib/design-plan";
 import { createSeedState } from "./fixtures";
 import { buildTemplatePlan, templateById } from "./templates";
 import {
@@ -214,7 +215,8 @@ const STYLE_PRESETS: Record<string, StyleTokens> = {
     name: "Playful zine",
     paper: "#fff7d6",
     ink: "#2b2140",
-    accent: "#ff6b4a",
+    // Display text needs 3:1 on paper (CH-20); #ff6b4a measured 2.6:1.
+    accent: "#e04a2a",
     muted: "#6c9cff",
     headingFont: "hand",
     bodyFont: "sans",
@@ -787,6 +789,16 @@ export const actions = {
         createdAt: now(),
         invalidatedReason: undefined,
       };
+      // Influence never shrinks along a lineage (FR-31): sources removed
+      // from the pages stay as style-only influence and keep their approvers.
+      const parent = d.plans.find((p) => p.id === plan.id);
+      const visible = new Set(planVisibleIds(next));
+      next.styleOnlyIds = Array.from(
+        new Set([
+          ...next.styleOnlyIds,
+          ...(parent ? planInfluenceIds(parent) : []),
+        ]),
+      ).filter((memoryId) => !visible.has(memoryId));
       d.plans.push(next);
       log(d, {
         collectionId: plan.collectionId,
@@ -932,7 +944,7 @@ function buildPlanFromMemories(
     prompt,
     inspiration: `${visuals.length} photos and stills, ${voices.length} transcript${voices.length === 1 ? "" : "s"}, and ${texts.length} stor${texts.length === 1 ? "y" : "ies"} suggested a ${tokens.name.toLowerCase()} direction${prompt ? `, adjusted for “${prompt}”` : ""}. Palette drawn from the dominant tones of the approved photos.`,
     styleOnlyIds: styleOnly,
-    schemaVersion: "design-plan/0.1",
+    schemaVersion: PLAN_SCHEMA_VERSION,
     tokens,
     pages: [
       {

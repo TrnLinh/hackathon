@@ -1,3 +1,4 @@
+import { PLAN_SCHEMA_VERSION } from "@/lib/design-plan";
 import type {
   ApproverDecisions,
   DesignPlan,
@@ -438,7 +439,7 @@ const scrapbookPlan: DesignPlan = {
   inspiration:
     "Golden-hour photos, a cardboard-box move-in, and a voice note about “same pier, same terrible chips” suggested a warm, handmade scrapbook: sunset oranges, taped corners, film-grain edges, and handwritten-style headings.",
   styleOnlyIds: ["m-boxes"],
-  schemaVersion: "design-plan/0.1",
+  schemaVersion: PLAN_SCHEMA_VERSION,
   tokens: {
     name: "Warm scrapbook",
     paper: "#fbf3e6",
@@ -557,7 +558,7 @@ const editorialPlan: DesignPlan = {
   inspiration:
     "High-contrast neon photos and a setlist written at 1am suggested a bold editorial treatment: black paper, magenta and cyan accents, oversized condensed headings, and full-bleed images.",
   styleOnlyIds: [],
-  schemaVersion: "design-plan/0.1",
+  schemaVersion: PLAN_SCHEMA_VERSION,
   tokens: {
     name: "Bold editorial",
     paper: "#111111",
