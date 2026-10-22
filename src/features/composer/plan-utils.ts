@@ -1,4 +1,13 @@
 import {
+  COMPONENT_KINDS,
+  codePoints as countCodePoints,
+  contrastRatio,
+  MIN_TEXT_CONTRAST,
+  PLAN_SCHEMA_VERSION,
+  validatePlan as validateDesignPlan,
+} from "@/lib/design-plan";
+import { contractContext, toContractPlan } from "@/features/prototype/contract";
+import {
   aiEligible,
   LIMITS,
   manualEligible,
@@ -12,47 +21,14 @@ import type {
   Memory,
 } from "@/features/prototype/types";
 
-// Local CH-20 checks for the prototype composer. The real validator must run
-// in the shared contract package before preview and again before freezing.
+// Composer checks. Consent rows are prototype-specific; the "contract" row
+// runs the shared CH-20 validator (src/lib/design-plan) on the adapted plan.
 
-export const ALLOWED_BLOCKS: BlockKind[] = [
-  "cover",
-  "heading",
-  "image",
-  "grid",
-  "collage",
-  "quote",
-  "caption",
-  "note",
-];
+export { contrastRatio };
+export const ALLOWED_BLOCKS: readonly BlockKind[] = COMPONENT_KINDS;
 
 export function codePoints(text: string | undefined) {
-  return Array.from(text ?? "").length;
-}
-
-function luminance(hex: string) {
-  const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
-  const value = Number.parseInt(full.slice(0, 6), 16);
-  if (Number.isNaN(value)) return 0;
-  const channels = [(value >> 16) & 255, (value >> 8) & 255, value & 255].map(
-    (c) => {
-      const s = c / 255;
-      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-    },
-  );
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-export function contrastRatio(a: string, b: string) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+  return countCodePoints(text ?? "");
 }
 
 export const originLabel: Record<DesignPlan["origin"], string> = {
@@ -137,6 +113,11 @@ export function validatePlan(
     return !excerpt || !excerpt.reviewed;
   });
   const ratio = contrastRatio(plan.tokens.ink, plan.tokens.paper);
+  // Empty slots have their own row; the contract row covers the rest.
+  const contract = validateDesignPlan(toContractPlan(plan, memories), {
+    ...contractContext(memories),
+    allowEmptySlots: true,
+  });
 
   return [
     {
@@ -205,8 +186,16 @@ export function validatePlan(
     {
       id: "contrast",
       label: "Readable text contrast",
-      ok: ratio >= 4.5,
-      detail: `${ratio.toFixed(1)}:1 (minimum 4.5:1)`,
+      ok: ratio >= MIN_TEXT_CONTRAST,
+      detail: `${ratio.toFixed(1)}:1 (minimum ${MIN_TEXT_CONTRAST}:1)`,
+    },
+    {
+      id: "contract",
+      label: "Matches the shared design-plan contract",
+      ok: contract.ok,
+      detail: contract.ok
+        ? `${PLAN_SCHEMA_VERSION}: allowlisted parts, A5 bounds, safe text, full influence`
+        : `${contract.errors.length} issue(s): ${contract.errors[0].message}`,
     },
     {
       id: "current",

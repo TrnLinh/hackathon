@@ -2,6 +2,13 @@
 // wired to Convex and Tide-protected operations without renaming concepts.
 // Nothing here enforces consent; it only drives the interface.
 
+import type {
+  ComponentKind,
+  PageLayout,
+  PageRole,
+  StyleTokens,
+} from "@/lib/design-plan";
+
 export type PersonId = string;
 export type CollectionId = string;
 export type MemoryId = string;
@@ -136,15 +143,8 @@ export type Collection = {
   createdAt: string;
 };
 
-export type BlockKind =
-  | "cover"
-  | "heading"
-  | "image"
-  | "grid"
-  | "collage"
-  | "quote"
-  | "caption"
-  | "note";
+/** Allowlisted components from the shared CH-20 contract. */
+export type BlockKind = ComponentKind;
 
 export type Block = {
   id: string;
@@ -161,24 +161,13 @@ export type Block = {
   edited?: boolean;
 };
 
-export type PageRole =
-  "cover" | "opening" | "photos" | "perspectives" | "more" | "closing";
+export type { PageRole, StyleTokens };
 
+/** UI shape of a page; `toContractPlan` adds frames and asset refs. */
 export type Page = {
   role: PageRole;
-  layout: "full" | "split" | "grid" | "collage" | "stack";
+  layout: PageLayout;
   blocks: Block[];
-};
-
-export type StyleTokens = {
-  name: string;
-  paper: string;
-  ink: string;
-  accent: string;
-  muted: string;
-  headingFont: "serif" | "hand" | "grotesk" | "mono";
-  bodyFont: "serif" | "sans";
-  texture: "film" | "tape" | "none" | "grain";
 };
 
 /** Original creation provenance; it survives manual edits (FR-33). */

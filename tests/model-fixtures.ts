@@ -3,6 +3,10 @@ import { makeFunctionReference } from "convex/server";
 import { vi } from "vitest";
 import schema from "../convex/schema";
 import { decisionStatement } from "../src/lib/consent/manifest";
+import {
+  PLAN_COMPONENT_VERSION,
+  PLAN_SCHEMA_VERSION,
+} from "../src/lib/design-plan";
 
 const modules = import.meta.glob("../convex/**/*.ts");
 export const appendVersion = makeFunctionReference<"mutation">(
@@ -20,6 +24,17 @@ export const appendDecision = makeFunctionReference<"mutation">(
 );
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
+
+/** Supported CH-20 versions and a published template for appendPlan args. */
+export const planVersions = {
+  schemaVersion: PLAN_SCHEMA_VERSION,
+  componentVersion: PLAN_COMPONENT_VERSION,
+};
+export const templateOrigin = {
+  kind: "template",
+  templateId: "tpl-scrapbook",
+  templateVersion: "1.0",
+};
 
 /**
  * Records one person's decision with evidence bound to that exact decision
