@@ -139,44 +139,76 @@ function parseRef(key: string): AssetRef | null {
 function isJpeg(bytes: Uint8Array) {
   return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 }
+/** Rejects PNGs whose header declares more than 24 megapixels (decode bomb). */
+function pngWithinLimit(bytes: Uint8Array) {
+  if (bytes.length < 24) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const width = view.getUint32(16);
+  const height = view.getUint32(20);
+  return width > 0 && height > 0 && width * height <= 24_000_000;
+}
 function isPng(bytes: Uint8Array) {
   const magic = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   return magic.every((byte, i) => bytes[i] === byte);
 }
 
 /**
- * pdf-lib embeds JPEG bytes verbatim (DCTDecode), so drop metadata segments
- * (APP1-APP13, APP15: EXIF/GPS, XMP, ICC, maker notes; COM comments) before
- * embedding. APP0 (JFIF) and APP14 (Adobe colour transform) affect decoding
- * and stay. PNGs are decoded and re-encoded by pdf-lib, so their text chunks
- * never reach the PDF.
+ * pdf-lib embeds JPEG bytes verbatim (DCTDecode), so rebuild the file from
+ * only the segments needed to decode it: drop metadata (APP1-APP13, APP15:
+ * EXIF/GPS, XMP, ICC, maker notes; COM comments), including between the scans
+ * of a progressive JPEG, and stop at the end-of-image marker so trailing data
+ * (multi-picture EXIF, gain maps, motion-photo video) never reaches the PDF.
+ * APP0 (JFIF) and APP14 (Adobe colour transform) affect decoding and stay.
+ * Returns null for anything malformed or without an end-of-image marker.
+ * PNGs are decoded and re-encoded by pdf-lib, so their chunks never reach it.
  */
 export function stripJpegMetadata(bytes: Uint8Array): Uint8Array | null {
   const keep: Uint8Array[] = [bytes.subarray(0, 2)];
+  const finish = () => {
+    const out = new Uint8Array(keep.reduce((n, part) => n + part.length, 0));
+    let offset = 0;
+    for (const part of keep) {
+      out.set(part, offset);
+      offset += part.length;
+    }
+    return out;
+  };
   let i = 2;
-  while (i + 4 <= bytes.length) {
+  while (i + 2 <= bytes.length) {
     if (bytes[i] !== 0xff) return null;
     const marker = bytes[i + 1];
     if (marker === 0xff) {
       i += 1; // fill byte
       continue;
     }
-    if (marker === 0xda) {
-      keep.push(bytes.subarray(i));
-      const out = new Uint8Array(keep.reduce((n, part) => n + part.length, 0));
-      let offset = 0;
-      for (const part of keep) {
-        out.set(part, offset);
-        offset += part.length;
-      }
-      return out;
+    if (marker === 0xd9) {
+      keep.push(bytes.subarray(i, i + 2));
+      return finish(); // anything after end-of-image is dropped
     }
+    if (i + 4 > bytes.length) return null;
     const length = (bytes[i + 2] << 8) | bytes[i + 3];
     if (length < 2 || i + 2 + length > bytes.length) return null;
     const metadata =
       (marker >= 0xe1 && marker <= 0xed) || marker === 0xef || marker === 0xfe;
     if (!metadata) keep.push(bytes.subarray(i, i + 2 + length));
     i += 2 + length;
+    if (marker === 0xda) {
+      // Entropy-coded data runs until the next real marker: FF00 is a
+      // stuffed byte and FFD0-FFD7 are restart markers inside the scan.
+      let j = i;
+      while (
+        j + 1 < bytes.length &&
+        !(
+          bytes[j] === 0xff &&
+          bytes[j + 1] !== 0x00 &&
+          !(bytes[j + 1] >= 0xd0 && bytes[j + 1] <= 0xd7)
+        )
+      )
+        j += 1;
+      if (j + 1 >= bytes.length) return null;
+      keep.push(bytes.subarray(i, j));
+      i = j;
+    }
   }
   return null;
 }
@@ -228,7 +260,9 @@ function preflight(
     const ok =
       asset.bytes instanceof Uint8Array &&
       ((asset.mimeType === "image/jpeg" && isJpeg(asset.bytes)) ||
-        (asset.mimeType === "image/png" && isPng(asset.bytes)));
+        (asset.mimeType === "image/png" &&
+          isPng(asset.bytes) &&
+          pngWithinLimit(asset.bytes)));
     const bytes = !ok
       ? null
       : asset.mimeType === "image/jpeg"

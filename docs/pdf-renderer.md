@@ -46,14 +46,14 @@ Failures throw `RenderError` with a `code`; nothing partial is returned, so a fa
 - **Textures.** `film` strokes a `muted` border inset 3 %. `grain` draws a fixed speckle pattern behind the components. `tape` adds a tilted strip on images and the cover.
 - **Metadata.** Title = cover text; Creator `Chorus`; Producer = `RENDERER_VERSION`; CreationDate/ModDate = `RENDERER_EPOCH` (2026-10-22T00:00:00Z); optional Subject. No Author, no XMP, no trailer `/ID`.
 
-Text is drawn literally with `drawText`: nothing in a plan is parsed as markup, and the renderer never calls `fetch`. Fonts come from bundled modules (in the browser, the app's own lazily loaded script chunks, never a plan-controlled URL), and images only from `assets`. JPEG bytes are embedded as-is by pdf-lib, so the renderer first strips APP1–APP13, APP15 and COM segments (EXIF/GPS, XMP, ICC, comments) and keeps only the segments needed for decoding. PNGs are decoded and re-encoded, so their text chunks never reach the PDF.
+Text is drawn literally with `drawText`: nothing in a plan is parsed as markup, and the renderer never calls `fetch`. Fonts come from bundled modules (in the browser, the app's own lazily loaded script chunks, never a plan-controlled URL), and images only from `assets`. JPEG bytes are embedded as-is by pdf-lib, so the renderer first strips APP1–APP13, APP15 and COM segments (EXIF/GPS, XMP, ICC, comments) and keeps only the segments needed for decoding, including between progressive scans; everything after the end-of-image marker (multi-picture EXIF, gain maps, motion-photo video) is dropped, and a JPEG without one is rejected. PNGs over 24 megapixels are rejected before decoding. PNGs are decoded and re-encoded, so their text chunks never reach the PDF.
 
 ## Determinism
 
 Identical plan, assets (by content; map order is irrelevant), options and `RENDERER_VERSION` give byte-identical PDFs. The tests check this and pin the two fixtures' digests. The same digests came out of separate Node processes and of an esbuild browser bundle (code-split font chunks) in headless Chrome 155. The rules:
 
 - Fixed CreationDate/ModDate/Producer/Creator, `updateMetadata: false` and no trailer `/ID`.
-- pdf-lib's only randomness (font subset and resource name suffixes) comes from a PRNG seeded with a constant; fonts and images embed in first-use order, which follows the plan.
+- pdf-lib's only randomness (font subset and resource name suffixes) comes from a PRNG seeded with a constant, but that PRNG uses `Math.sin`, so those names are only proven identical in V8 (Node and Chrome); other engines are untested. Frozen bytes are stored, so this never changes an issued edition. Fonts and images embed in first-use order, which follows the plan.
 - `save({ useObjectStreams: false, addDefaultPage: false, updateFieldAppearances: false })`: classic cross-reference table, stable object order.
 - Geometry uses only `+ − × ÷`, rounded to 0.001 pt. Tilts use literal cos/sin constants instead of `Math.cos`/`Math.sin`, whose last bits differ between JavaScript engines. The grain pattern uses an integer PRNG.
 - Text is NFC-normalized before measuring and drawing.

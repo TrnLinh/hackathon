@@ -202,6 +202,30 @@ describe("CH-10 PDF renderer", () => {
     expect(result.digest).toBe((await render(warmScrapbook)).digest);
   });
 
+  it("drops data appended after the end-of-image marker", async () => {
+    // Multi-picture JPEGs, gain maps and motion photos append data after EOI.
+    const trailer = new TextEncoder().encode("Exif\0\0GPS 48.8584N 2.2945E");
+    const appended = new Uint8Array([...tinyJpeg, 0xff, 0xd8, ...trailer]);
+    const assets = fixtureAssets().set("version:ver-kitchen", {
+      bytes: appended,
+      mimeType: "image/jpeg",
+    });
+    const result = await render(warmScrapbook, assets);
+    expect(Buffer.from(result.bytes).includes("GPS 48.8584N")).toBe(false);
+    expect(result.digest).toBe((await render(warmScrapbook)).digest);
+  });
+
+  it("rejects a JPEG without an end-of-image marker", async () => {
+    const truncated = tinyJpeg.subarray(0, tinyJpeg.length - 2);
+    const assets = fixtureAssets().set("version:ver-kitchen", {
+      bytes: truncated,
+      mimeType: "image/jpeg",
+    });
+    expect((await rejection(render(warmScrapbook, assets))).code).toBe(
+      "INVALID_ASSET",
+    );
+  });
+
   it("fails clearly when a placed image is missing", async () => {
     const assets = fixtureAssets();
     assets.delete("derivative:drv-still-dance");
