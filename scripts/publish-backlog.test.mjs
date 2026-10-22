@@ -18,6 +18,7 @@ function fixture() {
     milestones: [],
     nextNumber: 101,
     failAfterCreating: null,
+    failAfterUpdating: null,
   };
   const listForRepo = async () => state.issues;
   const listLabelsForRepo = async () => state.labels;
@@ -53,11 +54,20 @@ function fixture() {
           }
           return { data };
         },
-        update: async ({ issue_number, body }) => {
+        get: async ({ issue_number }) => ({
+          data: structuredClone(
+            state.issues.find((issue) => issue.number === issue_number),
+          ),
+        }),
+        update: async ({ issue_number, ...params }) => {
           const data = state.issues.find(
             (issue) => issue.number === issue_number,
           );
-          data.body = body;
+          Object.assign(data, params);
+          if (data.title.startsWith(state.failAfterUpdating ?? "NEVER")) {
+            state.failAfterUpdating = null;
+            throw new Error("Response lost after GitHub updated the issue");
+          }
           return { data };
         },
       },
@@ -143,4 +153,110 @@ test("rejects missing dependencies, duplicate IDs, and dependency cycles before 
   const cycle = structuredClone(source);
   cycle.issues[0].dependsOn = ["CH-02"];
   assert.throws(() => validateBacklog(cycle), /Dependency cycle/);
+});
+
+test("explicit revisions preserve active CH-01, previous notes, completed criteria, state, and custom labels", async () => {
+  const { state, options } = fixture();
+  const legacy = structuredClone(source);
+  delete legacy.revision;
+  legacy.issues = legacy.issues.filter(
+    (issue) => !["CH-19", "CH-20"].includes(issue.id),
+  );
+  for (const issue of legacy.issues) {
+    issue.dependsOn = issue.dependsOn.filter(
+      (id) => !["CH-19", "CH-20"].includes(id),
+    );
+  }
+  await publishBacklog({ ...options, backlog: legacy });
+  const active = state.issues.find((issue) =>
+    issue.title.startsWith("[CH-01]"),
+  );
+  active.body += "\n\nIn progress: keep these auth implementation notes.";
+  active.assignees = ["developer"];
+  const activeBefore = structuredClone(active);
+  const ai = state.issues.find((issue) => issue.title.startsWith("[CH-18]"));
+  const criterion = source.issues.find((issue) => issue.id === "CH-18")
+    .acceptance[0];
+  ai.body = ai.body.replace(`- [ ] ${criterion}`, `- [x] ${criterion}`);
+  ai.body += "\n\nDeveloper notes about an existing experiment.";
+  ai.state = "closed";
+  ai.assignees = ["another-developer"];
+  ai.labels = [{ name: "team:design" }, { name: "priority:P2" }];
+  const previous = ai.body;
+  const result = await publishBacklog(options);
+  assert.deepEqual(active, activeBefore);
+  assert.ok(result.created.includes("CH-19"));
+  assert.ok(result.created.includes("CH-20"));
+  assert.ok(result.updated.includes("CH-18"));
+  assert.ok(!result.updated.includes("CH-01"));
+  assert.ok(
+    ai.body.includes(
+      previous.replace(/<!-- chorus-backlog:v1:CH-18 -->\s*/, ""),
+    ),
+  );
+  assert.ok(ai.body.includes(`- [x] ${criterion}`));
+  assert.equal(ai.state, "closed");
+  assert.deepEqual(ai.assignees, ["another-developer"]);
+  assert.ok(ai.labels.includes("team:design"));
+  assert.ok(ai.labels.includes("priority:P1"));
+  assert.ok(!ai.labels.includes("priority:P2"));
+  const completed = structuredClone(state.issues);
+  const repeat = await publishBacklog(options);
+  assert.deepEqual(repeat.created, []);
+  assert.deepEqual(repeat.updated, []);
+  assert.deepEqual(state.issues, completed);
+});
+
+test("resumes a revision after a lost update response without nesting historical copies", async () => {
+  const { state, options } = fixture();
+  await publishBacklog(options);
+  const ai = state.issues.find((issue) => issue.title.startsWith("[CH-18]"));
+  ai.body = ai.body.replace(
+    `<!-- chorus-backlog:revision:${source.revision.id} -->`,
+    "",
+  );
+  state.failAfterUpdating = "[CH-18]";
+  await assert.rejects(
+    publishBacklog(options),
+    /Response lost after GitHub updated/,
+  );
+  const updated = ai.body;
+  const resumed = await publishBacklog(options);
+  assert.deepEqual(resumed.updated, []);
+  assert.equal(ai.body, updated);
+  assert.equal(ai.body.match(/<details>/g).length, 1);
+});
+
+test("rejects invalid revision targets before publication", () => {
+  const invalid = structuredClone(source);
+  invalid.revision.issueIds.push("CH-99");
+  assert.throws(() => validateBacklog(invalid), /Invalid backlog revision/);
+});
+
+test("a later revision uses its document version and does not restore historical completion marks", async () => {
+  const { state, options } = fixture();
+  await publishBacklog(options);
+  const ai = state.issues.find((issue) => issue.title.startsWith("[CH-18]"));
+  const criterion = source.issues.find((issue) => issue.id === "CH-18")
+    .acceptance[0];
+  ai.body += `\n\n<details>\n<summary>Previous description and implementation notes (historical scope)</summary>\n\n- [x] ${criterion}\n\nOld notes with \`\`\`code fences\`\`\`.\n</details>`;
+  const previous = ai.body;
+  const revised = structuredClone(source);
+  revised.revision = {
+    id: "next-revision-test",
+    documentVersion: "0.2.2",
+    summary: "Synthetic revision for preservation checks.",
+    issueIds: ["CH-18"],
+  };
+  await publishBacklog({ ...options, backlog: revised });
+  const current = ai.body.slice(0, ai.body.indexOf("<details>"));
+  assert.ok(current.includes(`- [ ] ${criterion}`));
+  assert.ok(!current.includes(`- [x] ${criterion}`));
+  assert.ok(current.includes("Current scope: product/SRD v0.2.2"));
+  assert.ok(
+    ai.body.includes(
+      previous.replace(/<!-- chorus-backlog:v1:CH-18 -->\s*/, ""),
+    ),
+  );
+  assert.ok(ai.body.includes("````markdown"));
 });

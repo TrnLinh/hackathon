@@ -2,6 +2,10 @@ import { readFile } from "node:fs/promises";
 
 const markerFor = (id) => `<!-- chorus-backlog:v1:${id} -->`;
 const trackerDraft = "<!-- chorus-backlog:tracker-draft -->";
+const historyHeader =
+  "<details>\n<summary>Previous description and implementation notes (historical scope)</summary>";
+const revisionMarker = (backlog) =>
+  backlog.revision && `<!-- chorus-backlog:revision:${backlog.revision.id} -->`;
 
 export function validateBacklog(backlog) {
   if (backlog.version !== 1 || !/^[\w.-]+\/[\w.-]+$/.test(backlog.repository)) {
@@ -44,7 +48,65 @@ export function validateBacklog(backlog) {
     ordered.push(issue);
   }
   for (const issue of backlog.issues) visit(issue);
+  if (backlog.revision) {
+    const { id, summary, issueIds, documentVersion } = backlog.revision;
+    if (
+      !/^[a-z0-9-]+$/.test(id) ||
+      !summary ||
+      (documentVersion !== undefined &&
+        !/^\d+\.\d+(\.\d+)?$/.test(documentVersion)) ||
+      !Array.isArray(issueIds) ||
+      new Set(issueIds).size !== issueIds.length ||
+      issueIds.some(
+        (target) => !known.has(target) && target !== backlog.tracking.id,
+      )
+    ) {
+      throw new Error("Invalid backlog revision or target issue IDs.");
+    }
+  }
   return ordered;
+}
+
+function currentBody(body, backlog) {
+  return revisionMarker(backlog)
+    ? `${body}\n\n${revisionMarker(backlog)}`
+    : body;
+}
+
+function revisedBody(body, previous, backlog) {
+  const historyStart = previous.indexOf(historyHeader);
+  const activePrevious =
+    historyStart < 0 ? previous : previous.slice(0, historyStart);
+  const completed = new Set(
+    [...activePrevious.matchAll(/^- \[[xX]\] (.+)$/gm)].map(
+      (match) => match[1],
+    ),
+  );
+  const completedTickets = new Set(
+    [...activePrevious.matchAll(/^- \[[xX]\] \[(CH-\d{2})\b/gm)].map(
+      (match) => match[1],
+    ),
+  );
+  body = body.replace(/^- \[ \] (.+)$/gm, (line, text) =>
+    completed.has(text) ||
+    completedTickets.has(text.match(/^\[(CH-\d{2})\b/)?.[1])
+      ? `- [x] ${text}`
+      : line,
+  );
+  // Keep old checklists as historical text, not active GitHub task lists.
+  const fence = "`".repeat(
+    Math.max(
+      3,
+      ...[...previous.matchAll(/`+/g)].map((match) => match[0].length + 1),
+    ),
+  );
+  return [
+    currentBody(body, backlog),
+    `> **Current scope: product/SRD v${backlog.revision.documentVersion ?? "0.2"}.** ${backlog.revision.summary} The scope above supersedes the earlier description retained below. Existing comments, status, and assignments remain in place.`,
+    `${historyHeader}\n\n${fence}markdown`,
+    previous.replace(/<!-- chorus-backlog:v1:CH-\d{2} -->\s*/, ""),
+    `${fence}\n\n</details>`,
+  ].join("\n\n");
 }
 
 export function renderIssue(issue, backlog, byId) {
@@ -84,7 +146,7 @@ export function renderIssue(issue, backlog, byId) {
 function renderTracker(backlog, byId) {
   const lines = [
     markerFor(backlog.tracking.id),
-    "Deliver a collaborative six-page photozine with real contributor-controlled source release, final edition approval, and offline PDF download.",
+    "Deliver an AI-designed six-page photozine from shared images, voice notes, videos, and stories, with contributor-controlled source/processor release, final edition approval, and offline PDF download.",
     "The Next.js, Convex, shadcn/ui, and TanStack Router starter is already on main. The issues below cover the remaining implementation.",
     "## Priorities and completion",
     "P0 identifies consent and integration gates. P1 completes the required product and demonstration. Follow dependencies rather than sorting only by priority. P2 is optional stretch work.",
@@ -106,7 +168,7 @@ function renderTracker(backlog, byId) {
   }
   lines.push(
     "## Delivery guidance",
-    "Start with CH-01 and CH-02. Do not polish the composer around a simulated consent policy. Treat CH-18 as optional and keep the manual path complete.",
+    "CH-01 is underway and its authentication scope is unchanged. CH-20 design contracts and CH-21 self-hosted cloud inference can start in parallel using synthetic fixtures. Prove CH-02 before protected product flows. CH-18 is required AI design; CH-19 supplies consented derivatives. Both integrate CH-21's authenticated inference endpoints. CH-09 and CH-18 can proceed in parallel once their own dependencies are met. CH-10 integrates both before final approval. Keep a complete manual recovery path; manual-only does not satisfy the AI requirement.",
   );
   return lines.join("\n\n");
 }
@@ -218,7 +280,7 @@ export async function publishBacklog({
       owner,
       repo,
       title: `[${issue.id}] ${issue.title}`,
-      body: renderIssue(issue, backlog, byId),
+      body: currentBody(renderIssue(issue, backlog, byId), backlog),
       labels: [
         `priority:${issue.priority}`,
         `area:${issue.area}`,
@@ -236,19 +298,58 @@ export async function publishBacklog({
       owner,
       repo,
       issue_number: tracker.number,
-      body: renderTracker(backlog, byId),
+      body: currentBody(renderTracker(backlog, byId), backlog),
     });
+  }
+  const updated = [];
+  for (const id of backlog.revision?.issueIds ?? []) {
+    const published = byId.get(id);
+    if (created.includes(id)) continue;
+    // Refresh immediately before editing so recent notes/checks are retained.
+    const { data: latest } = await github.rest.issues.get({
+      owner,
+      repo,
+      issue_number: published.number,
+    });
+    if (latest.body?.includes(revisionMarker(backlog))) continue;
+    const issue = backlog.issues.find((item) => item.id === id);
+    const generated = issue
+      ? renderIssue(issue, backlog, byId)
+      : renderTracker(backlog, byId);
+    const params = {
+      owner,
+      repo,
+      issue_number: latest.number,
+      title: `[${id}] ${issue?.title ?? backlog.tracking.title}`,
+      body: revisedBody(generated, latest.body ?? "", backlog),
+    };
+    if (issue) {
+      const retainedLabels = (latest.labels ?? [])
+        .map((label) => (typeof label === "string" ? label : label.name))
+        .filter((name) => !/^(priority|area|type):/.test(name));
+      params.labels = [
+        ...retainedLabels,
+        `priority:${issue.priority}`,
+        `area:${issue.area}`,
+        `type:${issue.type}`,
+      ];
+      params.milestone = milestones.get(issue.milestone);
+    }
+    await github.rest.issues.update(params);
+    updated.push(id);
+    await pause();
   }
   const result = {
     repository: backlog.repository,
     created,
+    updated,
     issues: [backlog.tracking, ...backlog.issues].map(({ id }) => {
       const issue = byId.get(id);
       return { id, number: issue.number, url: issue.html_url };
     }),
   };
   core.info(
-    `Backlog ready: ${result.issues.length} issues; ${created.length} created in this run. Existing issues were preserved.`,
+    `Backlog ready: ${result.issues.length} issues; ${created.length} created; ${updated.length} explicitly revised. Other issue text and all issue states/assignments were preserved.`,
   );
   return result;
 }
