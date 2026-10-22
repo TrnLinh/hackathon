@@ -120,11 +120,7 @@ const composeRoute = createRoute({
   path: "/compose",
   component: function ComposeRoute() {
     const { collectionId } = collectionRoute.useParams();
-    return (
-      <PrototypeOnly>
-        <ComposerPage collectionId={collectionId} />
-      </PrototypeOnly>
-    );
+    return <ComposerPage collectionId={collectionId} />;
   },
 });
 const editionRoute = createRoute({

@@ -146,7 +146,9 @@ export async function recordMutation<T extends string>(
     inputDigest,
     resultId,
   });
-  const sequence = collection.eventSequence + 1;
+  // Re-read: nested recordMutation calls inside write() may have advanced it.
+  const current = await ctx.db.get(collection._id);
+  const sequence = (current?.eventSequence ?? collection.eventSequence) + 1;
   await ctx.db.patch(collection._id, { eventSequence: sequence });
   await ctx.db.insert("auditEvents", {
     ...base,

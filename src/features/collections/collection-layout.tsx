@@ -64,8 +64,8 @@ export function PrototypeOnly({ children }: { children: ReactNode }) {
       icon={<Images className="size-5" aria-hidden="true" />}
       title="Not connected to the backend yet"
     >
-      Composing, editions and history still run on prototype data. Open a
-      prototype demo collection from Your collections to try them.
+      Editions and history still run on prototype data. Open a prototype demo
+      collection from Your collections to try them.
     </EmptyState>
   );
 }
@@ -125,7 +125,10 @@ function ConvexCollectionLayout({ collectionId }: { collectionId: string }) {
         <CollectionTabs
           collectionId={collectionId}
           tabs={tabs.filter(
-            (t) => t.label === "Memories" || t.label === "Members",
+            (t) =>
+              t.label === "Memories" ||
+              t.label === "Members" ||
+              t.label === "Compose",
           )}
         />
         <Outlet />
