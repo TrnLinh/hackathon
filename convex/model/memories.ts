@@ -11,6 +11,22 @@ import {
 } from "./common";
 import { mediaKind } from "./validators";
 
+/**
+ * Creates the contribution record; the first version follows in the same
+ * transaction. requestDigest binds the whole public request to the retry key.
+ */
+export const createMemory = internalMutation({
+  args: { ...command, requestDigest: v.string() },
+  handler: (ctx, args) =>
+    recordMutation(ctx, "memory-create", args, () =>
+      ctx.db.insert("memories", {
+        collectionId: args.collectionId,
+        uploaderId: args.actorId,
+        createdAt: Date.now(),
+      }),
+    ),
+});
+
 export const appendVersion = internalMutation({
   args: {
     ...command,
