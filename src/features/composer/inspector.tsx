@@ -96,7 +96,7 @@ export function BlockInspector({
           className="mt-0.5 size-3.5 shrink-0"
           aria-hidden="true"
         />
-        Select a block on the page to edit its text, attribution, or photo.
+        Click anything on the page to edit it.
       </div>
     );
 
@@ -179,10 +179,6 @@ export function BlockInspector({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Excerpts are typed by a contributor while listening, or transcribed
-            by AI when it was allowed. Either way they are reviewed first.
-          </p>
         </div>
       )}
 
@@ -246,9 +242,6 @@ export function BlockInspector({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[11px] text-muted-foreground">
-            New attributed text adds that person as a final approver.
-          </p>
         </div>
       )}
 
@@ -298,10 +291,6 @@ export function BlockInspector({
               </Select>
             </>
           )}
-          <p className="text-[11px] text-muted-foreground">
-            Only memories approved for you as editor are listed, including
-            manual-only memories.
-          </p>
         </div>
       )}
 
@@ -452,12 +441,6 @@ export function PlanProvenance({
         <dt>Schema</dt>
         <dd className="text-foreground">{plan.schemaVersion}</dd>
       </dl>
-      {hasAiLineage(plan) && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Manual edits keep this AI lineage. Every source that shaped the
-          design, including style-only ones, still needs final approval.
-        </p>
-      )}
     </section>
   );
 }
@@ -626,10 +609,6 @@ export function StyleControls({
           </Select>
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Fonts and textures are bundled renderer assets. Plans cannot load
-        external fonts or images.
-      </p>
     </section>
   );
 }
@@ -677,10 +656,6 @@ export function ValidationList({ rows }: { rows: ValidationRow[] }) {
           </li>
         ))}
       </ul>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Prototype checks run in this browser. The real validator also runs
-        before freezing, and only protected release decides access.
-      </p>
     </section>
   );
 }

@@ -2,7 +2,6 @@ import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-  BookOpenCheck,
   ChevronLeft,
   ChevronRight,
   Hand,
@@ -12,9 +11,15 @@ import {
   Undo2,
 } from "lucide-react";
 import { MemoryThumb } from "@/components/chorus/memory-thumb";
-import { TrustNote } from "@/components/chorus/page-header";
 import { pageRoleLabel, ZinePage } from "@/components/chorus/zine-page";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
@@ -34,7 +39,7 @@ import type {
   Person,
   StyleTokens,
 } from "@/features/prototype/types";
-import { AiPanel, RevisionList } from "./ai-panel";
+import { AiPanel } from "./ai-panel";
 import {
   BlockInspector,
   PlanProvenance,
@@ -42,7 +47,12 @@ import {
   ValidationList,
 } from "./inspector";
 import { ModeChooser } from "./mode-chooser";
-import { computeBudget, hasAiLineage, validatePlan } from "./plan-utils";
+import {
+  computeBudget,
+  hasAiLineage,
+  originLabel,
+  validatePlan,
+} from "./plan-utils";
 import { BudgetPanel, SourcesPanel } from "./sources-panel";
 
 // CH-09 composer over the CH-20 plan contract. Edits stay in a local working
@@ -50,6 +60,7 @@ import { BudgetPanel, SourcesPanel } from "./sources-panel";
 // immutable revision. A draft is never an approved edition.
 
 type Draft = { baseId: string | null; plan: DesignPlan };
+type Panel = "edit" | "style" | "checks" | "info";
 
 const draftKey = (collectionId: string) =>
   `chorus-composer-draft:${collectionId}`;
@@ -118,7 +129,7 @@ function InspirationCard({
     .map((id) => memories.find((m) => m.id === id))
     .filter((m): m is Memory => Boolean(m));
   return (
-    <Card className="space-y-3">
+    <section className="space-y-3">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <Lightbulb className="size-4 text-primary" aria-hidden="true" />
         Inspiration · {plan.tokens.name}
@@ -126,7 +137,7 @@ function InspirationCard({
       <p className="text-sm leading-relaxed text-muted-foreground">
         {plan.inspiration}
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-3">
         <div>
           <p className="mb-1.5 text-xs font-medium">
             On the pages ({visible.length})
@@ -162,13 +173,9 @@ function InspirationCard({
           ) : (
             <p className="text-xs text-muted-foreground">None</p>
           )}
-          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            Style-only sources shaped the palette or layout without appearing on
-            a page. Their contributors still approve the final edition.
-          </p>
         </div>
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -277,6 +284,7 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
   const [savedRevision, setSavedRevision] = useState<number | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [panel, setPanel] = useState<Panel>("edit");
 
   const collection = state.collections.find((c) => c.id === collectionId);
   const memories = useMemo(
@@ -425,130 +433,133 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
     setSelectedBlockId(undefined);
   }
 
-  const aiPanel = (
-    <AiPanel
-      collectionId={collectionId}
-      aiEnabled={aiEnabled}
-      designer={designer}
-      jobs={jobs}
-      eligibleCount={eligible.length}
-      overBudget={budget.over.length > 0}
-      hasPlan={plans.length > 0}
-      onManual={continueManually}
-    />
+  const failing = validation.filter((r) => !r.ok).length;
+
+  const toolbar = plan && (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">
+      {plans.length > 0 && (
+        <Select
+          value={draft ? "" : (basePlan?.id ?? "")}
+          onValueChange={selectRevision}
+        >
+          <SelectTrigger aria-label="Design revision" className="h-8 w-56">
+            <SelectValue
+              placeholder={
+                draftBase
+                  ? `Editing revision ${draftBase.revision}`
+                  : "Unsaved design"
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {sorted.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                Rev {p.revision} · {originLabel[p.origin]} · {p.tokens.name}
+                {p.invalidatedReason ? " · invalid" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      <span
+        role="status"
+        className={cn(
+          "rounded-full px-2 py-0.5 text-xs",
+          draft
+            ? "bg-[var(--status-awaiting)]/10 text-[var(--status-awaiting)]"
+            : "bg-muted text-muted-foreground",
+        )}
+      >
+        {draft ? "Unsaved" : "Saved"}
+      </span>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        {draft ? (
+          <>
+            <Button size="sm" variant="ghost" onClick={discard}>
+              <Undo2 aria-hidden="true" />
+              Discard
+            </Button>
+            <Button size="sm" onClick={save} disabled={!allPass}>
+              <Save aria-hidden="true" />
+              Save
+            </Button>
+          </>
+        ) : (
+          <>
+            {hasAiLineage(plan) && (
+              <Button size="sm" variant="ghost" onClick={continueManually}>
+                <Hand aria-hidden="true" />
+                Edit by hand
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={openChooser}>
+              <LayoutTemplate aria-hidden="true" />
+              New design
+            </Button>
+            {allPass && (
+              <Button asChild size="sm">
+                <Link
+                  to="/collections/$collectionId/edition"
+                  params={{ collectionId }}
+                >
+                  Freeze
+                  <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+      {failing > 0 && (
+        <button
+          type="button"
+          onClick={() => setPanel("checks")}
+          className="w-full text-left text-xs text-[var(--status-excluded)] underline-offset-4 hover:underline"
+        >
+          {failing} check{failing === 1 ? "" : "s"} failing
+          {plan.invalidatedReason ? ` · ${plan.invalidatedReason}` : ""}
+        </button>
+      )}
+      {savedRevision !== null && !draft && (
+        <p className="w-full text-xs text-[var(--status-available)]">
+          Saved as revision {savedRevision}.
+        </p>
+      )}
+    </div>
   );
 
   const leftRail = (
-    <div className="space-y-5">
-      <Card>{aiPanel}</Card>
+    <div className="space-y-4">
       {aiEnabled && (
         <Card>
-          <BudgetPanel budget={budget} />
-        </Card>
-      )}
-      {plans.length > 0 && (
-        <Card>
-          <RevisionList
-            plans={plans}
-            selectedId={draft ? undefined : basePlan?.id}
-            onSelect={selectRevision}
+          <AiPanel
+            collectionId={collectionId}
+            aiEnabled={aiEnabled}
+            designer={designer}
+            jobs={jobs}
+            eligibleCount={eligible.length}
+            overBudget={budget.over.length > 0}
+            hasPlan={plans.length > 0}
+            onManual={continueManually}
           />
+          <details className="mt-3 border-t pt-3">
+            <summary className="cursor-pointer text-xs text-muted-foreground">
+              AI budget
+            </summary>
+            <div className="mt-3">
+              <BudgetPanel budget={budget} />
+            </div>
+          </details>
         </Card>
       )}
       <Card>
-        <h3 className="mb-3 text-sm font-semibold">Sources</h3>
+        <h3 className="mb-3 text-sm font-semibold">Memories</h3>
         <SourcesPanel
           memories={memories}
           plan={plan}
           collectionId={collectionId}
         />
       </Card>
-    </div>
-  );
-
-  const toolbar = plan && (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
-      <p className="text-sm" role="status">
-        {draft ? (
-          <>
-            <span className="font-medium">Unsaved changes</span>
-            <span className="text-muted-foreground">
-              {" "}
-              ·{" "}
-              {draftBase
-                ? `based on revision ${draftBase.revision}`
-                : "new design"}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="font-medium">Revision {plan.revision}</span>
-            <span className="text-muted-foreground">
-              {" "}
-              · saved, read-only until you edit
-            </span>
-          </>
-        )}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {draft && (
-          <>
-            <Button size="sm" variant="ghost" onClick={discard}>
-              <Undo2 aria-hidden="true" />
-              Discard changes
-            </Button>
-            <Button size="sm" onClick={save} disabled={!allPass}>
-              <Save aria-hidden="true" />
-              Save as new revision
-            </Button>
-          </>
-        )}
-        {!draft && hasAiLineage(plan) && (
-          <Button size="sm" variant="outline" onClick={continueManually}>
-            <Hand aria-hidden="true" />
-            Continue manually
-          </Button>
-        )}
-        <Button size="sm" variant="outline" onClick={openChooser}>
-          <LayoutTemplate aria-hidden="true" />
-          New design
-        </Button>
-      </div>
-      {!draft && hasAiLineage(plan) && (
-        <p className="w-full text-xs leading-relaxed text-muted-foreground">
-          Continue manually keeps this accepted design, its assets and text, and
-          its full AI and style-source lineage. Style-only sources still need
-          final approval. It works whether or not AI is on.
-        </p>
-      )}
-      {draft && !allPass && (
-        <p className="w-full text-xs text-[var(--status-excluded)]">
-          Fix the failing plan checks before saving.
-          {plan.invalidatedReason &&
-            " This design depends on a source that changed or was withdrawn: start a new design from a template, or generate again if AI is on."}
-        </p>
-      )}
-    </div>
-  );
-
-  const freezeCallout = plan && !draft && allPass && (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--status-available)]/30 bg-[var(--status-available)]/5 px-4 py-3">
-      <p className="flex items-center gap-2 text-sm">
-        <BookOpenCheck
-          className="size-4 text-[var(--status-available)]"
-          aria-hidden="true"
-        />
-        <span>
-          <span className="font-medium">Ready to freeze.</span>{" "}
-          {savedRevision !== null && `Saved as revision ${savedRevision}. `}
-          Freezing creates an exact PDF candidate for final approval.
-        </span>
-      </p>
-      <Button asChild size="sm" variant="outline">
-        <Link to="/collections/$collectionId/edition" params={{ collectionId }}>
-          Go to edition <ArrowRight aria-hidden="true" />
-        </Link>
-      </Button>
     </div>
   );
 
@@ -582,118 +593,89 @@ export function ComposerPage({ collectionId }: { collectionId: string }) {
 
   const center =
     plan && !choosing ? (
-      <div className="space-y-5">
-        {toolbar}
-        {freezeCallout}
-        <PagePreview
-          plan={plan}
-          memories={memories}
-          people={people}
-          pageIndex={Math.min(pageIndex, plan.pages.length - 1)}
-          onPage={goToPage}
-          selectedBlockId={selectedBlockId}
-          onSelectBlock={setSelectedBlockId}
-        />
-        <InspirationCard plan={plan} memories={memories} />
-      </div>
+      <PagePreview
+        plan={plan}
+        memories={memories}
+        people={people}
+        pageIndex={Math.min(pageIndex, plan.pages.length - 1)}
+        onPage={goToPage}
+        selectedBlockId={selectedBlockId}
+        onSelectBlock={(id) => {
+          setSelectedBlockId(id);
+          setPanel("edit");
+        }}
+      />
     ) : (
       chooser
     );
 
-  const inspector = plan && (
-    <Card>
-      <BlockInspector
-        block={selectedBlock}
-        memories={memories}
-        people={people}
-        collectionId={collectionId}
-        onChange={updateBlock}
-        onRemove={removeBlock}
-        canRemove={(currentPage?.blocks.length ?? 0) > 1}
-      />
+  const rightPanel = plan && (
+    <Card className="p-3">
+      <Tabs value={panel} onValueChange={(v) => setPanel(v as Panel)}>
+        <TabsList className="w-full">
+          <TabsTrigger value="edit">Edit</TabsTrigger>
+          <TabsTrigger value="style">Style</TabsTrigger>
+          <TabsTrigger value="checks">
+            Checks
+            {failing > 0 && (
+              <span className="ml-1 rounded-full bg-[var(--status-excluded)] px-1.5 text-[10px] text-white">
+                {failing}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="info">Info</TabsTrigger>
+        </TabsList>
+        <TabsContent value="edit" className="pt-3">
+          <BlockInspector
+            block={selectedBlock}
+            memories={memories}
+            people={people}
+            collectionId={collectionId}
+            onChange={updateBlock}
+            onRemove={removeBlock}
+            canRemove={(currentPage?.blocks.length ?? 0) > 1}
+          />
+        </TabsContent>
+        <TabsContent value="style" className="pt-3">
+          <StyleControls tokens={plan.tokens} onChange={updateTokens} />
+        </TabsContent>
+        <TabsContent value="checks" className="pt-3">
+          <ValidationList rows={validation} />
+        </TabsContent>
+        <TabsContent value="info" className="space-y-5 pt-3">
+          <PlanProvenance plan={plan} isDraft={Boolean(draft)} />
+          <InspirationCard plan={plan} memories={memories} />
+        </TabsContent>
+      </Tabs>
     </Card>
-  );
-
-  const provenance = plan && (
-    <Card>
-      <PlanProvenance plan={plan} isDraft={Boolean(draft)} />
-    </Card>
-  );
-
-  const styleAndChecks = plan && (
-    <>
-      <Card>
-        <StyleControls tokens={plan.tokens} onChange={updateTokens} />
-      </Card>
-      <Card>
-        <ValidationList rows={validation} />
-      </Card>
-    </>
-  );
-
-  const trustNotes = (
-    <div className="space-y-2">
-      <TrustNote>
-        AI returns a structured design plan only. It never supplies code,
-        external URLs, or the final PDF; a validated local renderer builds every
-        page.
-      </TrustNote>
-      <TrustNote>
-        Templates are a complete path on their own and never contact a model. AI
-        is optional for each design and can be turned off by an operator without
-        affecting templates, accepted designs, or approvals. Declined,
-        withdrawn, or pending memories never appear in or influence the design.
-      </TrustNote>
-      <TrustNote>
-        Prototype: designs are simulated in this browser and no processor is
-        contacted.
-      </TrustNote>
-    </div>
   );
 
   if (!collection) return null;
 
   if (isDesktop)
     return (
-      <div className="grid grid-cols-[260px_minmax(0,1fr)_280px] gap-6">
-        <aside aria-label="Sources and AI" className="min-w-0">
-          {leftRail}
-        </aside>
-        <section aria-label="Pages" className="min-w-0">
-          {center}
-        </section>
-        <aside aria-label="Inspector and style" className="min-w-0 space-y-5">
-          {inspector}
-          {provenance}
-          {styleAndChecks}
-          {trustNotes}
-        </aside>
+      <div className="space-y-4">
+        {!choosing && toolbar}
+        <div className="grid grid-cols-[240px_minmax(0,1fr)_300px] gap-5">
+          <aside aria-label="Memories" className="min-w-0">
+            {leftRail}
+          </aside>
+          <section aria-label="Pages" className="min-w-0">
+            {center}
+          </section>
+          <aside aria-label="Edit and style" className="min-w-0">
+            {!choosing && rightPanel}
+          </aside>
+        </div>
       </div>
     );
 
   return (
-    <Tabs defaultValue="pages">
-      <TabsList className="w-full">
-        <TabsTrigger value="pages">Pages</TabsTrigger>
-        <TabsTrigger value="sources">Sources</TabsTrigger>
-        <TabsTrigger value="style">Style</TabsTrigger>
-      </TabsList>
-      <TabsContent value="pages" className="space-y-5 pt-2">
-        {center}
-        {inspector}
-        {provenance}
-      </TabsContent>
-      <TabsContent value="sources" className="pt-2">
-        {leftRail}
-      </TabsContent>
-      <TabsContent value="style" className="space-y-5 pt-2">
-        {styleAndChecks ?? (
-          <p className="text-sm text-muted-foreground">
-            Start a design from a template to adjust its style.
-          </p>
-        )}
-        {trustNotes}
-      </TabsContent>
-    </Tabs>
+    <div className="space-y-4">
+      {!choosing && toolbar}
+      {center}
+      {!choosing && rightPanel}
+      {leftRail}
+    </div>
   );
 }

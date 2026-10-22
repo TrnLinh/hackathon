@@ -34,28 +34,28 @@ function SourceRow({
       <Link
         to="/collections/$collectionId/memories/$memoryId"
         params={{ collectionId, memoryId: memory.id }}
-        className="flex items-center gap-3 rounded-lg p-1.5 hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="flex items-center gap-2.5 rounded-lg p-1 hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
-        <MemoryThumb memory={memory} className="size-12 shrink-0 rounded-md" />
-        <span className="min-w-0 flex-1 space-y-1">
-          <span className="block truncate text-sm font-medium">
-            {memory.title}
-          </span>
-          <span className="flex flex-wrap items-center gap-1.5">
-            <MemoryStatusBadge status={memoryStatus(memory)} />
-            {manualEligible(memory) && (
-              <span
-                className={cn(
-                  "text-[11px]",
-                  usage === "unused"
-                    ? "text-muted-foreground"
-                    : "font-medium text-foreground",
-                )}
-              >
-                {usageLabel[usage]}
-              </span>
-            )}
-          </span>
+        <MemoryThumb memory={memory} className="size-9 shrink-0 rounded-md" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm">{memory.title}</span>
+          {manualEligible(memory) ? (
+            <span
+              className={cn(
+                "block text-[11px]",
+                usage === "unused"
+                  ? "text-muted-foreground"
+                  : "text-[var(--status-available)]",
+              )}
+            >
+              {usageLabel[usage]}
+            </span>
+          ) : (
+            <MemoryStatusBadge
+              status={memoryStatus(memory)}
+              className="mt-0.5 h-5 px-2 text-[11px]"
+            />
+          )}
         </span>
       </Link>
     </li>
@@ -64,25 +64,21 @@ function SourceRow({
 
 function Group({
   title,
-  description,
   memories,
   plan,
   collectionId,
 }: {
   title: string;
-  description: string;
   memories: Memory[];
   plan?: DesignPlan;
   collectionId: string;
 }) {
+  if (memories.length === 0) return null;
   return (
     <section aria-label={title} className="space-y-1.5">
       <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         {title} <span className="font-normal">({memories.length})</span>
       </h3>
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        {description}
-      </p>
       {memories.length > 0 ? (
         <ul className="space-y-0.5">
           {memories.map((m) => (
@@ -116,22 +112,19 @@ export function SourcesPanel({
   return (
     <div className="space-y-5">
       <Group
-        title="AI and manual"
-        description="Everyone involved approved the editor and each disclosed AI processor."
+        title="Ready · AI ok"
         memories={ai}
         plan={plan}
         collectionId={collectionId}
       />
       <Group
-        title="Manual only"
-        description="You can place these by hand. They are never sent to AI or used to infer style."
+        title="Ready · no AI"
         memories={manual}
         plan={plan}
         collectionId={collectionId}
       />
       <Group
         title="Not available"
-        description="Pending, declined, withdrawn, or private. They cannot appear on a page or influence the design."
         memories={unavailable}
         plan={plan}
         collectionId={collectionId}
@@ -225,13 +218,8 @@ export function BudgetPanel({ budget }: { budget: Budget }) {
           {budget.over.join(", ")} exceed the job limits.
           {budget.overVideoStills.length > 0 &&
             ` Select at most ${LIMITS.framesPerVideo} stills in ${budget.overVideoStills.join(", ")}.`}{" "}
-          Chorus never trims a quote or drops a memory silently.
         </p>
       )}
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Images are resized to 1280 px on the long edge, and videos send only
-        selected stills, never the full clip.
-      </p>
     </section>
   );
 }
